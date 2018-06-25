@@ -38,6 +38,9 @@ buildScan: filters = WrappedArray() <-- FIXME Use it
 
 Execute `sbt clean package` to build the executable.
 
+## Disclaimer
+
+This is not an officially supported Google product
 
 ## References
 

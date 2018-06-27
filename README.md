@@ -1,7 +1,7 @@
 # Spark Connector for Cloud Spanner
 
 The Apache Spark - Cloud Spanner Connector is a library to support Spark accessing
-[Cloud Spanner]((https://cloud.google.com/spanner/) as an external data source or sink.
+[Cloud Spanner](https://cloud.google.com/spanner/) as an external data source or sink.
 The project uses [sbt](https://www.scala-sbt.org/) to manage build artifacts.
 
 # Status

@@ -9,9 +9,9 @@ This library is currently work-in-progress and is likely to get backwards-incomp
 
 ## Running Project
 
-Use `sbt Test / runMain cloud.spark.SparkApp` to run a sample Spark application that uses the connector.
+Use `sbt` and execute `Test / runMain cloud.spark.SparkApp` to run a Spark application that uses the connector.
 
-[Setup](https://cloud.google.com/docs/authentication/getting-started) authentication using a service account
+**NOTE**: You may want to [setup authentication](https://cloud.google.com/docs/authentication/getting-started) using a service account
 and export `GOOGLE_APPLICATION_CREDENTIALS` environment variable with the service account credentials in JSON format.
 
 ```

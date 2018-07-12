@@ -43,6 +43,23 @@ object SparkApp extends App {
 
     accounts.printSchema
     accounts.show(truncate = false)
+
+    import spark.implicits._
+    // FIXME The following are the candidates for tests
+    // FIXME Tests for all filters
+    {
+      val q = accounts.where($"name" startsWith "A")
+      q.explain()
+      val namesCount = q.count
+      println(s"""Number of names matching (startsWith "A"): $namesCount""")
+    }
+    {
+      val q = accounts.where($"name" isin ("just", "for", "testing"))
+      q.explain()
+      val namesCount = q.count
+      println(s"Number of names matching isin: $namesCount")
+    }
+
   } finally {
     spark.close()
   }

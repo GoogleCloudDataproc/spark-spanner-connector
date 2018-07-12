@@ -18,7 +18,7 @@ package spanner.spark
 
 import com.google.cloud.spanner.Spanner
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.sources.{BaseRelation, Filter, PrunedFilteredScan}
+import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{Row, SQLContext, SparkSession}
 import spanner.spark.Utils.{buildSchemaSql, executeQuery}
@@ -26,7 +26,8 @@ import spanner.spark.Utils.{buildSchemaSql, executeQuery}
 // FIXME with InsertableRelation (as non-FileFormats, e.g. Kafka and JDBC)
 case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
   extends BaseRelation
-  with PrunedFilteredScan {
+  with PrunedFilteredScan
+  with FilterConversion {
 
   override def sqlContext: SQLContext = spark.sqlContext
 
@@ -48,7 +49,11 @@ case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     println(s"buildScan: requiredColumns = ${requiredColumns.toSeq}")
-    println(s"buildScan: filters = ${filters.toSeq} <-- FIXME Use it")
-    new SpannerRDD(spark.sparkContext, requiredColumns, options)
+    println(s"buildScan: filters = ${filters.toSeq}")
+    new SpannerRDD(spark.sparkContext, requiredColumns, filters, options)
+  }
+
+  override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
+    filters.filter(f => toSql(f).isEmpty)
   }
 }

@@ -19,13 +19,16 @@ package spanner.spark
 import com.google.cloud.spanner.{ResultSet, Spanner}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.sources._
 import org.apache.spark.{InterruptibleIterator, Partition, SparkContext, TaskContext}
 
 class SpannerRDD(
     sc: SparkContext,
     columns: Array[String],
+    filters: Array[Filter],
     options: SpannerOptions)
-  extends RDD[Row](sc, Nil) { // FIXME Use InternalRow (not Row)
+  extends RDD[Row](sc, Nil) // FIXME Use InternalRow (not Row)
+  with FilterConversion {
   // FIXME Number of partitions to leverage Spanner distribution
   // Number of partitions is the number of calls to compute (one per partition)
   // Can reads be distributed in Cloud Spanner?
@@ -54,8 +57,15 @@ class SpannerRDD(
 
     context.addTaskCompletionListener { _ => close() }
 
-    val cols = columns.mkString(",")
-    val sql = s"SELECT $cols FROM ${options.table}"
+    val cols = if (columns.isEmpty) {
+      "*"
+    } else {
+      columns.mkString(",")
+    }
+    val whereClause = filters2WhereClause(filters)
+    val sql = s"SELECT $cols FROM ${options.table} $whereClause"
+
+    println(s"[SpannerRDD.compute] sql: $sql")
 
     import com.google.cloud.spanner.SpannerOptions
     val opts = SpannerOptions.newBuilder().build()
@@ -69,7 +79,9 @@ class SpannerRDD(
 
       override def next(): Row = {
         val values = columns.foldLeft(Seq.empty[Any]) { case (vs, colName) =>
-          val value = rs.getString(colName) // FIXME Use the correct type (not String exclusively)
+          // FIXME Use the correct type (not String exclusively)
+          // FIXME https://github.com/GoogleCloudPlatform/spanner-spark-connector/issues/2
+          val value = rs.getString(colName)
           value +: vs
         }.reverse
         Row.fromSeq(values)

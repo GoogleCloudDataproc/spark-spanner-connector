@@ -42,6 +42,15 @@ object SparkApp extends App {
       .load(table)
 
     accounts.printSchema
+
+    // FIXME Another candidate for type-related test
+    println("Dump schema types (Spanner types in round brackets):")
+    accounts.schema.fields
+      .map(f => (f.name, f.dataType.typeName, f.getComment.get))
+      .foreach { case (name, sparkType, spannerType) =>
+        println(s" |-- $name: $sparkType (spanner: $spannerType)")
+      }
+    println("")
     accounts.show(truncate = false)
 
     import spark.implicits._

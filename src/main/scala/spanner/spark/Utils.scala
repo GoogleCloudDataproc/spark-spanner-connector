@@ -27,7 +27,7 @@ object Utils {
        |SELECT
        |  t.column_name AS columnName,
        |  t.spanner_type AS spannerType,
-       |  t.is_nullable AS isNullable
+       |  t.is_nullable = "YES" AS isNullable
        |FROM
        |  information_schema.columns AS t
        |WHERE
@@ -67,24 +67,43 @@ object Utils {
   }
 
   // FIXME Extension method on ResultSet?
+  /**
+    * @see <a href="https://cloud.google.com/spanner/docs/data-types">Data Types</a>
+    * @return Spark-compatible schema
+    */
   def toSparkSchema(rs: ResultSet): StructType = {
-    // FIXME Get rid of this var
     var schema = new StructType()
     try {
       while (rs.next()) {
         val name = rs.getString("columnName")
-        // FIXME Conversion between Spark's and Spanner's type systems
-        val spannerType = rs.getString("spannerType") match {
-          // FIXME Regex STRING(\d*)
-          case dt if dt.startsWith("STRING") => "string"
-          case dt => dt
-        }
-        val nullable = rs.getString("isNullable").equalsIgnoreCase("YES")
-        schema = schema.add(name, spannerType, nullable)
+        val spannerType = rs.getString("spannerType")
+        val sparkType = toCatalystType(spannerType)
+        val nullable: Boolean = rs.getBoolean("isNullable")
+        schema = schema.add(name, sparkType, nullable, comment = spannerType)
       }
     } finally {
       rs.close()
     }
     schema
+  }
+
+  import org.apache.spark.sql.types._
+  def toCatalystType(spannerType: String): DataType = {
+    val STRING = """STRING\(\s*(\S+)\s*\)""".r
+    val BYTES = """BYTES\(\s*(\S+)\s*\)""".r
+    val ARRAY = """ARRAY<(\S+)>""".r
+    spannerType match {
+      // scalar types
+      case STRING(_) => StringType
+      case "BOOL" => BooleanType
+      case "INT64" => LongType
+      case "FLOAT64" => DoubleType
+      case BYTES(_) => ByteType
+      case "DATE" => DateType
+      case "TIMESTAMP" => TimestampType
+      // array type
+      // array of arrays is not allowed
+      case ARRAY(t) if !(t startsWith "ARRAY") => ArrayType(toCatalystType(t))
+    }
   }
 }

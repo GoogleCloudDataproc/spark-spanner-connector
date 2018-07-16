@@ -16,7 +16,10 @@
 
 package spanner.spark
 
-import com.google.cloud.spanner.{ResultSet, Spanner}
+import java.sql.Date
+import java.time.LocalDate
+
+import com.google.cloud.spanner.{ResultSet, Spanner, Type}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.sources._
@@ -79,12 +82,44 @@ class SpannerRDD(
 
       override def next(): Row = {
         val values = columns.foldLeft(Seq.empty[Any]) { case (vs, colName) =>
-          // FIXME Use the correct type (not String exclusively)
-          // FIXME https://github.com/GoogleCloudPlatform/spanner-spark-connector/issues/2
-          val value = rs.getString(colName)
+          // FIXME Opposite of Utils.toSparkSchema
+          import com.google.cloud.spanner.Type.Code._
+          val value = rs.getColumnType(colName).getCode match {
+            case BOOL => valueOrNull(colName, rs.getBoolean(colName))
+            case INT64 => valueOrNull(colName, rs.getLong(colName))
+            case FLOAT64 => valueOrNull(colName, rs.getDouble(colName))
+            case BYTES => valueOrNull(colName, rs.getBytes(colName))
+            case DATE => valueOrNull(colName, {
+              val d = rs.getDate(colName)
+              Date.valueOf(LocalDate.of(d.getYear, d.getMonth, d.getDayOfMonth))
+            })
+            case STRING => valueOrNull(colName, rs.getString(colName))
+            case TIMESTAMP => valueOrNull(colName, rs.getTimestamp(colName).toSqlTimestamp)
+            case ARRAY =>
+              import com.google.cloud.spanner.Type._
+              val tpe = rs.getColumnType(colName)
+              tpe match {
+                case t if t == array(bool()) => valueOrNull(colName, rs.getBooleanList(colName))
+                case t if t == array(int64()) => valueOrNull(colName, rs.getLongList(colName))
+                case t if t == array(float64()) => valueOrNull(colName, rs.getDoubleList(colName))
+                case t if t == array(string()) => valueOrNull(colName, rs.getStringList(colName))
+                case t if t == array(bytes()) => valueOrNull(colName, rs.getBooleanList(colName))
+                case t if t == array(timestamp()) => valueOrNull(colName, rs.getTimestampList(colName))
+                case t if t == array(date()) => valueOrNull(colName, rs.getDateList(colName))
+              }
+            case STRUCT => throw new IllegalArgumentException(
+              """
+                |STRUCT is not a valid column type
+                |See https://cloud.google.com/spanner/docs/data-types#struct-type
+              """.stripMargin)
+          }
           value +: vs
         }.reverse
         Row.fromSeq(values)
+      }
+
+      private def valueOrNull(colName: String, value: => Any): Any = {
+        if (rs.isNull(colName)) null else value
       }
     }
 

@@ -118,6 +118,35 @@ The Cloud Spanner connector records the Spanner type of a column as a comment of
 
 **TIP:** Read the official documentation about <a href="https://cloud.google.com/spanner/docs/data-types">Data Types</a>.
 
+## Human-Readable Representation (web UI and Dataset.explain)
+
+Cloud Spanner Connector for Apache Spark™ displays itself in the following format:
+
+```
+Spanner(ID: [instanceId], [databaseId], [table])
+```
+
+You can use web UI or `Dataset.explain` to review query plans and Spanner-specific relations.
+
+```
+val opts = Map(
+  "instanceId" -> "dev-instance",
+  "databaseId" -> "demo"
+)
+val table = "Account"
+
+val accounts = spark
+  .read
+  .format("spanner")
+  .options(opts)
+  .load(table)
+
+scala> accounts.explain
+== Physical Plan ==
+*(1) Scan Spanner(ID: dev-instance, demo, Account)...
+
+```
+
 ## References
 
 * [google-cloud](https://googlecloudplatform.github.io/google-cloud-java/google-cloud-clients/index.html)

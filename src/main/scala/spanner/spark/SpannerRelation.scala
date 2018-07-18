@@ -56,4 +56,8 @@ case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
   override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
     filters.filter(f => toSql(f).isEmpty)
   }
+
+  override def toString: String = {
+    s"Spanner(ID: ${options.instanceId}, ${options.databaseId}, ${options.table})"
+  }
 }

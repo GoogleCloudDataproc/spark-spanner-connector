@@ -144,7 +144,16 @@ val accounts = spark
 scala> accounts.explain
 == Physical Plan ==
 *(1) Scan Spanner(ID: dev-instance, demo, Account)...
+```
 
+## Configuring Logging
+
+Cloud Spanner Connector for Apache Spark™ uses `org.apache.spark.internal.Logging` internally for logging. It works as described in the official documentation of Apache Spark™ in [Configuring Logging](http://spark.apache.org/docs/latest/configuration.html#configuring-logging).
+
+Simply, add the following to `log4j.properties` to enable `DEBUG` logging level for the connector.
+
+```
+log4j.logger.spanner.spark=DEBUG
 ```
 
 ## References

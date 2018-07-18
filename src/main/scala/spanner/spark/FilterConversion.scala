@@ -15,11 +15,12 @@
  */
 package spanner.spark
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.datasources.jdbc.JDBCRDD
 import org.apache.spark.sql.jdbc.JdbcDialect
 import org.apache.spark.sql.sources._
 
-trait FilterConversion {
+trait FilterConversion extends Logging {
 
   object SpannerDialect extends JdbcDialect {
     override def canHandle(url : String): Boolean = false
@@ -30,7 +31,7 @@ trait FilterConversion {
   }
 
   def filters2WhereClause(filters: Array[Filter]): String = {
-    println(s"filters2WhereClause: ${filters.toSeq}")
+    logDebug(s"filters2WhereClause: ${filters.mkString(", ")}")
     val part = filters.flatMap(toSql).mkString(" AND ")
     if (part.isEmpty) "" else s"WHERE $part"
   }

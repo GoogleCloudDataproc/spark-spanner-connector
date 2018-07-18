@@ -19,6 +19,7 @@ import java.sql.Date
 import java.time.LocalDate
 
 import com.google.cloud.spanner.{ResultSet, Spanner, Type}
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.sources._
@@ -30,7 +31,9 @@ class SpannerRDD(
     filters: Array[Filter],
     options: SpannerOptions)
   extends RDD[Row](sc, Nil) // FIXME Use InternalRow (not Row)
-  with FilterConversion {
+  with FilterConversion
+  with Logging {
+
   // FIXME Number of partitions to leverage Spanner distribution
   // Number of partitions is the number of calls to compute (one per partition)
   // Can reads be distributed in Cloud Spanner?
@@ -43,6 +46,7 @@ class SpannerRDD(
     var spanner: Spanner = null
 
     def close(): Unit = {
+      logDebug(s"Closing(closed flag: $closed)")
       if (closed) return
       try {
         if (null != rs) {
@@ -66,8 +70,7 @@ class SpannerRDD(
     }
     val whereClause = filters2WhereClause(filters)
     val sql = s"SELECT $cols FROM ${options.table} $whereClause"
-
-    println(s"[SpannerRDD.compute] sql: $sql")
+    logDebug(s"compute: sql: $sql")
 
     import com.google.cloud.spanner.SpannerOptions
     val opts = SpannerOptions.newBuilder().build()

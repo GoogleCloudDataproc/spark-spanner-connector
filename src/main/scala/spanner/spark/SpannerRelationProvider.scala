@@ -15,18 +15,23 @@
  */
 package spanner.spark
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.sources.{BaseRelation, DataSourceRegister, RelationProvider}
 
 // FIXME with CreatableRelationProvider (as non-FileFormats, e.g. Kafka and JDBC)
-class SpannerRelationProvider extends DataSourceRegister
-  with RelationProvider {
+class SpannerRelationProvider
+  extends DataSourceRegister
+  with RelationProvider
+  with Logging {
 
   override def shortName(): String = "spanner"
 
   override def createRelation(
-    sqlContext: SQLContext, params: Map[String, String]): BaseRelation = {
-    val options = new SpannerOptions(params)
+    sqlContext: SQLContext,
+    params: Map[String, String]): BaseRelation = {
+    val options = SpannerOptions(params)
+    logDebug(s"Creating SpannerRelation with options: $options")
     SpannerRelation(sqlContext.sparkSession, options)
   }
 }

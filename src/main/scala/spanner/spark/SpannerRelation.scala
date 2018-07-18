@@ -16,6 +16,7 @@
 package spanner.spark
 
 import com.google.cloud.spanner.Spanner
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
@@ -26,7 +27,8 @@ import spanner.spark.Utils.{buildSchemaSql, executeQuery}
 case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
   extends BaseRelation
   with PrunedFilteredScan
-  with FilterConversion {
+  with FilterConversion
+  with Logging {
 
   override def sqlContext: SQLContext = spark.sqlContext
 
@@ -47,13 +49,15 @@ case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
   }
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
-    println(s"buildScan: requiredColumns = ${requiredColumns.toSeq}")
-    println(s"buildScan: filters = ${filters.toSeq}")
+    logDebug(s"requiredColumns: ${requiredColumns.mkString(", ")}")
+    logDebug(s"filters: ${filters.mkString(", ")}")
     new SpannerRDD(spark.sparkContext, requiredColumns, filters, options)
   }
 
   override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
-    filters.filter(f => toSql(f).isEmpty)
+    val unhandled = filters.filter(f => toSql(f).isEmpty)
+    logDebug(s"Unhandled filters: ${unhandled.mkString(", ")}")
+    unhandled
   }
 
   override def toString: String = {

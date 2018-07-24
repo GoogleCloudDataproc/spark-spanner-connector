@@ -13,6 +13,19 @@ Consult [Issues](https://github.com/GoogleCloudPlatform/spanner-spark-connector/
 
 This is not an officially supported Google product.
 
+## Supported Operations
+
+Cloud Spanner Connector for Apache Spark™ supports the following:
+
+* [Filter Pushdown](#filter-pushdown)
+* [Type Inference](#type-inference)
+* [Human-Readable Representation (web UI and Dataset.explain)](#human-readable-representation-web-ui-and-datasetexplain)
+* [Logging using log4j](#configuring-logging)
+
+## Unsupported Operations
+
+Cloud Spanner Connector for Apache Spark™ **does not** support writing data to a Google Cloud Spanner table. Watch [Persist (save) a DataFrame](https://github.com/GoogleCloudPlatform/spanner-spark-connector/issues/5) to know when the feature is supported.
+
 ## Using Cloud Spanner Connector
 
 As there are no official releases yet, you can use the Cloud Spanner Connector only after you publish the project locally first.

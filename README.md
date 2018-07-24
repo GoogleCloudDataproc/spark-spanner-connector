@@ -62,13 +62,45 @@ val accounts = spark
 
 The final step is to "install" the connector while submitting your Spark SQL application for execution (i.e. making sure that the connector jar is on the CLASSPATH of the driver and executors).
 
-Use `spark-submit` (or `spark-shell`) with `--packages` command-line option with the fully-qualified dependency name of the connector.
+Use `spark-submit` (or `spark-shell`) with `--packages` command-line option with the fully-qualified dependency name of the connector (and the other dependencies in their correct versions, i.e. Google Guava and Google Protobuf).
 
 ```
-$ ./bin/spark-shell --packages com.google.cloud:spanner-spark-connector_2.11:0.1
+$ ./bin/spark-shell --packages com.google.cloud:spanner-spark-connector_2.11:0.1 \
+    --exclude-packages com.google.guava:guava \
+    --driver-class-path /Users/jacek/.m2/repository/com/google/guava/guava/20.0/guava-20.0.jar:/Users/jacek/.ivy2/cache/com.google.protobuf/protobuf-java/bundles/protobuf-java-3.6.0.jar
 ```
+
+**TIP** Use https://github.com/GoogleCloudPlatform/google-cloud-java/blob/master/google-cloud-clients/pom.xml to know the exact versions of the dependencies.
 
 If everything went fine, you could copy the above Spark SQL snippet and then `show` the content of the `Account` table.
+
+```
+scala> :pa
+// Entering paste mode (ctrl-D to finish)
+
+val opts = Map(
+  "instanceId" -> "dev-instance",
+  "databaseId" -> "demo"
+)
+val table = "Account"
+
+val accounts = spark
+  .read
+  .format("spanner") // <-- here
+  .options(opts)
+  .load(table)
+
+// Exiting paste mode, now interpreting.
+...
+opts: scala.collection.immutable.Map[String,String] = Map(instanceId -> dev-instance, databaseId -> demo)
+table: String = Account
+accounts: org.apache.spark.sql.DataFrame = [AccountId: string, Name: string ... 12 more fields]
+
+scala> accounts.show
+// table shown here
+```
+
+**NOTE** Don't forget to `export GOOGLE_APPLICATION_CREDENTIALS` or authenticate in another way.
 
 ## Running Project
 

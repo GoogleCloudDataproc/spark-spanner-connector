@@ -11,7 +11,64 @@ Consult [Issues](https://github.com/GoogleCloudPlatform/spanner-spark-connector/
 
 ## Disclaimer
 
-This is not an officially supported Google product
+This is not an officially supported Google product.
+
+## Using Cloud Spanner Connector
+
+As there are no official releases yet, you can use the Cloud Spanner Connector only after you publish the project locally first.
+
+The project uses [sbt](https://www.scala-sbt.org/) to manage build artifacts and to publish locally you should use `sbt publishLocal`.
+
+### Publishing Locally
+
+```
+$ sbt publishLocal
+...
+[info] Packaging ...spanner-spark-connector/target/scala-2.11/spanner-spark-connector_2.11-0.1.jar ...
+[info] Done packaging.
+[info] :: delivering :: com.google.cloud#spanner-spark-connector_2.11;0.1 :: 0.1 :: release :: Tue Jul 24 13:14:19 CEST 2018
+[info] 	delivering ivy file to ...spanner-spark-connector/target/scala-2.11/ivy-0.1.xml
+[info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/poms/spanner-spark-connector_2.11.pom
+[info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/jars/spanner-spark-connector_2.11.jar
+[info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/srcs/spanner-spark-connector_2.11-sources.jar
+[info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/docs/spanner-spark-connector_2.11-javadoc.jar
+[info] 	published ivy to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/ivys/ivy.xml
+[success] Total time: 8 s, completed Jul 24, 2018 1:14:19 PM
+```
+
+### Loading Data from Cloud Spanner
+
+The connector supports reading data from a Google Cloud Spanner table and is registered under `spanner` name as the data source format.
+
+Simply, use `spanner` in `DataFrameReader.format` method to inform Spark SQL to use the connector.
+
+In the following example, the connector loads data from the `Account` table in `demo` database in `dev-instance` Cloud Spanner instance.
+
+```
+val opts = Map(
+  "instanceId" -> "dev-instance",
+  "databaseId" -> "demo"
+)
+val table = "Account"
+
+val accounts = spark
+  .read
+  .format("spanner") // <-- here
+  .options(opts)
+  .load(table)
+```
+
+### "Installing" Connector
+
+The final step is to "install" the connector while submitting your Spark SQL application for execution (i.e. making sure that the connector jar is on the CLASSPATH of the driver and executors).
+
+Use `spark-submit` (or `spark-shell`) with `--packages` command-line option with the fully-qualified dependency name of the connector.
+
+```
+$ ./bin/spark-shell --packages com.google.cloud:spanner-spark-connector_2.11:0.1
+```
+
+If everything went fine, you could copy the above Spark SQL snippet and then `show` the content of the `Account` table.
 
 ## Running Project
 
@@ -61,12 +118,6 @@ Dump schema types (Spanner types in round brackets):
 
 ...
 ```
-
-## Building Project
-
-The project uses [sbt](https://www.scala-sbt.org/) to manage build artifacts.
-
-Execute `sbt clean package` to build the executable.
 
 ## Filter Pushdown
 
@@ -129,18 +180,6 @@ Spanner(ID: [instanceId], [databaseId], [table])
 You can use web UI or `Dataset.explain` to review query plans and Spanner-specific relations.
 
 ```
-val opts = Map(
-  "instanceId" -> "dev-instance",
-  "databaseId" -> "demo"
-)
-val table = "Account"
-
-val accounts = spark
-  .read
-  .format("spanner")
-  .options(opts)
-  .load(table)
-
 scala> accounts.explain
 == Physical Plan ==
 *(1) Scan Spanner(ID: dev-instance, demo, Account)...

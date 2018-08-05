@@ -7,7 +7,7 @@ Cloud Spanner Connector for Apache Spark™ is a library to support Apache Spark
 
 This library is currently work-in-progress and is likely to get backwards-incompatible updates.
 
-Consult [Issues](https://github.com/GoogleCloudPlatform/spanner-spark-connector/issues) to know the missing features.
+Consult [Issues](https://github.com/GoogleCloudPlatform/cloud-spanner-spark-connector/issues) to know the missing features.
 
 ## Disclaimer
 
@@ -24,15 +24,17 @@ Cloud Spanner Connector for Apache Spark™ supports the following:
 
 ## Unsupported Operations
 
-Cloud Spanner Connector for Apache Spark™ **does not** support writing data to a Google Cloud Spanner table. Watch [Persist (save) a DataFrame](https://github.com/GoogleCloudPlatform/spanner-spark-connector/issues/5) to know when the feature is supported.
+Cloud Spanner Connector for Apache Spark™ **does not** support writing data to a Google Cloud Spanner table. Watch [Persist (save) a DataFrame](https://github.com/GoogleCloudPlatform/cloud-spanner-spark-connector/issues/5) to know when the feature is supported.
 
 ## Using Cloud Spanner Connector
 
 As there are no official releases yet, you can use the Cloud Spanner Connector only after you publish the project locally first.
 
-The project uses [sbt](https://www.scala-sbt.org/) to manage build artifacts and to publish locally you should use `sbt publishLocal`.
+The project uses [sbt](https://www.scala-sbt.org/) to manage build artifacts.
 
 ### Publishing Locally
+
+In order to publish locally you should use `sbt publishLocal`.
 
 ```
 $ sbt publishLocal
@@ -51,7 +53,7 @@ $ sbt publishLocal
 
 ### Loading Data from Cloud Spanner
 
-The connector supports reading data from a Google Cloud Spanner table and is registered under `spanner` name as the data source format.
+The connector supports reading data from a Google Cloud Spanner table and is registered under `spanner` name as the external data source format.
 
 Simply, use `spanner` in `DataFrameReader.format` method to inform Spark SQL to use the connector.
 
@@ -160,7 +162,6 @@ Dump schema types (Spanner types in round brackets):
  |-- timestamp_allow_commit_timestamp: timestamp (spanner: TIMESTAMP)
  |-- timestamp: timestamp (spanner: TIMESTAMP)
  |-- array_bool: array (spanner: ARRAY<BOOL>)
-
 ...
 ```
 
@@ -186,7 +187,9 @@ Cloud Spanner Connector for Apache Spark™ supports **filter pushdown optimizat
 
 That means that the filter predicates are executed by Cloud Spanner engine itself while data is loaded by a Apache Spark application and before the data lands on Spark executors.
 
-Use `Dataset.explain` or web UI to see the physical plan of a structured query and learn what filters were pushed down. They are listed under `PushedFilters` section with the star (`*`).
+Use `Dataset.explain` or web UI to see the physical plan of a structured query and learn what filters were pushed down.
+
+All the filters handled by the connector itself (and hence Cloud Spanner database engine) are listed as `PushedFilters` prefixed with the star (`*`).
 
 ```
 == Physical Plan ==
@@ -212,7 +215,7 @@ The Spanner-specific schema is converted to a Spark SQL schema per the type conv
 
 The Cloud Spanner connector records the Spanner type of a column as a comment of a Spark SQL `StructField`. Use `Dataset.schema` to access the fields and then `StructField.getComment` to access the comment with the Spanner type.
 
-**TIP:** Read the official documentation about <a href="https://cloud.google.com/spanner/docs/data-types">Data Types</a>.
+**TIP:** Read the official documentation about [Data Types](https://cloud.google.com/spanner/docs/data-types).
 
 ## Human-Readable Representation (web UI and Dataset.explain)
 

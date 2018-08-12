@@ -15,8 +15,6 @@
  */
 package cloud
 
-import spanner.spark.Utils
-
 object SpannerApp extends App {
 
   val creds = sys.env.getOrElse("GOOGLE_APPLICATION_CREDENTIALS", {
@@ -51,7 +49,8 @@ object SpannerApp extends App {
 
   println("")
   println(s"Get the schema of the table $table...")
-  import Utils._
+  // FIXME Users don't like _root_, do they?
+  import _root_.spanner.spark._
   val schemaRS = executeQuery(buildSchemaSql(table))
   printlnResultSet(schemaRS)
 

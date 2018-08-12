@@ -17,6 +17,8 @@ This is not an officially supported Google product.
 
 Cloud Spanner Connector for Apache Spark™ supports the following:
 
+* [Loading Data from Cloud Spanner](#loading-data-from-cloud-spanner)
+* [Saving Dataset to Spanner](#saving-dataset-to-spanner)
 * [Filter Pushdown](#filter-pushdown)
 * [Type Inference](#type-inference)
 * [Human-Readable Representation (web UI and Dataset.explain)](#human-readable-representation-web-ui-and-datasetexplain)
@@ -24,7 +26,7 @@ Cloud Spanner Connector for Apache Spark™ supports the following:
 
 ## Unsupported Operations
 
-Cloud Spanner Connector for Apache Spark™ **does not** support writing data to a Google Cloud Spanner table. Watch [Persist (save) a DataFrame](https://github.com/GoogleCloudPlatform/cloud-spanner-spark-connector/issues/5) to know when the feature is supported.
+If you feel that the Cloud Spanner Connector for Apache Spark™ should support a feature, please file an issue in the [connector's repository](https://github.com/GoogleCloudPlatform/cloud-spanner-spark-connector/issues).
 
 ## Using Cloud Spanner Connector
 
@@ -49,28 +51,6 @@ $ sbt publishLocal
 [info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/docs/spanner-spark-connector_2.11-javadoc.jar
 [info] 	published ivy to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/ivys/ivy.xml
 [success] Total time: 8 s, completed Jul 24, 2018 1:14:19 PM
-```
-
-### Loading Data from Cloud Spanner
-
-The connector supports reading data from a Google Cloud Spanner table and is registered under `spanner` name as the external data source format.
-
-Simply, use `spanner` in `DataFrameReader.format` method to inform Spark SQL to use the connector.
-
-In the following example, the connector loads data from the `Account` table in `demo` database in `dev-instance` Cloud Spanner instance.
-
-```
-val opts = Map(
-  "instanceId" -> "dev-instance",
-  "databaseId" -> "demo"
-)
-val table = "Account"
-
-val accounts = spark
-  .read
-  .format("spanner") // <-- here
-  .options(opts)
-  .load(table)
 ```
 
 ### "Installing" Connector
@@ -165,6 +145,28 @@ Dump schema types (Spanner types in round brackets):
 ...
 ```
 
+## Loading Data from Cloud Spanner
+
+The connector supports loading data from a Google Cloud Spanner table and is registered under `spanner` name as the external data source format.
+
+Simply, use `spanner` in `DataFrameReader.format` method to inform Spark SQL to use the connector.
+
+In the following example, the connector loads data from the `Account` table in `demo` database in `dev-instance` Cloud Spanner instance.
+
+```
+val opts = Map(
+  "instanceId" -> "dev-instance",
+  "databaseId" -> "demo"
+)
+val table = "Account"
+
+val accounts = spark
+  .read
+  .format("spanner") // <-- here
+  .options(opts)
+  .load(table)
+```
+
 ## Filter Pushdown
 
 Cloud Spanner Connector for Apache Spark™ supports **filter pushdown optimization** for all available filter predicates in Apache Spark:
@@ -242,6 +244,46 @@ Simply, add the following to `log4j.properties` to enable `DEBUG` logging level 
 ```
 log4j.logger.spanner.spark=DEBUG
 ```
+
+## Testing Connector with Spark (and ScalaTest)
+
+Use [spanner.spark.BaseSpec](src/test/scala/spanner/spark/BaseSpec.scala) as the test base for tests. It automatically checks whether `GOOGLE_APPLICATION_CREDENTIALS` environment variable is set before executing a test specification and defines `withSparkSession` that creates and closes a `SparkSession`. 
+
+Use [spanner.spark.SpannerSpec](src/test/scala/spanner/spark/SpannerSpec.scala) as an example.
+
+## Saving Dataset to Spanner
+
+The connector supports saving data (a DataFrame) to a table in Google Cloud Spanner.
+
+Simply, use `spanner` in `DataFrameWriter.format` method to inform Spark SQL to use the connector (with other write options).
+
+| Option  | Description |
+| :---: | :---: |
+| `table` | The name of the table to write rows to |
+| `instanceId` | Spanner Instance ID |
+| `databaseId` | Spanner Database ID |
+| `writeSchema` | Custom write schema |
+| `primaryKey` | Primary key (that a Spanner table requires for `CREATE TABLE` SQL statement) |
+
+In the following example, the connector saves a DataFrame to `Verified_Accounts` table in `demo` database in `dev-instance` Cloud Spanner instance.
+
+```
+val writeOpts = Map(
+  SpannerOptions.INSTANCE_ID -> "dev-instance",
+  SpannerOptions.DATABASE_ID -> "demo",
+  SpannerOptions.TABLE -> "Verified_Accounts",
+  SpannerOptions.PRIMARY_KEY -> "id"
+)
+
+val accounts = spark
+  .write
+  .format("spanner")
+  .options(writeOpts)
+  .mode(SaveMode.Append) // <-- save mode
+  .save
+```
+
+The connector supports all save modes and a custom write schema (e.g. when different types in a Spanner table are required to match the DataFrame's).
 
 ## References
 

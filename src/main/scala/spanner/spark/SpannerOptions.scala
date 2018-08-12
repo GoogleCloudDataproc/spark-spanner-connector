@@ -22,14 +22,18 @@ case class SpannerOptions(@transient private val options: Map[String, String])
 
   // table param has a higher precedence over path param
   // It's more of a convenience as path can make for better-looking Spark SQL apps
-  lazy val table = options.get(TABLE_NAME).orElse(options.get(PATH)).get
+  lazy val table = options.get(TABLE).orElse(options.get(PATH)).get
   lazy val instanceId = options(INSTANCE_ID)
   lazy val databaseId = options(DATABASE_ID)
+  lazy val writeSchema = options.get(WRITE_SCHEMA)
+  lazy val primaryKey = options(PRIMARY_KEY)
 
 }
 object SpannerOptions {
-  val TABLE_NAME = "table"
+  val TABLE = "table"
   val PATH = "path"
   val INSTANCE_ID = "instanceId"
   val DATABASE_ID = "databaseId"
+  val WRITE_SCHEMA = "writeSchema"
+  val PRIMARY_KEY = "primaryKey"
 }

@@ -18,11 +18,8 @@ version      := "0.1"
 
 scalaVersion := "2.11.12"
 
-libraryDependencies += "com.google.cloud" % "google-cloud-spanner" % "0.55.1-beta"
+libraryDependencies += "com.google.cloud" % "google-cloud-spanner" % "0.56.0-beta"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.3.1" % Provided
 
-// Fix for NoSuchMethodError: com.google.common.base.Preconditions.checkArgument
-// com.google.cloud:google-cloud-spanner:0.55.1-beta:default uses the version
-// Use coursierDependencyTree to print the dependency tree
-// https://github.com/coursier/coursier#printing-trees
-dependencyOverrides += "com.google.guava" % "guava" % "19.0"
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.5"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "test"

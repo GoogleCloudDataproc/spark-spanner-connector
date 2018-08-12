@@ -18,17 +18,16 @@ package spanner.spark
 import com.google.cloud.spanner.Spanner
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql._
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{Row, SQLContext, SparkSession}
-import spanner.spark.Utils.{buildSchemaSql, executeQuery}
 
 // FIXME with InsertableRelation (as non-FileFormats, e.g. Kafka and JDBC)
 case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
   extends BaseRelation
-  with PrunedFilteredScan
-  with FilterConversion
-  with Logging {
+    with PrunedFilteredScan
+    with FilterConversion
+    with Logging {
 
   override def sqlContext: SQLContext = spark.sqlContext
 
@@ -36,13 +35,13 @@ case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
     import com.google.cloud.spanner.SpannerOptions
     val opts = SpannerOptions.newBuilder().build()
     implicit val spanner: Spanner = opts.getService
+    import com.google.cloud.spanner.DatabaseId
+    implicit val dbID: DatabaseId = DatabaseId.of(
+      opts.getProjectId, options.instanceId, options.databaseId)
+    val query = buildSchemaSql(options.table)
     try {
-      import com.google.cloud.spanner.DatabaseId
-      implicit val dbID: DatabaseId = DatabaseId.of(
-        opts.getProjectId, options.instanceId, options.databaseId)
-
-      val schemaRS = executeQuery(buildSchemaSql(options.table))
-      Utils.toSparkSchema(schemaRS)
+      val schemaRS = executeQuery(query)
+      toSparkSchema(schemaRS)
     } finally {
       spanner.close()
     }

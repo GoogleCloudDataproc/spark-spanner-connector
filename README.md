@@ -24,7 +24,9 @@ Cloud Spanner Connector for Apache Spark™ supports the following:
 
 ## Unsupported Operations
 
-Cloud Spanner Connector for Apache Spark™ **does not** support writing data to a Google Cloud Spanner table. Watch [Persist (save) a DataFrame](https://github.com/GoogleCloudPlatform/cloud-spanner-spark-connector/issues/5) to know when the feature is supported.
+Cloud Spanner Connector for Apache Spark™ **does not** support the following features:
+
+* [Saving DataFrame to Cloud Spanner table](https://github.com/GoogleCloudPlatform/cloud-spanner-spark-connector/issues/5)
 
 ## Using Cloud Spanner Connector
 
@@ -242,6 +244,12 @@ Simply, add the following to `log4j.properties` to enable `DEBUG` logging level 
 ```
 log4j.logger.spanner.spark=DEBUG
 ```
+
+## Testing Connector with Spark (and ScalaTest)
+
+Use [spanner.spark.BaseSpec](src/test/scala/spanner/spark/BaseSpec.scala) as the test base for tests. It automatically checks whether `GOOGLE_APPLICATION_CREDENTIALS` environment variable is set before executing a test specification and defines `withSparkSession` that creates and closes a `SparkSession`. 
+
+Use [spanner.spark.SpannerSpec](src/test/scala/spanner/spark/SpannerSpec.scala) as an example.  
 
 ## References
 

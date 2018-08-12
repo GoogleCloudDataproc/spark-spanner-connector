@@ -77,7 +77,7 @@ class SpannerRDD(
     spanner = opts.getService
     import com.google.cloud.spanner.DatabaseId
     val dbID = DatabaseId.of(opts.getProjectId, options.instanceId, options.databaseId)
-    rs = Utils.executeQuery(sql)(spanner, dbID)
+    rs = executeQuery(sql)(spanner, dbID)
 
     val rowsIterator = new Iterator[Row]() {
       override def hasNext: Boolean = rs.next()

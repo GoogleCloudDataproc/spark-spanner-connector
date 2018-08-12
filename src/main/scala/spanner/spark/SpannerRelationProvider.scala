@@ -16,22 +16,73 @@
 package spanner.spark
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.sources.{BaseRelation, DataSourceRegister, RelationProvider}
+import org.apache.spark.sql.sources._
+import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
 
-// FIXME with CreatableRelationProvider (as non-FileFormats, e.g. Kafka and JDBC)
 class SpannerRelationProvider
   extends DataSourceRegister
-  with RelationProvider
-  with Logging {
+    with RelationProvider
+    with CreatableRelationProvider
+    with Logging {
 
   override def shortName(): String = "spanner"
 
   override def createRelation(
-    sqlContext: SQLContext,
-    params: Map[String, String]): BaseRelation = {
+      sqlContext: SQLContext,
+      params: Map[String, String]): BaseRelation = {
     val options = SpannerOptions(params)
     logDebug(s"Creating SpannerRelation with options: $options")
     SpannerRelation(sqlContext.sparkSession, options)
+  }
+
+  override def createRelation(
+      sqlContext: SQLContext,
+      mode: SaveMode,
+      params: Map[String, String],
+      data: DataFrame): BaseRelation = {
+    val options = SpannerOptions(params)
+    val table = options.table
+    val instance = options.instanceId
+    val database = options.databaseId
+
+    val writeSchema = options.writeSchema.getOrElse(toSpannerDDL(data.schema))
+    val primaryKey = options.primaryKey
+
+    logDebug(
+      s"""
+         |Saving DataFrame to Spanner table
+         |  mode:     $mode
+         |  table:    $table
+         |  instance: $instance
+         |  database: $database
+         |  writeSchema: $writeSchema
+         |  primaryKey:  $primaryKey
+       """.stripMargin)
+
+    if (isTableAvailable(instance, database, table)) {
+      logDebug(s"Table $table exists")
+      import SaveMode._
+      mode match {
+        case Overwrite =>
+          withSpanner { spanner =>
+            dropTables(spanner, instance, database, table)
+          }
+        case ErrorIfExists =>
+          throw new IllegalStateException(
+            s"Table '$table' already exists and SaveMode is ErrorIfExists.")
+        case Ignore => // it's OK
+        case Append => // it's also OK
+      }
+    } else {
+      logDebug(s"Table $table does not exist and will be created")
+    }
+    createTable(instance, database, table, writeSchema, primaryKey)
+    logDebug(s"Inserting data")
+    val schema = data.schema
+    data.rdd.foreachPartition { it =>
+      savePartition(instance, database, table, schema, primaryKey, it)
+    }
+    logDebug(s"Creating SpannerRelation to represent the table: $table")
+    createRelation(sqlContext, params)
   }
 }

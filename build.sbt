@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-name         := "spanner-spark-connector"
+name         := "cloud-spanner-spark-connector"
 organization := "com.google.cloud"
 version      := "0.1"
 

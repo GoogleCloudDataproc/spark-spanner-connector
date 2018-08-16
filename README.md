@@ -41,16 +41,16 @@ In order to publish locally you should use `sbt publishLocal`.
 ```
 $ sbt publishLocal
 ...
-[info] Packaging ...spanner-spark-connector/target/scala-2.11/spanner-spark-connector_2.11-0.1.jar ...
+[info] Packaging .../cloud-spanner-spark-connector/target/scala-2.11/cloud-spanner-spark-connector_2.11-0.1-javadoc.jar ...
 [info] Done packaging.
-[info] :: delivering :: com.google.cloud#spanner-spark-connector_2.11;0.1 :: 0.1 :: release :: Tue Jul 24 13:14:19 CEST 2018
-[info] 	delivering ivy file to ...spanner-spark-connector/target/scala-2.11/ivy-0.1.xml
-[info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/poms/spanner-spark-connector_2.11.pom
-[info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/jars/spanner-spark-connector_2.11.jar
-[info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/srcs/spanner-spark-connector_2.11-sources.jar
-[info] 	published spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/docs/spanner-spark-connector_2.11-javadoc.jar
-[info] 	published ivy to [user]/.ivy2/local/com.google.cloud/spanner-spark-connector_2.11/0.1/ivys/ivy.xml
-[success] Total time: 8 s, completed Jul 24, 2018 1:14:19 PM
+[info] :: delivering :: com.google.cloud#cloud-spanner-spark-connector_2.11;0.1 :: 0.1 :: release :: Thu Aug 16 13:11:21 CEST 2018
+[info] 	delivering ivy file to .../cloud-spanner-spark-connector/target/scala-2.11/ivy-0.1.xml
+[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/poms/cloud-spanner-spark-connector_2.11.pom
+[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/jars/cloud-spanner-spark-connector_2.11.jar
+[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/srcs/cloud-spanner-spark-connector_2.11-sources.jar
+[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/docs/cloud-spanner-spark-connector_2.11-javadoc.jar
+[info] 	published ivy to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/ivys/ivy.xml
+[success] Total time: 8 s, completed Aug 16, 2018 1:11:21 PM
 ```
 
 ### "Installing" Connector
@@ -60,7 +60,7 @@ The final step is to "install" the connector while submitting your Spark SQL app
 Use `spark-submit` (or `spark-shell`) with `--packages` command-line option with the fully-qualified dependency name of the connector (and the other dependencies in their correct versions, i.e. Google Guava and Google Protobuf).
 
 ```
-$ ./bin/spark-shell --packages com.google.cloud:spanner-spark-connector_2.11:0.1 \
+$ ./bin/spark-shell --packages com.google.cloud:cloud-spanner-spark-connector_2.11:0.1 \
     --exclude-packages com.google.guava:guava \
     --driver-class-path /Users/jacek/.m2/repository/com/google/guava/guava/20.0/guava-20.0.jar:/Users/jacek/.ivy2/cache/com.google.protobuf/protobuf-java/bundles/protobuf-java-3.6.0.jar
 ```
@@ -105,7 +105,7 @@ Use `sbt` and execute `Test / runMain cloud.spark.SparkApp` to run a Spark appli
 and export `GOOGLE_APPLICATION_CREDENTIALS` environment variable with the service account credentials in JSON format.
 
 ```
-sbt:cloudspanner-spark-connector> Test / runMain cloud.spark.SparkApp
+sbt:cloud-spanner-spark-connector> Test / runMain cloud.spark.SparkApp
 ...
 [info] Running cloud.spark.SparkApp
 Running Spark 2.3.1

@@ -147,9 +147,9 @@ Dump schema types (Spanner types in round brackets):
 
 ## Loading Data from Cloud Spanner
 
-The connector supports loading data from a Google Cloud Spanner table and is registered under `spanner` name as the external data source format.
+The connector supports loading data from a Google Cloud Spanner table and is registered under `cloud-spanner` name as the external data source format.
 
-Simply, use `spanner` in `DataFrameReader.format` method to inform Spark SQL to use the connector.
+Simply, use `cloud-spanner` in `DataFrameReader.format` method to inform Spark SQL to use the connector.
 
 In the following example, the connector loads data from the `Account` table in `demo` database in `dev-instance` Cloud Spanner instance.
 
@@ -255,7 +255,7 @@ Use [spanner.spark.SpannerSpec](src/test/scala/spanner/spark/SpannerSpec.scala) 
 
 The connector supports saving data (a DataFrame) to a table in Google Cloud Spanner.
 
-Simply, use `spanner` in `DataFrameWriter.format` method to inform Spark SQL to use the connector (with other write options).
+Simply, use `cloud-spanner` in `DataFrameWriter.format` method to inform Spark SQL to use the connector (with other write options).
 
 | Option  | Description |
 | :---: | :---: |

@@ -15,6 +15,8 @@
  */
 package cloud
 
+import com.google.cloud.spanner.ResultSet
+
 object SpannerApp extends App {
 
   val creds = sys.env.getOrElse("GOOGLE_APPLICATION_CREDENTIALS", {
@@ -70,4 +72,17 @@ object SpannerApp extends App {
   // From javadoc of com.google.cloud.Service.Spanner:
   // "must be closed when it is no longer needed."
   spanner.close()
+
+  def printlnResultSet(rs: ResultSet): Unit = {
+    try {
+      while (rs.next()) {
+        (0 until rs.getColumnCount).foreach { idx =>
+          val value = rs.getString(idx)
+          println(s"$idx. $value")
+        }
+      }
+    } finally {
+      rs.close()
+    }
+  }
 }

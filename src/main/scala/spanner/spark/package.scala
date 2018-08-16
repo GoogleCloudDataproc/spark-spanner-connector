@@ -16,8 +16,6 @@
 package spanner
 
 import java.sql.{Date, Timestamp}
-import java.time.{LocalDate, LocalTime}
-import java.util.Calendar
 
 import com.google.cloud
 import com.google.cloud.spanner._
@@ -146,19 +144,6 @@ package object spark extends Logging {
     import scala.collection.JavaConverters._
     val op = dbClient.updateDatabaseDdl(instance, database, drops.asJava, null)
     op.waitFor()
-  }
-
-  def printlnResultSet(rs: ResultSet): Unit = {
-    try {
-      while (rs.next()) {
-        (0 until rs.getColumnCount).foreach { idx =>
-          val value = rs.getString(idx)
-          println(s"$idx. $value")
-        }
-      }
-    } finally {
-      rs.close()
-    }
   }
 
   // FIXME Extension method on ResultSet?

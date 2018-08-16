@@ -16,7 +16,7 @@ class SpannerSpec extends BaseSpec {
       )
       val q = spark.range(1)
       q.write
-        .format("spanner")
+        .format("cloud-spanner")
         .options(writeOpts)
         .save
     }
@@ -37,7 +37,7 @@ class SpannerSpec extends BaseSpec {
       import spark.implicits._
       val q = Seq[(Long, String)]((1, "one"), (2, "two")).toDF("A", "B")
       q.write
-        .format("spanner")
+        .format("cloud-spanner")
         .options(writeOpts)
         .save
     }
@@ -65,7 +65,7 @@ class SpannerSpec extends BaseSpec {
 
       val thrown = the [IllegalStateException] thrownBy {
         q.write
-          .format("spanner")
+          .format("cloud-spanner")
           .options(writeOpts)
           .mode(SaveMode.ErrorIfExists)
           .save
@@ -99,12 +99,12 @@ class SpannerSpec extends BaseSpec {
         isTableAvailable(instance, database, table) should be(true)
 
         q.write
-          .format("spanner")
+          .format("cloud-spanner")
           .options(writeOpts)
           .mode(SaveMode.Overwrite)
           .save
 
-        val rowsSavedCount = spark.read.format("spanner").options(writeOpts).load.count
+        val rowsSavedCount = spark.read.format("cloud-spanner").options(writeOpts).load.count
         rowsSavedCount should be (rowsToSaveCount)
       } finally {
         withSpanner { spanner =>
@@ -134,7 +134,7 @@ class SpannerSpec extends BaseSpec {
         rowsToSaveCount = rowsToSaveCount + q1.count
         // Step 1. That creates the table with 2 rows
         q1.write
-          .format("spanner")
+          .format("cloud-spanner")
           .options(writeOpts)
           .mode(SaveMode.ErrorIfExists)
           .save
@@ -143,13 +143,13 @@ class SpannerSpec extends BaseSpec {
         rowsToSaveCount = rowsToSaveCount + evens.count
         // Step 2. Append the even numbers
         evens.write
-          .format("spanner")
+          .format("cloud-spanner")
           .options(writeOpts)
           .mode(SaveMode.Append)
           .save
 
         // Step 3. Make sure all the rows were saved correctly
-        val rowsSavedCount = spark.read.format("spanner").options(writeOpts).load.count
+        val rowsSavedCount = spark.read.format("cloud-spanner").options(writeOpts).load.count
         rowsSavedCount should be (rowsToSaveCount)
       } finally {
         withSpanner { spanner =>

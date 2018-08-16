@@ -36,7 +36,7 @@ object SparkApp extends App {
   try {
     val accounts = spark
       .read
-      .format("spanner")
+      .format("cloud-spanner")
       .options(opts)
       .load(table)
 

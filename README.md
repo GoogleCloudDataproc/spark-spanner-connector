@@ -81,7 +81,7 @@ val table = "Account"
 
 val accounts = spark
   .read
-  .format("spanner") // <-- here
+  .format("cloud-spanner") // <-- here
   .options(opts)
   .load(table)
 
@@ -162,7 +162,7 @@ val table = "Account"
 
 val accounts = spark
   .read
-  .format("spanner") // <-- here
+  .format("cloud-spanner") // <-- here
   .options(opts)
   .load(table)
 ```
@@ -277,7 +277,7 @@ val writeOpts = Map(
 
 val accounts = spark
   .write
-  .format("spanner")
+  .format("cloud-spanner")
   .options(writeOpts)
   .mode(SaveMode.Append) // <-- save mode
   .save

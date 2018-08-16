@@ -25,7 +25,7 @@ class SpannerRelationProvider
     with CreatableRelationProvider
     with Logging {
 
-  override def shortName(): String = "spanner"
+  override def shortName(): String = "cloud-spanner"
 
   override def createRelation(
       sqlContext: SQLContext,

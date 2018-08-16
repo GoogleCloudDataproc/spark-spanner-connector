@@ -53,6 +53,8 @@ $ sbt publishLocal
 [success] Total time: 8 s, completed Aug 16, 2018 1:11:21 PM
 ```
 
+**TIP** Remove `~/.ivy2/local/com.google.cloud/` and `~/.ivy2/cache/com.google.cloud/` directories to allow for rebuilding the connector and make sure that you use the latest version (not a cached one!)
+
 ### "Installing" Connector
 
 The final step is to "install" the connector while submitting your Spark SQL application for execution (i.e. making sure that the connector jar is on the CLASSPATH of the driver and executors).

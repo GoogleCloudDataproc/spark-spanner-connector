@@ -18,7 +18,7 @@ version      := "0.1"
 
 scalaVersion := "2.11.12"
 
-libraryDependencies += "com.google.cloud" % "google-cloud-spanner" % "0.56.0-beta"
+libraryDependencies += "com.google.cloud" % "google-cloud-spanner" % "0.58.0-beta"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.3.1" % Provided
 
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.5"

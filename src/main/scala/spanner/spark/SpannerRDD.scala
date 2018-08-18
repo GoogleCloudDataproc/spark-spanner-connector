@@ -18,7 +18,8 @@ package spanner.spark
 import java.sql.Date
 import java.time.LocalDate
 
-import com.google.cloud.spanner.{ResultSet, Spanner, Type}
+import com.google.cloud.Timestamp
+import com.google.cloud.spanner.{BatchReadOnlyTransaction, BatchTransactionId, PartitionOptions, ResultSet, Spanner, Statement, TimestampBound, Partition => SPartition}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
@@ -34,16 +35,38 @@ class SpannerRDD(
   with FilterConversion
   with Logging {
 
-  // FIXME Number of partitions to leverage Spanner distribution
-  // Number of partitions is the number of calls to compute (one per partition)
-  // Can reads be distributed in Cloud Spanner?
-  override protected def getPartitions: Array[Partition] = Array(SpannerPartition(0))
+  override protected def getPartitions: Array[Partition] = {
+    import com.google.cloud.spanner.SpannerOptions
+    val opts = SpannerOptions.newBuilder().build()
+    val spanner = opts.getService
+    import com.google.cloud.spanner.DatabaseId
+    val db = DatabaseId.of(opts.getProjectId, options.instanceId, options.databaseId)
+
+    val bound = TimestampBound.ofReadTimestamp(Timestamp.now)
+    val tx = spanner.getBatchClient(db).batchReadOnlyTransaction(bound)
+
+    val partOpts = PartitionOptions
+      .newBuilder()
+      .setMaxPartitions(options.maxPartitions)
+      .setPartitionSizeBytes(options.partitionSizeBytes)
+      .build()
+
+    val statement = create()
+
+    import collection.JavaConverters._
+    tx.partitionQuery(partOpts, statement)
+      .asScala
+      .toArray
+      .zipWithIndex
+      .map { case (p, idx) => SpannerPartition(idx, p, tx.getBatchTransactionId) }
+  }
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
 
     var closed = false
     var rs: ResultSet = null
     var spanner: Spanner = null
+    var tx: BatchReadOnlyTransaction = null
 
     def close(): Unit = {
       logDebug(s"Closing(closed flag: $closed)")
@@ -55,6 +78,9 @@ class SpannerRDD(
       } catch {
         case e: Exception => logWarning("Exception closing Spanner ResultSet", e)
       }
+      if (tx != null) {
+        tx.close()
+      }
       if (spanner != null) {
         spanner.close()
       }
@@ -63,21 +89,19 @@ class SpannerRDD(
 
     context.addTaskCompletionListener { _ => close() }
 
-    val cols = if (columns.isEmpty) {
-      "*"
-    } else {
-      columns.mkString(",")
-    }
-    val whereClause = filters2WhereClause(filters)
-    val sql = s"SELECT $cols FROM ${options.table} $whereClause"
+    val part = split.asInstanceOf[SpannerPartition]
+
+    val sql = create()
     logDebug(s"compute: sql: $sql")
 
     import com.google.cloud.spanner.SpannerOptions
     val opts = SpannerOptions.newBuilder().build()
     spanner = opts.getService
     import com.google.cloud.spanner.DatabaseId
-    val dbID = DatabaseId.of(opts.getProjectId, options.instanceId, options.databaseId)
-    rs = executeQuery(sql)(spanner, dbID)
+    val db = DatabaseId.of(opts.getProjectId, options.instanceId, options.databaseId)
+
+    tx = spanner.getBatchClient(db).batchReadOnlyTransaction(part.batchTransactionId)
+    rs = tx.execute(part.spannerPartition)
 
     val rowsIterator = new Iterator[Row]() {
       override def hasNext: Boolean = rs.next()
@@ -127,6 +151,19 @@ class SpannerRDD(
 
     new InterruptibleIterator(context, rowsIterator)
   }
+
+  def create(): Statement = {
+    val cols = if (columns.isEmpty) {
+      "*"
+    } else {
+      columns.mkString(",")
+    }
+    val whereClause = filters2WhereClause(filters)
+    Statement.of(s"SELECT $cols FROM ${options.table} $whereClause")
+  }
 }
 
-case class SpannerPartition(override val index: Int) extends Partition
+case class SpannerPartition(
+  override val index: Int,
+  spannerPartition: SPartition,
+  batchTransactionId: BatchTransactionId) extends Partition

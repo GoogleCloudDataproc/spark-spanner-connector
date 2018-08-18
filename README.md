@@ -153,20 +153,29 @@ The connector supports loading data from a Google Cloud Spanner table and is reg
 
 Simply, use `cloud-spanner` in `DataFrameReader.format` method to inform Spark SQL to use the connector.
 
+| Option  | Description |
+| :---: | :---: |
+| `table` | The name of the table to write rows to |
+| `instanceId` | Spanner Instance ID |
+| `databaseId` | Spanner Database ID |
+| `maxPartitions` | Number of partitions. Default: `1` |
+| `partitionSizeBytes` | Data size of the partitions. Default: `1` |
+
 In the following example, the connector loads data from the `Account` table in `demo` database in `dev-instance` Cloud Spanner instance.
 
 ```
 val opts = Map(
   "instanceId" -> "dev-instance",
-  "databaseId" -> "demo"
+  "databaseId" -> "demo",
+  "table" -> "Account"
 )
-val table = "Account"
 
 val accounts = spark
   .read
   .format("cloud-spanner") // <-- here
   .options(opts)
-  .load(table)
+  .option("maxPartitions", 5)
+  .load
 ```
 
 ## Filter Pushdown

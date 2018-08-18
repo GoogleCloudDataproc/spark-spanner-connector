@@ -31,7 +31,11 @@ class SpannerRelationProvider
       sqlContext: SQLContext,
       params: Map[String, String]): BaseRelation = {
     val options = SpannerOptions(params)
-    logDebug(s"Creating SpannerRelation with options: $options")
+    logDebug(
+      s"""
+         |Creating SpannerRelation with options:
+         |${options.toTabularString}
+       """.stripMargin)
     SpannerRelation(sqlContext.sparkSession, options)
   }
 

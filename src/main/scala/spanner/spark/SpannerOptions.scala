@@ -27,8 +27,14 @@ case class SpannerOptions(@transient private val options: Map[String, String])
   lazy val databaseId = options(DATABASE_ID)
   lazy val writeSchema = options.get(WRITE_SCHEMA)
   lazy val primaryKey = options(PRIMARY_KEY)
+  lazy val maxPartitions = options.get(MAX_PARTITIONS).map(_.toLong).getOrElse(1L)
+  lazy val partitionSizeBytes = options.get(PARTITION_SIZE_BYTES).map(_.toLong).getOrElse(1L)
 
+  def toTabularString: String = {
+    options.map { case (k,v) => s"  $k = $v" }.mkString("\n")
+  }
 }
+
 object SpannerOptions {
   val TABLE = "table"
   val PATH = "path"
@@ -36,4 +42,6 @@ object SpannerOptions {
   val DATABASE_ID = "databaseId"
   val WRITE_SCHEMA = "writeSchema"
   val PRIMARY_KEY = "primaryKey"
+  val MAX_PARTITIONS = "maxPartitions"
+  val PARTITION_SIZE_BYTES = "partitionSizeBytes"
 }

@@ -4,21 +4,94 @@ import org.apache.spark.sql.SaveMode
 
 class SpannerSpec extends BaseSpec {
 
-  "Cloud Spanner Connector" should "save DataFrame to Cloud Spanner table (default save mode)" in
+  "Cloud Spanner Connector" should "load data from a Spanner table" in
     withSparkSession { spark =>
 
+      val instance = "dev-instance"
+      val database = "demo"
       val primaryKey = "id"
+      val table = s"scalatest_${System.currentTimeMillis()}"
+      try {
+        val schema = "id INT64, name STRING(MAX)"
+        createTable(instance, database, table, schema, primaryKey)
+
+        val opts = Map(
+          SpannerOptions.INSTANCE_ID -> instance,
+          SpannerOptions.DATABASE_ID -> database,
+          SpannerOptions.TABLE -> table,
+          SpannerOptions.PRIMARY_KEY -> primaryKey
+        )
+        val q = spark
+          .read
+          .format("cloud-spanner")
+          .options(opts)
+          .load
+        q.rdd.getNumPartitions should be >= 1
+      } finally {
+        withSpanner { spanner =>
+          dropTables(spanner, instance, database, table)
+        }
+      }
+    }
+
+  it should "load data from a Spanner table with 5 RDD partitions" in
+    withSparkSession { spark =>
+
+      val instance = "dev-instance"
+      val database = "demo"
+      val primaryKey = "id"
+      val table = s"scalatest_${System.currentTimeMillis()}"
+      val maxPartitions = 5
+      try {
+        val schema = "id INT64, name STRING(MAX)"
+        createTable(instance, database, table, schema, primaryKey)
+
+        val opts = Map(
+          SpannerOptions.INSTANCE_ID -> instance,
+          SpannerOptions.DATABASE_ID -> database,
+          SpannerOptions.TABLE -> table,
+          SpannerOptions.PRIMARY_KEY -> primaryKey,
+          SpannerOptions.MAX_PARTITIONS -> maxPartitions.toString
+        )
+        val q = spark
+          .read
+          .format("cloud-spanner")
+          .options(opts)
+          .load
+        q.rdd.getNumPartitions should be (maxPartitions)
+      } finally {
+        withSpanner { spanner =>
+          dropTables(spanner, instance, database, table)
+        }
+      }
+    }
+
+  it should "save DataFrame to Cloud Spanner table (default save mode)" in
+    withSparkSession { spark =>
+
+      val instance = "dev-instance"
+      val database = "demo"
+      val primaryKey = "id"
+      val table = s"scalatest_${System.currentTimeMillis()}"
+
       val writeOpts = Map(
-        SpannerOptions.INSTANCE_ID -> "dev-instance",
-        SpannerOptions.DATABASE_ID -> "demo",
-        SpannerOptions.TABLE -> s"scalatest_${System.currentTimeMillis()}",
+        SpannerOptions.INSTANCE_ID -> instance,
+        SpannerOptions.DATABASE_ID -> database,
+        SpannerOptions.TABLE -> table,
         SpannerOptions.PRIMARY_KEY -> primaryKey
       )
-      val q = spark.range(1)
-      q.write
-        .format("cloud-spanner")
-        .options(writeOpts)
-        .save
+      try {
+        spark
+          .range(1)
+          .write
+          .format("cloud-spanner")
+          .options(writeOpts)
+          .save
+      } finally {
+        withSpanner { spanner =>
+          dropTables(spanner, instance, database, table)
+        }
+      }
     }
 
   it should "save DataFrame with custom schema" in

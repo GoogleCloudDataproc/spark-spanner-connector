@@ -230,4 +230,14 @@ class SpannerSpec extends BaseSpec {
         }
       }
     }
+
+  it should "throw an IllegalArgumentException for Array of Arrays" in {
+    withSparkSession { spark =>
+      import spark.implicits._
+      val q = Seq(Tuple1(Array(Array(1)))).toDF("arrays")
+      val catalystType = q.schema.head.dataType
+      val thrown = the [IllegalArgumentException] thrownBy toSpannerType(catalystType)
+      thrown.getMessage should include ("ARRAY<ARRAY<INT>> is not supported in Cloud Spanner.")
+    }
+  }
 }

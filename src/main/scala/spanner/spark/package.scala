@@ -219,6 +219,14 @@ package object spark extends Logging {
       case TimestampType => "TIMESTAMP"
       case ArrayType(elementType, _) if !elementType.isInstanceOf[ArrayType] =>
         s"ARRAY<${toSpannerType(elementType)}>"
+      case a @ ArrayType(elementType, _) if elementType.isInstanceOf[ArrayType] =>
+        throw new IllegalArgumentException(
+          s"""
+             |${a.sql} is not supported in Cloud Spanner.
+             |Please consult https://cloud.google.com/spanner/docs/data-definition-language#arrays
+             |regarding the syntax for using the ARRAY type in DDL.
+             |You could use explode standard function to flatten the array.
+           """.stripMargin)
       case t =>
         // MapType
         // StructType

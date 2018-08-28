@@ -14,7 +14,7 @@
 
 name         := "cloud-spanner-spark-connector"
 organization := "com.google.cloud"
-version      := "0.1"
+version      := "0.1.0-alpha-SNAPSHOT"
 
 scalaVersion := "2.11.12"
 

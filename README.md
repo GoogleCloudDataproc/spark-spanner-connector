@@ -42,16 +42,14 @@ In order to publish locally you should use `sbt publishLocal`.
 ```
 $ sbt publishLocal
 ...
-[info] Packaging .../cloud-spanner-spark-connector/target/scala-2.11/cloud-spanner-spark-connector_2.11-0.1-javadoc.jar ...
-[info] Done packaging.
-[info] :: delivering :: com.google.cloud#cloud-spanner-spark-connector_2.11;0.1 :: 0.1 :: release :: Thu Aug 16 13:11:21 CEST 2018
-[info] 	delivering ivy file to .../cloud-spanner-spark-connector/target/scala-2.11/ivy-0.1.xml
-[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/poms/cloud-spanner-spark-connector_2.11.pom
-[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/jars/cloud-spanner-spark-connector_2.11.jar
-[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/srcs/cloud-spanner-spark-connector_2.11-sources.jar
-[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/docs/cloud-spanner-spark-connector_2.11-javadoc.jar
-[info] 	published ivy to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1/ivys/ivy.xml
-[success] Total time: 8 s, completed Aug 16, 2018 1:11:21 PM
+[info] :: delivering :: com.google.cloud#cloud-spanner-spark-connector_2.11;0.1.0-alpha-SNAPSHOT :: 0.1.0-alpha-SNAPSHOT :: integration :: Tue Aug 28 21:43:56 CEST 2018
+[info] 	delivering ivy file to .../cloud-spanner-spark-connector/target/scala-2.11/ivy-0.1.0-alpha-SNAPSHOT.xml
+[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/poms/cloud-spanner-spark-connector_2.11.pom
+[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/jars/cloud-spanner-spark-connector_2.11.jar
+[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/srcs/cloud-spanner-spark-connector_2.11-sources.jar
+[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/docs/cloud-spanner-spark-connector_2.11-javadoc.jar
+[info] 	published ivy to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/ivys/ivy.xml
+[success] Total time: 7 s, completed Aug 28, 2018 9:43:56 PM
 ```
 
 **TIP** Remove `~/.ivy2/local/com.google.cloud/` and `~/.ivy2/cache/com.google.cloud/` directories to allow for rebuilding the connector and make sure that you use the latest version (not a cached one!)
@@ -63,7 +61,7 @@ The final step is to "install" the connector while submitting your Spark SQL app
 Use `spark-submit` (or `spark-shell`) with `--packages` command-line option with the fully-qualified dependency name of the connector (and the other dependencies in their correct versions, i.e. Google Guava and Google Protobuf).
 
 ```
-$ ./bin/spark-shell --packages com.google.cloud:cloud-spanner-spark-connector_2.11:0.1 \
+$ ./bin/spark-shell --packages com.google.cloud:cloud-spanner-spark-connector_2.11:0.1.0-alpha-SNAPSHOT \
     --exclude-packages com.google.guava:guava \
     --driver-class-path /Users/jacek/.m2/repository/com/google/guava/guava/20.0/guava-20.0.jar:/Users/jacek/.ivy2/cache/com.google.protobuf/protobuf-java/bundles/protobuf-java-3.6.0.jar
 ```
@@ -102,7 +100,7 @@ scala> accounts.show
 
 ## Running Project
 
-Use `sbt` and execute `Test / runMain cloud.spark.SparkApp` to run a Spark application that uses the connector.
+Use `sbt` and execute `Test / runMain cloud.spark.SparkApp` to run a Spark demo application that uses the connector.
 
 **NOTE**: You may want to [setup authentication](https://cloud.google.com/docs/authentication/getting-started) using a service account
 and export `GOOGLE_APPLICATION_CREDENTIALS` environment variable with the service account credentials in JSON format.

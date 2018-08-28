@@ -15,7 +15,7 @@
  */
 package spanner.spark
 
-case class SpannerOptions(@transient private val options: Map[String, String])
+case class SpannerOptions(@transient options: Map[String, String])
   extends Serializable {
 
   import SpannerOptions._

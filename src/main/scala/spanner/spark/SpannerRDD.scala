@@ -78,9 +78,10 @@ class SpannerRDD(
       } catch {
         case e: Exception => logWarning("Exception closing Spanner ResultSet", e)
       }
-      if (tx != null) {
-        tx.close()
-      }
+      // FIXME How to close and let other tasks to have access to tx ID
+//      if (tx != null) {
+//        tx.close()
+//      }
       if (spanner != null) {
         spanner.close()
       }

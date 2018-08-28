@@ -19,6 +19,7 @@ Cloud Spanner Connector for Apache Spark™ supports the following:
 
 * [Loading Data from Cloud Spanner](#loading-data-from-cloud-spanner)
 * [Saving Dataset to Spanner](#saving-dataset-to-spanner)
+* [Inserting (or Overwriting) Dataset to Spanner](#inserting-or-overwriting-dataset-to-spanner)
 * [Filter Pushdown](#filter-pushdown)
 * [Type Inference](#type-inference)
 * [Human-Readable Representation (web UI and Dataset.explain)](#human-readable-representation-web-ui-and-datasetexplain)
@@ -151,14 +152,14 @@ Dump schema types (Spanner types in round brackets):
 
 The connector supports loading data from a Google Cloud Spanner table and is registered under `cloud-spanner` name as the external data source format.
 
-Simply, use `cloud-spanner` in `DataFrameReader.format` method to inform Spark SQL to use the connector.
+Simply, use `cloud-spanner` format to let Spark SQL to use the connector.
 
 | Option  | Description |
 | :---: | :---: |
 | `table` | The name of the table to write rows to |
 | `instanceId` | Spanner Instance ID |
 | `databaseId` | Spanner Database ID |
-| `maxPartitions` | Number of partitions. Default: `1` |
+| `maxPartitions` | Desired maximum number of partitions. Default: `1` |
 | `partitionSizeBytes` | Data size of the partitions. Default: `1` |
 
 In the following example, the connector loads data from the `Account` table in `demo` database in `dev-instance` Cloud Spanner instance.
@@ -264,9 +265,9 @@ Use [spanner.spark.SpannerSpec](src/test/scala/spanner/spark/SpannerSpec.scala) 
 
 ## Saving Dataset to Spanner
 
-The connector supports saving data (a DataFrame) to a table in Google Cloud Spanner.
+The connector supports saving data (as a `DataFrame`) to a table in Google Cloud Spanner.
 
-Simply, use `cloud-spanner` in `DataFrameWriter.format` method to inform Spark SQL to use the connector (with other write options).
+Simply, use `cloud-spanner` format to let Spark SQL to use the connector (with other write options).
 
 | Option  | Description |
 | :---: | :---: |
@@ -295,6 +296,41 @@ val accounts = spark
 ```
 
 The connector supports all save modes and a custom write schema (e.g. when different types in a Spanner table are required to match the DataFrame's).
+
+## Inserting (or Overwriting) Dataset to Spanner
+
+The connector supports inserting (or overwriting) data (as a `DataFrame`) to a table in Google Cloud Spanner.
+
+`Append` or `Overwrite` save modes are supported.
+
+Simply, use `cloud-spanner` format to let Spark SQL to use the connector (with other write options).
+
+```
+val instance = "dev-instance"
+val database = "demo"
+val table = s"scalatest_insert_${System.currentTimeMillis()}"
+val primaryKey = "id"
+val writeOpts = Map(
+  SpannerOptions.INSTANCE_ID -> instance,
+  SpannerOptions.DATABASE_ID -> database,
+  SpannerOptions.TABLE -> table,
+  SpannerOptions.PRIMARY_KEY -> primaryKey
+)
+
+spark.range(10)
+  .write
+  .format("cloud-spanner")
+  .options(writeOpts)
+  .mode(SaveMode.ErrorIfExists)
+  .saveAsTable(table)
+
+spark.range(10, 20, 1)
+  .write
+  .format("cloud-spanner")
+  .options(writeOpts)
+  .mode(SaveMode.Append) // or Overwrite
+  .insertInto(table)
+```
 
 ## References
 

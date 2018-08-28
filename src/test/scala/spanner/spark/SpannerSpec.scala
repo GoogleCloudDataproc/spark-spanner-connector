@@ -58,7 +58,7 @@ class SpannerSpec extends BaseSpec {
           .format("cloud-spanner")
           .options(opts)
           .load
-        q.rdd.getNumPartitions should be (maxPartitions)
+        q.rdd.getNumPartitions should be <= maxPartitions
       } finally {
         withSpanner { spanner =>
           dropTables(spanner, instance, database, table)
@@ -238,6 +238,89 @@ class SpannerSpec extends BaseSpec {
       val catalystType = q.schema.head.dataType
       val thrown = the [IllegalArgumentException] thrownBy toSpannerType(catalystType)
       thrown.getMessage should include ("ARRAY<ARRAY<INT>> is not supported in Cloud Spanner.")
+    }
+  }
+
+  it should "insert into table (Overwrite save mode)" in {
+    withSparkSession { spark =>
+      val instance = "dev-instance"
+      val database = "demo"
+      val table = s"scalatest_insert_${System.currentTimeMillis()}"
+      try {
+        val primaryKey = "id"
+        val writeOpts = Map(
+          SpannerOptions.INSTANCE_ID -> instance,
+          SpannerOptions.DATABASE_ID -> database,
+          SpannerOptions.TABLE -> table,
+          SpannerOptions.PRIMARY_KEY -> primaryKey
+        )
+
+        val rowsToSaveCount = 10
+
+        import SpannerRelationProvider.{shortName => cloudSpanner}
+        spark.range(rowsToSaveCount)
+          .write
+          .format(cloudSpanner)
+          .options(writeOpts)
+          .mode(SaveMode.ErrorIfExists)
+          .saveAsTable(table)
+
+        spark.range(rowsToSaveCount)
+          .write
+          .format(cloudSpanner)
+          .options(writeOpts)
+          .mode(SaveMode.Overwrite)
+          .insertInto(table)
+
+        val rowCount = spark.read.format(cloudSpanner).options(writeOpts).load.count
+        rowCount should be (rowsToSaveCount)
+      } finally {
+        withSpanner { spanner =>
+          dropTables(spanner, instance, database, table)
+        }
+      }
+    }
+  }
+
+  it should "insert into table (Append save mode)" in {
+    withSparkSession { spark =>
+      val instance = "dev-instance"
+      val database = "demo"
+      val table = s"scalatest_insert_${System.currentTimeMillis()}"
+      try {
+        val primaryKey = "id"
+        val writeOpts = Map(
+          SpannerOptions.INSTANCE_ID -> instance,
+          SpannerOptions.DATABASE_ID -> database,
+          SpannerOptions.TABLE -> table,
+          SpannerOptions.PRIMARY_KEY -> primaryKey
+        )
+
+        val firstCount = 10
+        val totalRows = 20
+
+        import SpannerRelationProvider.{shortName => cloudSpanner}
+        spark.range(firstCount)
+          .write
+          .format(cloudSpanner)
+          .options(writeOpts)
+          .mode(SaveMode.ErrorIfExists)
+          .saveAsTable(table)
+
+        spark.range(firstCount, totalRows, 1)
+          .write
+          .format(cloudSpanner)
+          .options(writeOpts)
+          .mode(SaveMode.Append)
+          .insertInto(table)
+
+        val rowCount = spark.read.format(cloudSpanner).options(writeOpts).load.count
+        rowCount should be (totalRows)
+      } finally {
+        withSpanner { spanner =>
+          dropTables(spanner, instance, database, table)
+        }
+      }
     }
   }
 }

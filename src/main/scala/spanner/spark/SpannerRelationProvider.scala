@@ -25,7 +25,7 @@ class SpannerRelationProvider
     with CreatableRelationProvider
     with Logging {
 
-  override def shortName(): String = "cloud-spanner"
+  override def shortName(): String = SpannerRelationProvider.shortName
 
   override def createRelation(
       sqlContext: SQLContext,
@@ -89,4 +89,7 @@ class SpannerRelationProvider
     logDebug(s"Creating SpannerRelation to represent the table: $table")
     createRelation(sqlContext, params)
   }
+}
+object SpannerRelationProvider {
+  val shortName = "cloud-spanner"
 }

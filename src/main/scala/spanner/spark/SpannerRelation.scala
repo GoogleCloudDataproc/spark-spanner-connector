@@ -22,11 +22,11 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 
-// FIXME with InsertableRelation (as non-FileFormats, e.g. Kafka and JDBC)
 case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
   extends BaseRelation
     with PrunedFilteredScan
     with FilterConversion
+    with InsertableRelation
     with Logging {
 
   override def sqlContext: SQLContext = spark.sqlContext
@@ -61,5 +61,13 @@ case class SpannerRelation(spark: SparkSession, options: SpannerOptions)
 
   override def toString: String = {
     s"Spanner(ID: ${options.instanceId}, ${options.databaseId}, ${options.table})"
+  }
+
+  override def insert(data: DataFrame, overwrite: Boolean): Unit = {
+    data.write
+      .mode(if (overwrite) SaveMode.Overwrite else SaveMode.Append)
+      .format(SpannerRelationProvider.shortName)
+      .options(options.options)
+      .save
   }
 }

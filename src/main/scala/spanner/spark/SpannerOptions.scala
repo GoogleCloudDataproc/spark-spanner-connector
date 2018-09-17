@@ -15,6 +15,8 @@
  */
 package spanner.spark
 
+import org.apache.spark.annotation.Experimental
+
 case class SpannerOptions(@transient options: Map[String, String])
   extends Serializable {
 
@@ -30,6 +32,7 @@ case class SpannerOptions(@transient options: Map[String, String])
   lazy val maxPartitions = options.get(MAX_PARTITIONS).map(_.toLong).getOrElse(1L)
   lazy val partitionSizeBytes = options.get(PARTITION_SIZE_BYTES).map(_.toLong).getOrElse(1L)
 
+  @Experimental
   def toTabularString: String = {
     options.map { case (k,v) => s"  $k = $v" }.mkString("\n")
   }

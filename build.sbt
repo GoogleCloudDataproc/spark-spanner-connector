@@ -18,8 +18,18 @@ version      := "0.1.0-alpha-SNAPSHOT"
 
 scalaVersion := "2.11.12"
 
-libraryDependencies += "com.google.cloud" % "google-cloud-spanner" % "0.59.0-beta"
+libraryDependencies += "com.google.cloud" % "google-cloud-spanner" % "0.62.0-beta"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.3.1" % Provided
 
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.5"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+
+// https://github.com/sbt/sbt-assembly#shading
+// https://cloud.google.com/blog/products/data-analytics/managing-java-dependencies-apache-spark-applications-cloud-dataproc
+test in assembly := {}
+assemblyShadeRules in assembly := Seq(
+  ShadeRule.rename(
+    "com.google.common.**" -> "repackaged.com.google.common.@1",
+    "com.google.protobuf.**" -> "repackaged.com.google.protobuf.@1"
+  ).inAll
+)

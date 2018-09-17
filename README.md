@@ -58,6 +58,43 @@ $ sbt publishLocal
 
 The final step is to "install" the connector while submitting your Spark SQL application for execution (i.e. making sure that the connector jar is on the CLASSPATH of the driver and executors).
 
+---
+
+**TIP** Due to the shared dependencies (`com.google.common` and `com.google.protobuf`) with different versions for Apache Spark and Google Cloud Spanner you may face the following issue:
+
+```
+java.lang.NoSuchMethodError: com.google.common.base.Preconditions.checkArgument(ZLjava/lang/String;II)V
+  at com.google.cloud.spanner.SpannerOptions.createChannels(SpannerOptions.java:252)
+  at com.google.cloud.spanner.SpannerOptions.<init>(SpannerOptions.java:92)
+  at com.google.cloud.spanner.SpannerOptions.<init>(SpannerOptions.java:45)
+  at com.google.cloud.spanner.SpannerOptions$Builder.build(SpannerOptions.java:195)
+  at spanner.spark.SpannerRelation.<init>(SpannerRelation.scala:36)
+  at spanner.spark.SpannerRelationProvider.createRelation(SpannerRelationProvider.scala:39)
+  at org.apache.spark.sql.execution.datasources.DataSource.resolveRelation(DataSource.scala:340)
+  at org.apache.spark.sql.DataFrameReader.loadV1Source(DataFrameReader.scala:239)
+  at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:227)
+  at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:174)
+  ... 54 elided
+```  
+
+A fix is to shade the dependencies to allow for such mixed-version dependencies to co-exist. Read the following article to get a better understanding of the issue and how to resolve it:
+
+* [Managing Java dependencies for Apache Spark applications on Cloud Dataproc](https://cloud.google.com/blog/products/data-analytics/managing-java-dependencies-apache-spark-applications-cloud-dataproc)
+
+In short, you have to use the following in `build.sbt` and use `spark-submit --jars .../cloud-spanner-spark-connector/target/scala-2.11/cloud-spanner-spark-connector-assembly-0.1.0-alpha-SNAPSHOT.jar`.
+
+```
+test in assembly := {}
+assemblyShadeRules in assembly := Seq(
+  ShadeRule.rename(
+    "com.google.common.**" -> "repackaged.com.google.common.@1",
+    "com.google.protobuf.**" -> "repackaged.com.google.protobuf.@1"
+  ).inAll
+)
+``` 
+
+---
+
 Use `spark-submit` (or `spark-shell`) with `--packages` command-line option with the fully-qualified dependency name of the connector (and the other dependencies in their correct versions, i.e. Google Guava and Google Protobuf).
 
 ```
@@ -68,7 +105,7 @@ $ ./bin/spark-shell --packages com.google.cloud:cloud-spanner-spark-connector_2.
 
 **TIP** Use https://github.com/GoogleCloudPlatform/google-cloud-java/blob/master/google-cloud-clients/pom.xml to know the exact versions of the dependencies.
 
-If everything went fine, you could copy the above Spark SQL snippet and then `show` the content of the `Account` table.
+If everything went fine, you could copy the above Spark SQL snippet and then work with the `Account` dataset.
 
 ```
 scala> :pa
@@ -91,6 +128,24 @@ val accounts = spark
 opts: scala.collection.immutable.Map[String,String] = Map(instanceId -> dev-instance, databaseId -> demo)
 table: String = Account
 accounts: org.apache.spark.sql.DataFrame = [AccountId: string, Name: string ... 12 more fields]
+
+scala> accounts.printSchema
+root
+ |-- AccountId: string (nullable = false)
+ |-- Name: string (nullable = false)
+ |-- EMail: string (nullable = false)
+ |-- bool: boolean (nullable = true)
+ |-- bytes_max: byte (nullable = true)
+ |-- bytes_1: byte (nullable = true)
+ |-- date: date (nullable = true)
+ |-- float64: double (nullable = true)
+ |-- int64: long (nullable = true)
+ |-- string_max: string (nullable = true)
+ |-- string_2621440: string (nullable = true)
+ |-- timestamp_allow_commit_timestamp: timestamp (nullable = true)
+ |-- timestamp: timestamp (nullable = true)
+ |-- array_bool: array (nullable = true)
+ |    |-- element: boolean (containsNull = true)
 
 scala> accounts.show
 // table shown here
@@ -204,8 +259,9 @@ Use `Dataset.explain` or web UI to see the physical plan of a structured query a
 All the filters handled by the connector itself (and hence Cloud Spanner database engine) are listed as `PushedFilters` prefixed with the star (`*`).
 
 ```
+scala> accounts.explain
 == Physical Plan ==
-*(1) Scan SpannerRelation(org.apache.spark.sql.SparkSession@389a1e34,spanner.spark.SpannerOptions@204b0f07) [AccountId#0,Name#1,EMail#2] PushedFilters: [*StringStartsWith(Name,A)], ReadSchema: struct<AccountId:string,Name:string,EMail:string>
+*(1) Scan Spanner(ID: dev-instance, demo, Account) [AccountId#0,Name#1,EMail#2,bool#3,bytes_max#4,bytes_1#5,date#6,float64#7,int64#8L,string_max#9,string_2621440#10,timestamp_allow_commit_timestamp#11,timestamp#12,array_bool#13] PushedFilters: [], ReadSchema: struct<AccountId:string,Name:string,EMail:string,bool:boolean,bytes_max:tinyint,bytes_1:tinyint,d...
 ```
 
 ## Type Inference

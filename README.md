@@ -27,7 +27,7 @@ Cloud Spanner Connector for Apache Spark™ supports the following:
 
 ## Unsupported Operations
 
-If you feel that the Cloud Spanner Connector for Apache Spark™ should support a feature, please file an issue in the [connector's repository](https://github.com/GoogleCloudPlatform/cloud-spanner-spark-connector/issues).
+If you think that the Cloud Spanner Connector for Apache Spark™ should support a feature, please file an issue in the [connector's repository](https://github.com/GoogleCloudPlatform/cloud-spanner-spark-connector/issues).
 
 ## Using Cloud Spanner Connector
 
@@ -55,8 +55,8 @@ java.lang.NoSuchMethodError: com.google.common.base.Preconditions.checkArgument(
   at com.google.cloud.spanner.SpannerOptions.<init>(SpannerOptions.java:92)
   at com.google.cloud.spanner.SpannerOptions.<init>(SpannerOptions.java:45)
   at com.google.cloud.spanner.SpannerOptions$Builder.build(SpannerOptions.java:195)
-  at spanner.spark.SpannerRelation.<init>(SpannerRelation.scala:36)
-  at spanner.spark.SpannerRelationProvider.createRelation(SpannerRelationProvider.scala:39)
+  at com.google.cloud.spark.spanner.SpannerRelation.<init>(SpannerRelation.scala:36)
+  at com.google.cloud.spark.spanner.SpannerRelationProvider.createRelation(SpannerRelationProvider.scala:39)
   at org.apache.spark.sql.execution.datasources.DataSource.resolveRelation(DataSource.scala:340)
   at org.apache.spark.sql.DataFrameReader.loadV1Source(DataFrameReader.scala:239)
   at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:227)
@@ -135,60 +135,28 @@ root
  |    |-- element: boolean (containsNull = true)
 
 scala> accounts.show
-// table shown here
+// rows shown here
 ```
 
 **NOTE** Don't forget to `export GOOGLE_APPLICATION_CREDENTIALS` or authenticate in another way.
 
 ## Running Project
 
-Use `sbt` and execute `Test / runMain cloud.spark.SparkApp` to run a Spark demo application that uses the connector.
+Use `sbt` and execute `Test / runMain com.google.cloud.spark.spanner.SparkApp` to run a Spark demo application that uses the connector.
 
 ```
-sbt 'Test / runMain cloud.spark.SparkApp'
+sbt 'Test / runMain com.google.cloud.spark.spanner.SparkApp'
 ```
 
 **NOTE**: You may want to [setup authentication](https://cloud.google.com/docs/authentication/getting-started) using a service account
 and export `GOOGLE_APPLICATION_CREDENTIALS` environment variable with the service account credentials in JSON format.
 
 ```
-$ sbt 'Test / runMain cloud.spark.SparkApp'
+$ sbt 'Test / runMain com.google.cloud.spark.spanner.SparkApp'
 ...
-[info] Running cloud.spark.SparkApp
+[info] Running com.google.cloud.spark.spanner.SparkApp
 Running Spark 2.3.1
 GOOGLE_APPLICATION_CREDENTIALS: (redacted)
-root
- |-- AccountId: string (nullable = false)
- |-- Name: string (nullable = false)
- |-- EMail: string (nullable = false)
- |-- bool: boolean (nullable = true)
- |-- bytes_max: byte (nullable = true)
- |-- bytes_1: byte (nullable = true)
- |-- date: date (nullable = true)
- |-- float64: double (nullable = true)
- |-- int64: long (nullable = true)
- |-- string_max: string (nullable = true)
- |-- string_2621440: string (nullable = true)
- |-- timestamp_allow_commit_timestamp: timestamp (nullable = true)
- |-- timestamp: timestamp (nullable = true)
- |-- array_bool: array (nullable = true)
- |    |-- element: boolean (containsNull = true)
-
-Dump schema types (Spanner types in round brackets):
- |-- AccountId: string (spanner: STRING(32))
- |-- Name: string (spanner: STRING(256))
- |-- EMail: string (spanner: STRING(256))
- |-- bool: boolean (spanner: BOOL)
- |-- bytes_max: byte (spanner: BYTES(MAX))
- |-- bytes_1: byte (spanner: BYTES(1))
- |-- date: date (spanner: DATE)
- |-- float64: double (spanner: FLOAT64)
- |-- int64: long (spanner: INT64)
- |-- string_max: string (spanner: STRING(MAX))
- |-- string_2621440: string (spanner: STRING(2621440))
- |-- timestamp_allow_commit_timestamp: timestamp (spanner: TIMESTAMP)
- |-- timestamp: timestamp (spanner: TIMESTAMP)
- |-- array_bool: array (spanner: ARRAY<BOOL>)
 ...
 ```
 
@@ -299,14 +267,14 @@ Cloud Spanner Connector for Apache Spark™ uses `org.apache.spark.internal.Logg
 Simply, add the following to `log4j.properties` to enable `DEBUG` logging level for the connector.
 
 ```
-log4j.logger.spanner.spark=DEBUG
+log4j.logger.com.google.cloud.spark.spanner=DEBUG
 ```
 
 ## Testing Connector with Spark (and ScalaTest)
 
-Use [spanner.spark.BaseSpec](src/test/scala/spanner/spark/BaseSpec.scala) as the test base for tests. It automatically checks whether `GOOGLE_APPLICATION_CREDENTIALS` environment variable is set before executing a test specification and defines `withSparkSession` that creates and closes a `SparkSession`. 
+Use [com.google.cloud.spark.spanner.BaseSpec](src/test/scala/com/google/cloud/spark/spanner/BaseSpec.scala) as the test base for tests. It automatically checks whether `GOOGLE_APPLICATION_CREDENTIALS` environment variable is set before executing a test specification and defines `withSparkSession` that creates and closes a `SparkSession`. 
 
-Use [spanner.spark.SpannerSpec](src/test/scala/spanner/spark/SpannerSpec.scala) as an example.
+Use [com.google.cloud.spark.spanner.SpannerSpec](src/test/scala/com/google/cloud/spark/spanner/SpannerSpec.scala) as an example.
 
 ## Saving Dataset to Spanner
 

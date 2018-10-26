@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package spanner.spark
+package com.google.cloud.spark.spanner
 
 import com.google.cloud.spanner.Spanner
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
-import org.apache.spark.sql.sources._
+import org.apache.spark.sql.sources.{BaseRelation, Filter, InsertableRelation, PrunedFilteredScan}
 import org.apache.spark.sql.types.StructType
 
 case class SpannerRelation(spark: SparkSession, options: SpannerOptions)

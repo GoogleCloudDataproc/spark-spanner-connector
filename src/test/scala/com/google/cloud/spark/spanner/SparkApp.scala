@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cloud.spark
+package com.google.cloud.spark.spanner
 
 import org.apache.spark.sql.SparkSession
 

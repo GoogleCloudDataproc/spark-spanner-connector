@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cloud
+package com.google.cloud.spark.spanner
 
 import com.google.cloud.spanner.ResultSet
 
@@ -52,7 +52,6 @@ object SpannerApp extends App {
   println("")
   println(s"Get the schema of the table $table...")
   // FIXME Users don't like _root_, do they?
-  import _root_.spanner.spark._
   val schemaRS = executeQuery(buildSchemaSql(table))
   printlnResultSet(schemaRS)
 

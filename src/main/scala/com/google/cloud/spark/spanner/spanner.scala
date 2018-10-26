@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package spanner
+package com.google.cloud.spark
 
 import java.sql.{Date, Timestamp}
 
 import com.google.cloud
-import com.google.cloud.spanner._
+import com.google.cloud.spanner.{DatabaseId, Mutation, ResultSet, Spanner, SpannerException, Statement, TransactionContext}
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
 
-package object spark extends Logging {
+package object spanner extends Logging {
   def buildSchemaSql(tableName: String): String = {
     s"""
        |SELECT

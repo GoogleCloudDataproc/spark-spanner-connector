@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package spanner.spark
+package com.google.cloud.spark.spanner
 
 import java.sql.Date
 import java.time.LocalDate
@@ -23,7 +23,7 @@ import com.google.cloud.spanner.{BatchReadOnlyTransaction, BatchTransactionId, P
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.sources._
+import org.apache.spark.sql.sources.Filter
 import org.apache.spark.{InterruptibleIterator, Partition, SparkContext, TaskContext}
 
 class SpannerRDD(

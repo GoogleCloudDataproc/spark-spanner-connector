@@ -1,1 +1,1 @@
-spanner.spark.SpannerRelationProvider
+com.google.cloud.spark.spanner.SpannerRelationProvider

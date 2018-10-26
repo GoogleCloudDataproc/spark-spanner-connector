@@ -39,20 +39,7 @@ The project uses [sbt](https://www.scala-sbt.org/) to manage build artifacts.
 
 In order to publish locally you should use `sbt publishLocal`.
 
-```
-$ sbt publishLocal
-...
-[info] :: delivering :: com.google.cloud#cloud-spanner-spark-connector_2.11;0.1.0-alpha-SNAPSHOT :: 0.1.0-alpha-SNAPSHOT :: integration :: Tue Aug 28 21:43:56 CEST 2018
-[info] 	delivering ivy file to .../cloud-spanner-spark-connector/target/scala-2.11/ivy-0.1.0-alpha-SNAPSHOT.xml
-[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/poms/cloud-spanner-spark-connector_2.11.pom
-[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/jars/cloud-spanner-spark-connector_2.11.jar
-[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/srcs/cloud-spanner-spark-connector_2.11-sources.jar
-[info] 	published cloud-spanner-spark-connector_2.11 to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/docs/cloud-spanner-spark-connector_2.11-javadoc.jar
-[info] 	published ivy to [user]/.ivy2/local/com.google.cloud/cloud-spanner-spark-connector_2.11/0.1.0-alpha-SNAPSHOT/ivys/ivy.xml
-[success] Total time: 7 s, completed Aug 28, 2018 9:43:56 PM
-```
-
-**TIP** Remove `~/.ivy2/local/com.google.cloud/` and `~/.ivy2/cache/com.google.cloud/` directories to allow for rebuilding the connector and make sure that you use the latest version (not a cached one!)
+**TIP** Remove `~/.ivy2/local/com.google.cloud.spark/` and `~/.ivy2/cache/com.google.cloud.spark/` directories to allow for rebuilding the connector and make sure that you use the latest version (not a cached one!)
 
 ### "Installing" Connector
 
@@ -81,7 +68,7 @@ A fix is to shade the dependencies to allow for such mixed-version dependencies 
 
 * [Managing Java dependencies for Apache Spark applications on Cloud Dataproc](https://cloud.google.com/blog/products/data-analytics/managing-java-dependencies-apache-spark-applications-cloud-dataproc)
 
-In short, you have to use the following in `build.sbt` and use `spark-submit --jars .../cloud-spanner-spark-connector/target/scala-2.11/cloud-spanner-spark-connector-assembly-0.1.0-alpha-SNAPSHOT.jar`.
+In short, you have to use the following in `build.sbt` and use `spark-submit --jars .../cloud-spanner-spark-connector/target/scala-2.11/spark-cloud-spanner-assembly-0.1.0-alpha-SNAPSHOT.jar`.
 
 ```
 test in assembly := {}
@@ -98,7 +85,7 @@ assemblyShadeRules in assembly := Seq(
 Use `spark-submit` (or `spark-shell`) with `--packages` command-line option with the fully-qualified dependency name of the connector (and the other dependencies in their correct versions, i.e. Google Guava and Google Protobuf).
 
 ```
-$ ./bin/spark-shell --packages com.google.cloud:cloud-spanner-spark-connector_2.11:0.1.0-alpha-SNAPSHOT \
+$ ./bin/spark-shell --packages com.google.cloud.spark:spark-cloud-spanner_2.11:0.1.0-alpha-SNAPSHOT \
     --exclude-packages com.google.guava:guava \
     --driver-class-path /Users/jacek/.m2/repository/com/google/guava/guava/20.0/guava-20.0.jar:/Users/jacek/.ivy2/cache/com.google.protobuf/protobuf-java/bundles/protobuf-java-3.6.0.jar
 ```
@@ -157,11 +144,15 @@ scala> accounts.show
 
 Use `sbt` and execute `Test / runMain cloud.spark.SparkApp` to run a Spark demo application that uses the connector.
 
+```
+sbt 'Test / runMain cloud.spark.SparkApp'
+```
+
 **NOTE**: You may want to [setup authentication](https://cloud.google.com/docs/authentication/getting-started) using a service account
 and export `GOOGLE_APPLICATION_CREDENTIALS` environment variable with the service account credentials in JSON format.
 
 ```
-sbt:cloud-spanner-spark-connector> Test / runMain cloud.spark.SparkApp
+$ sbt 'Test / runMain cloud.spark.SparkApp'
 ...
 [info] Running cloud.spark.SparkApp
 Running Spark 2.3.1

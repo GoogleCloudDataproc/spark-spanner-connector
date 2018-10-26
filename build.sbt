@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-name         := "cloud-spanner-spark-connector"
-organization := "com.google.cloud"
+name         := "spark-cloud-spanner"
+organization := "com.google.cloud.spark"
 version      := "0.1.0-alpha-SNAPSHOT"
 
 scalaVersion := "2.11.12"

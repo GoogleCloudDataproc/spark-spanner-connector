@@ -88,7 +88,7 @@ class SpannerRDD(
       closed = true
     }
 
-    context.addTaskCompletionListener { _ => close() }
+    context.addTaskCompletionListener[Unit] { _ => close() }
 
     val part = split.asInstanceOf[SpannerPartition]
 

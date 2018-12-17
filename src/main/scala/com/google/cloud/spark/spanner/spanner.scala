@@ -134,7 +134,7 @@ package object spanner extends Logging {
     logDebug(s"Executing query: $stmt")
     import scala.collection.JavaConverters._
     val op = dbClient.updateDatabaseDdl(instance, database, Iterable(stmt).asJava, null)
-    op.waitFor()
+    op.get()
   }
 
   def dropTables(spanner: Spanner, instance: String, database: String, names: String*): Unit = {
@@ -143,7 +143,7 @@ package object spanner extends Logging {
     val drops = names.map(t => s"DROP TABLE $t")
     import scala.collection.JavaConverters._
     val op = dbClient.updateDatabaseDdl(instance, database, drops.asJava, null)
-    op.waitFor()
+    op.get()
   }
 
   // FIXME Extension method on ResultSet?

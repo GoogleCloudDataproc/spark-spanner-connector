@@ -276,6 +276,12 @@ Use [com.google.cloud.spark.spanner.BaseSpec](src/test/scala/com/google/cloud/sp
 
 Use [com.google.cloud.spark.spanner.SpannerSpec](src/test/scala/com/google/cloud/spark/spanner/SpannerSpec.scala) as an example.
 
+**TIP**: Use the following sbt's `testOnly` task to execute a single test only, e.g. "insert into table (Append save mode)".
+
+```
+testOnly *SpannerSpec -- -z "insert into table (Append save mode)"
+```
+
 ## Saving Dataset to Spanner
 
 The connector supports saving data (as a `DataFrame`) to a table in Google Cloud Spanner.

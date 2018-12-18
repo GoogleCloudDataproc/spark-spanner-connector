@@ -68,9 +68,11 @@ class SpannerRelationProvider
       import SaveMode._
       mode match {
         case Overwrite =>
+          logDebug(s"Table $table exists and so will be dropped first (mode: $mode)")
           withSpanner { spanner =>
             dropTables(spanner, instance, database, table)
           }
+          createTable(instance, database, table, writeSchema, primaryKey)
         case ErrorIfExists =>
           throw new IllegalStateException(
             s"Table '$table' already exists and SaveMode is ErrorIfExists.")
@@ -79,8 +81,8 @@ class SpannerRelationProvider
       }
     } else {
       logDebug(s"Table $table does not exist and will be created")
+      createTable(instance, database, table, writeSchema, primaryKey)
     }
-    createTable(instance, database, table, writeSchema, primaryKey)
     logDebug(s"Inserting data")
     val schema = data.schema
     data.rdd.foreachPartition { it =>

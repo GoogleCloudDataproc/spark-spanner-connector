@@ -1,0 +1,31 @@
+*.class
+*.log
+
+# sbt/maven specific
+.cache/
+.history/
+.lib/
+.flattened-pom.xml
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+dependency-reduced-pom.xml
+*.versionsBackup
+.mvn/wrapper/maven-wrapper.jar
+
+# Scala-IDE specific
+.scala_dependencies
+.worksheet
+.idea
+*.iml
+
+# Eclipse IDE Specific files
+.classpath
+.project
+.settings/
+
+# Mac
+.DS_Store

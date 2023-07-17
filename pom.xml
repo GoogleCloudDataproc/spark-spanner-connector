@@ -1,0 +1,81 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.google.cloud.spark.spanner</groupId>
+    <artifactId>spark-spanner-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>spark-spanner-parent</relativePath>
+  </parent>
+
+  <artifactId>spark-spanner-reactor</artifactId>
+  <packaging>pom</packaging>
+  <name>Spark Spanner Connector Reactor</name>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <organization>Google Inc.</organization>
+      <organizationUrl>http://www.google.com</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>
+      scm:git:git@github.com:GoogleCloudDataproc/spark-spanner-connector.git
+    </connection>
+    <developerConnection>
+      scm:git:git@github.com:GoogleCloudDataproc/spark-spanner-connector.git
+    </developerConnection>
+    <url>git@github.com:GoogleCloudDataproc/spark-spanner-connector.git</url>
+  </scm>
+
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>
+      https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues
+    </url>
+  </issueManagement>
+
+  <modules>
+    <module>spark-spanner-parent</module>
+    <module>spark-spanner-lib-parent</module>
+    <module>spark-3.1-spanner-lib</module>
+  </modules>
+
+  <profiles>
+    <profile>
+      <id>3.1</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <modules>
+        <module>spark-3.1-spanner</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>3.2</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <modules>
+        <module>spark-3.2-spanner-lib</module>
+        <module>spark-3.2-spanner</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>3.3</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <modules>
+        <module>spark-3.2-spanner-lib</module>
+        <module>spark-3.3-spanner-lib</module>
+        <module>spark-3.3-spanner</module>
+      </modules>
+    </profile>
+  </profiles>
+
+</project>

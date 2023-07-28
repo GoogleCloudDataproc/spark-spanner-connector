@@ -14,26 +14,11 @@
 
 package com.google.cloud.spark.spanner;
 
-import java.util.Map;
-import org.apache.spark.sql.connector.read.Batch;
-import org.apache.spark.sql.connector.read.Scan;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.sources.DataSourceRegister;
 
-public class SpannerScanner implements Scan {
-  private SpannerTable spannerTable;
-
-  public SpannerScanner(Map<String, String> opts) {
-    this.spannerTable = new SpannerTable(opts);
-  }
-
+public class DefaultSource implements DataSourceRegister {
   @Override
-  public StructType readSchema() {
-    return this.spannerTable.schema();
-  }
-
-  @Override
-  public Batch toBatch() {
-    // TODO: Fill me in.
-    return null;
+  public String shortName() {
+    return "spanner";
   }
 }

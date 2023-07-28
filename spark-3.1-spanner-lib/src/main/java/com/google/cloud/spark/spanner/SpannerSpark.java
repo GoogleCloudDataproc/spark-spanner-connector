@@ -46,11 +46,13 @@ import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.ScanBuilder;
-import org.apache.spark.sql.sources.DataSourceRegister;
+import org.apache.spark.sql.sources.v2.DataSource;
+import org.apache.spark.sql.sources.v2.reader.DataSourceOptions;
+import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public class SpannerSpark implements DataSourceRegister, TableProvider, SupportsRead {
+public class SpannerSpark implements TableProvider, SupportsRead, ReadSupport {
   private BatchClient batchClient;
   private Map<String, String> properties;
 
@@ -134,33 +136,37 @@ public class SpannerSpark implements DataSourceRegister, TableProvider, Supports
       switch (fieldTypeName) {
         case "BOOL":
           objects.add(spannerRow.getBoolean(columnIndex));
+          break;
         case "BYTES":
           objects.add(spannerRow.getBytes(columnIndex));
+          break;
         case "DATE":
           objects.add(spannerRow.getDate(columnIndex));
+          break;
         case "FLOAT64":
           objects.add(spannerRow.getBigDecimal(columnIndex));
+          break;
         case "INT64":
           objects.add(spannerRow.getLong(columnIndex));
+          break;
         case "JSON":
           objects.add(spannerRow.getBytes(columnIndex));
+          break;
         case "NUMERIC":
           objects.add(spannerRow.getBigDecimal(columnIndex));
+          break;
         case "STRING":
           objects.add(spannerRow.getString(columnIndex));
+          break;
         case "TIMESTAMP":
           objects.add(spannerRow.getTimestamp(columnIndex));
+          break;
         default: // "ARRAY", "STRUCT"
           // throw new Exception("unhandled type: " + fieldTypeName);
       }
     }
 
     return RowFactory.create(objects.toArray(new Object[0]));
-  }
-
-  @Override
-  public String shortName() {
-    return "cloud-spanner";
   }
 
   @Override
@@ -192,5 +198,13 @@ public class SpannerSpark implements DataSourceRegister, TableProvider, Supports
   @Override
   public Map<String, String> properties() {
     return this.properties;
+  }
+
+  /*
+   * The entry point to create a reader.
+   */
+  @Override
+  public DataSourceReader createReader(DataSourceOptions options) {
+    return new SpannerDataSourceReader(options);
   }
 }

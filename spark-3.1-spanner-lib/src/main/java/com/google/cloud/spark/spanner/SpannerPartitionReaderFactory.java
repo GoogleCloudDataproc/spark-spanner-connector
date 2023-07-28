@@ -24,7 +24,7 @@ import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public class SpannerPartitionFactory implements PartitionReaderFactory {
+public class SpannerPartitionReaderFactory implements PartitionReaderFactory {
   @Override
   public PartititionReader<ColumnarBatch> createColumnarReader(InputPartition partition) {
     // TODO: Fill me in.

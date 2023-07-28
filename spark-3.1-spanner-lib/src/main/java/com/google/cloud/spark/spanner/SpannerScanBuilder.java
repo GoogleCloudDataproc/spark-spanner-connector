@@ -14,15 +14,20 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spanner.connection.ConnectionOptions;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public class SpannerScanBuilder implements ScanBuilder {
-  public SpannerScanBuilder() {}
+  private CaseInsensitiveStringMap opts;
+
+  public SpannerScanBuilder(CaseInsensitiveStringMap options) {
+    this.opts = opts;
+  }
 
   @Override
   public Scan build() {
-    // TODO: Implement me
-    return new SpannerScanner();
+    return new SpannerScanner(this.opts);
   }
 }

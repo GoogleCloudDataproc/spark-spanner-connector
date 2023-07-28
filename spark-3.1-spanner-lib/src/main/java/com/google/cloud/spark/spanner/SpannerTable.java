@@ -14,8 +14,12 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spanner.connection.Connection;
+import com.google.cloud.spanner.connection.ConnectionOptions;
 import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
+import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.sql.connector.catalog.Table;
@@ -28,7 +32,39 @@ public class SpannerTable implements Table {
   private String tableName;
   private StructType tableSchema;
 
-  public SpannerTable(String tableName, ResultSet rs) {
+  public SpannerTable(Map<String, String> properties) {
+    String spannerUri =
+        String.format(
+            "cloudspanner:/projects/%s/instances/%s/databases/%s",
+            properties.get("projectId"),
+            properties.get("instanceId"),
+            properties.get("databaseId"));
+
+    ConnectionOptions.Builder builder = ConnectionOptions.newBuilder().setUri(spannerUri);
+    String gcpCredsUrl = properties.get("credentials");
+    if (gcpCredsUrl != null) {
+      builder = builder.setCredentialsUrl(gcpCredsUrl);
+    }
+    ConnectionOptions opts = builder.build();
+
+    try (Connection conn = opts.getConnection()) {
+      String tableName = properties.get("table");
+      // 3. Run an information schema query to get the type definition of the table.
+      Statement stmt =
+          Statement.newBuilder(
+                  "SELECT COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, SPANNER_TYPE "
+                      + "FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@tableName "
+                      + "ORDER BY ORDINAL_POSITION")
+              .bind("tableName")
+              .to(tableName)
+              .build();
+      try (final ResultSet rs = conn.executeQuery(stmt)) {
+        this.tableSchema = createSchema(tableName, rs);
+      }
+    }
+  }
+
+  public StructType createSchema(String tableName, ResultSet rs) {
     this.tableName = tableName;
 
     Integer columnSize = rs.getColumnCount();

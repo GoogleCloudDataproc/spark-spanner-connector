@@ -26,8 +26,6 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
-import com.google.cloud.spanner.connection.Connection;
-import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,15 +40,19 @@ import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.connector.catalog.SupportsRead;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
+import org.apache.spark.sql.connector.read.PartitionReader;
+import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public class SpannerSpark implements DataSourceRegister, TableProvider {
+public class SpannerSpark implements DataSourceRegister, TableProvider, SupportsRead {
   private BatchClient batchClient;
+  private Map<String, String> properties;
 
   public SpannerSpark(Map<String, String> properties) {
     SpannerOptions options = SpannerOptions.newBuilder().build();
@@ -61,6 +63,7 @@ public class SpannerSpark implements DataSourceRegister, TableProvider {
                 options.getProjectId(),
                 properties.get("instanceId"),
                 properties.get("databaseId")));
+    this.properties = properties;
   }
 
   public Dataset<Row> execute(SparkSession spark, String sqlStmt) {
@@ -178,38 +181,16 @@ public class SpannerSpark implements DataSourceRegister, TableProvider {
   @Override
   public Table getTable(
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
-    // 1. Create the DatabaseClient with the provided options:
-    // "instanceId": <INSTANCE_ID>
-    // "projectId": <PROJECT_ID>
-    // "databaseId": <DATABASE_ID>
-    String spannerUri =
-        String.format(
-            "cloudspanner:/projects/%s/instances/%s/databases/%s",
-            properties.get("projectId"),
-            properties.get("instanceId"),
-            properties.get("databaseId"));
+    return new SpannerTable(properties);
+  }
 
-    ConnectionOptions.Builder builder = ConnectionOptions.newBuilder().setUri(spannerUri);
-    String gcpCredsUrl = properties.get("credentials");
-    if (gcpCredsUrl != null) {
-      builder = builder.setCredentialsUrl(gcpCredsUrl);
-    }
-    ConnectionOptions opts = builder.build();
+  @Override
+  public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {
+    return new SpannerScanBuilder(options);
+  }
 
-    try (Connection conn = opts.getConnection()) {
-      String tableName = properties.get("table");
-      // 3. Run an information schema query to get the type definition of the table.
-      Statement stmt =
-          Statement.newBuilder(
-                  "SELECT COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, SPANNER_TYPE "
-                      + "FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@tableName "
-                      + "ORDER BY ORDINAL_POSITION")
-              .bind("tableName")
-              .to(tableName)
-              .build();
-      try (final ResultSet rs = conn.executeQuery(stmt)) {
-        return new SpannerTable(tableName, rs);
-      }
-    }
+  @Override
+  public Map<String, String> properties() {
+    return this.properties;
   }
 }

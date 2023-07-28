@@ -14,15 +14,26 @@
 
 package com.google.cloud.spark.spanner;
 
+import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public class SpannerScanner implements Scan {
-  public SpannerScanner() {}
+  private SpannerTable spannerTable;
+
+  public SpannerScanner(CaseInsensitiveStringMap opts) {
+    this.spannerTable = new SpannerTable(opts);
+  }
 
   @Override
   public StructType readSchema() {
-    // TODO: Implement me
+    return this.spannerTable.schema();
+  }
+
+  @Override
+  public Batch toBatch() {
+    // TODO: Fill me in.
     return null;
   }
 }

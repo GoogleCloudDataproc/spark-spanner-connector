@@ -83,6 +83,7 @@ public class SpannerTable implements Table {
       }
     }
     this.tableSchema = schema;
+    return schema;
   }
 
   public static DataType ofSpannerStrType(String spannerStrType) {

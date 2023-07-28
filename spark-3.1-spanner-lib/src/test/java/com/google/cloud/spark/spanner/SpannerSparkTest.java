@@ -7,7 +7,7 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,7 +27,7 @@ public class SpannerSparkTest {
     String databaseId = "db";
 
     @Before
-    public void setUp throws Exception {
+    public void setUp() throws Exception {
       SpannerOptions opts = SpannerOptions.newBuilder().build();
       Spanner spanner = opts.getService();
       DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();

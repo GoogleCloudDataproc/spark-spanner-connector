@@ -29,6 +29,7 @@ import com.google.cloud.spanner.TimestampBound;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,17 +43,15 @@ import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
 import org.apache.spark.sql.connector.catalog.Table;
+import org.apache.spark.sql.connector.catalog.TableCapability;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.ScanBuilder;
-import org.apache.spark.sql.sources.v2.DataSource;
-import org.apache.spark.sql.sources.v2.reader.DataSourceOptions;
-import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public class SpannerSpark implements TableProvider, SupportsRead, ReadSupport {
+public class SpannerSpark implements TableProvider, SupportsRead {
   private BatchClient batchClient;
   private Map<String, String> properties;
 
@@ -196,15 +195,22 @@ public class SpannerSpark implements TableProvider, SupportsRead, ReadSupport {
   }
 
   @Override
+  public Set<TableCapability> capabilities() {
+    return null;
+  }
+
+  @Override
   public Map<String, String> properties() {
     return this.properties;
   }
 
-  /*
-   * The entry point to create a reader.
-   */
   @Override
-  public DataSourceReader createReader(DataSourceOptions options) {
-    return new SpannerDataSourceReader(options);
+  public String name() {
+    return "spanner";
+  }
+
+  @Override
+  public StructType schema() {
+    return null;
   }
 }

@@ -28,6 +28,6 @@ public class SpannerDataReader<T> implements DataReader<T> {
   @Override
   public T get() {
     // TODO: Fill me in.
-    return true;
+    return null;
   }
 }

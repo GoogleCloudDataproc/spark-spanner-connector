@@ -14,11 +14,11 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.google.cloud.spanner.connection.Connection;
-import com.google.cloud.spanner.connection.ConnectionOptions;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.connection.Connection;
+import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang3.StringUtils;

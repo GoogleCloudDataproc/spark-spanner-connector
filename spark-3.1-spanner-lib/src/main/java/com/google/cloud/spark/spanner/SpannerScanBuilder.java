@@ -14,7 +14,6 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.google.cloud.spanner.connection.ConnectionOptions;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;

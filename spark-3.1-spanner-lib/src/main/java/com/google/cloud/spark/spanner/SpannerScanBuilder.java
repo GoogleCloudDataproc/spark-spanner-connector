@@ -23,14 +23,14 @@ import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.connector.read.SupportsPushDownFilters;
-import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns;
 import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 /*
  * Allows us to implement ScanBuilder.
  */
-public class SpannerScanBuilder implements Batch, ScanBuilder {
+public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownFilters {
   private CaseInsensitiveStringMap opts;
   private Set<Filter> filters;
   private SpannerScanner scanner;
@@ -46,23 +46,21 @@ public class SpannerScanBuilder implements Batch, ScanBuilder {
     return this.scanner;
   }
 
-  @Override
   public Batch toBatch() {
     return this;
   }
 
   @Override
   public Filter[] pushedFilters() {
-    return this.filters.toArray();
+    return this.filters.toArray(new Filter[this.filters.size()]);
   }
 
   @Override
   public Filter[] pushFilters(Filter[] filters) {
     this.filters.addAll(Arrays.asList(filters));
-    return this.filters.toArray();
+    return this.filters.toArray(new Filter[this.filters.size()]);
   }
 
-  @Override
   public StructType readSchema() {
     return this.scanner.readSchema();
   }
@@ -70,5 +68,11 @@ public class SpannerScanBuilder implements Batch, ScanBuilder {
   @Override
   public PartitionReaderFactory createReaderFactory() {
     return new SpannerPartitionReaderFactory();
+  }
+
+  @Override
+  public InputPartition[] planInputPartitions() {
+    // TODO: Fill me in.
+    return null;
   }
 }

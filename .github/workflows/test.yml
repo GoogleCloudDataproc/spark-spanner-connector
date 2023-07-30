@@ -26,3 +26,8 @@ jobs:
           cache: 'maven'
       - name: Run the Maven verify phase
         run: mvn --batch-mode --update-snapshots verify
+
+        env:
+          JOB_TYPE: test
+          SPANNER_EMULATOR_HOST: localhost:9010
+          GOOGLE_CLOUD_PROJECT: spark-spanner-test

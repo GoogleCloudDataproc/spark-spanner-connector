@@ -19,6 +19,9 @@ import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.types.StructType;
 
+/*
+ * SpannerScanner implements Scan.
+ */
 public class SpannerScanner implements Scan {
   private SpannerTable spannerTable;
 

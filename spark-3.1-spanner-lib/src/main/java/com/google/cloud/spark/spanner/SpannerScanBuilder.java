@@ -27,6 +27,9 @@ import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
+/*
+ * Allows us to implement ScanBuilder.
+ */
 public class SpannerScanBuilder implements Batch, ScanBuilder {
   private CaseInsensitiveStringMap opts;
   private Set<Filter> filters;

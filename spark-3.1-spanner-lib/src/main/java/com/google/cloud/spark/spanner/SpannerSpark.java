@@ -50,6 +50,10 @@ import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
+/*
+ * SpannerSpark is the main entry point to
+ * connect Cloud Spanner with Apache Spark.
+ */
 public class SpannerSpark implements TableProvider, SupportsRead {
   private BatchClient batchClient;
   private Map<String, String> properties;

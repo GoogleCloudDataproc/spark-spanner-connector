@@ -28,6 +28,9 @@ import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 
+/*
+ * SpannerTable implements Table.
+ */
 public class SpannerTable implements Table {
   private String tableName;
   private StructType tableSchema;

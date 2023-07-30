@@ -7,7 +7,7 @@ import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.Instance;
 import com.google.cloud.spanner.InstanceAdminClient;
-import com.google.cloud.spanner.InstanceConfigId;
+import com.google.cloud.spanner.InstanceConfig;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
 import com.google.cloud.spanner.Spanner;
@@ -31,27 +31,34 @@ import org.junit.runners.JUnit4;
 public class SpannerSparkTest {
 
   String databaseId = "spark-db";
-  String instanceId = "spark-project";
-  String projectId = "spark-project";
-  String configId = "regional-us-central1";
+  String instanceId = "spanner-spark";
+  String projectId = "orijtech-161805";
 
   @Before
   public void setUp() throws Exception {
     SpannerOptions opts = SpannerOptions.newBuilder().build();
     Spanner spanner = opts.getService();
     // 1. Create the Spanner instance.
+    // TODO: Skip this process if the instance already exists.
     InstanceAdminClient insAdminClient = spanner.getInstanceAdminClient();
+    InstanceConfig config = insAdminClient.listInstanceConfigs().iterateAll().iterator().next();
     InstanceInfo insInfo =
         InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
-            .setInstanceConfigId(InstanceConfigId.of(projectId, configId))
-            .setNodeCount(2)
+            .setInstanceConfigId(config.getId())
+            .setNodeCount(1)
             .setDisplayName("SparkSpanner Test")
             .build();
     OperationFuture<Instance, CreateInstanceMetadata> iop = insAdminClient.createInstance(insInfo);
-    iop.get();
+
+    try {
+      iop.get();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
 
     DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
     // 2. Create the database.
+    // TODO: Skip this process if the database already exists.
     OperationFuture<Database, CreateDatabaseMetadata> dop =
         dbAdminClient.createDatabase(
             instanceId,
@@ -63,7 +70,11 @@ public class SpannerSparkTest {
                     + " C BYTES(MAX),\n"
                     + " D TIMESTAMP\n"
                     + ") PRIMARY KEY(A)"));
-    dop.get();
+    try {
+      dop.get();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   @After
@@ -84,7 +95,7 @@ public class SpannerSparkTest {
             Arrays.asList(
                     new StructField("A", DataTypes.LongType, true, null),
                     new StructField("B", DataTypes.StringType, true, null),
-                    new StructField("C", DataTypes.StringType, true, null),
+                    new StructField("C", DataTypes.BinaryType, true, null),
                     new StructField("D", DataTypes.TimestampType, true, null))
                 .toArray(new StructField[4]));
 

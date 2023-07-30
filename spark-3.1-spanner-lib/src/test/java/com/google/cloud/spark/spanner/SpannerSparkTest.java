@@ -9,6 +9,7 @@ import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.spark.sql.types.DataTypes;

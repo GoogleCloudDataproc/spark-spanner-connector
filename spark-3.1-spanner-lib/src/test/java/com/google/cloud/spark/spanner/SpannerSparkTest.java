@@ -5,15 +5,16 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.Instance;
 import com.google.cloud.spanner.InstanceAdminClient;
-import com.google.cloud.spanner.InstanceConfig;
+import com.google.cloud.spanner.InstanceConfigId;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
-import com.google.spanner.admin.database.v1.CreateInstanceMetadata;
+import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,9 +30,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SpannerSparkTest {
 
-  String databaseId = "spark-conn-db";
-  String instanceId = "spark-conn-ins";
-  String projectId = "spark-conn-proj";
+  String databaseId = "spark-db";
+  String instanceId = "spark-project";
+  String projectId = "spark-project";
   String configId = "regional-us-central1";
 
   @Before
@@ -43,14 +44,16 @@ public class SpannerSparkTest {
     InstanceInfo insInfo =
         InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
             .setInstanceConfigId(InstanceConfigId.of(projectId, configId))
-            .setNodeCount(1)
-            .setDisplayName("SparkSpannerTest")
+            .setNodeCount(2)
+            .setDisplayName("SparkSpanner Test")
             .build();
-    insAdminClient.createInstance(insInfo).get();
+    OperationFuture<Instance, CreateInstanceMetadata> iop = insAdminClient.createInstance(insInfo);
+    iop.get();
 
     DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
-    // 1. Setup the tables with the Cloud Spanner emulator.
-    dbAdminClient.createDatabase(
+    // 2. Create the database.
+    OperationFuture<Database, CreateDatabaseMetadata> dop =
+        dbAdminClient.createDatabase(
             instanceId,
             databaseId,
             Arrays.asList(
@@ -59,8 +62,8 @@ public class SpannerSparkTest {
                     + " B STRING(100),\n"
                     + " C BYTES(MAX),\n"
                     + " D TIMESTAMP\n"
-                    + ") PRIMARY KEY(A)")).
-        .get();
+                    + ") PRIMARY KEY(A)"));
+    dop.get();
   }
 
   @After

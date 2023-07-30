@@ -14,7 +14,9 @@
 
 package com.google.cloud.spark.spanner;
 
-import java.util.List;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
@@ -27,11 +29,12 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public class SpannerScanBuilder implements Batch, ScanBuilder {
   private CaseInsensitiveStringMap opts;
-  private List<Filter> filters;
+  private Set<Filter> filters;
   private SpannerScanner scanner;
 
   public SpannerScanBuilder(CaseInsensitiveStringMap options) {
     this.opts = opts;
+    this.filters = new HashSet<Filter>();
   }
 
   @Override
@@ -47,12 +50,12 @@ public class SpannerScanBuilder implements Batch, ScanBuilder {
 
   @Override
   public Filter[] pushedFilters() {
-    return this.filters;
+    return this.filters.toArray();
   }
 
   @Override
   public Filter[] pushFilters(Filter[] filters) {
-    this.filters.addAll(filters);
+    this.filters.addAll(Arrays.asList(filters));
     return this.filters.toArray();
   }
 
@@ -62,7 +65,7 @@ public class SpannerScanBuilder implements Batch, ScanBuilder {
   }
 
   @Override
-  public PartitionReaderFActory createReaderFactory() {
+  public PartitionReaderFactory createReaderFactory() {
     return new SpannerPartitionReaderFactory();
   }
 }

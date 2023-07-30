@@ -14,12 +14,21 @@
 
 package com.google.cloud.spark.spanner;
 
+import java.util.List;
+import org.apache.spark.sql.connector.read.Batch;
+import org.apache.spark.sql.connector.read.InputPartition;
+import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
+import org.apache.spark.sql.connector.read.SupportsPushDownFilters;
+import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns;
+import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public class SpannerScanBuilder implements ScanBuilder {
+public class SpannerScanBuilder implements Batch, ScanBuilder {
   private CaseInsensitiveStringMap opts;
+  private List<Filter> filters;
+  private SpannerScanner scanner;
 
   public SpannerScanBuilder(CaseInsensitiveStringMap options) {
     this.opts = opts;
@@ -27,6 +36,33 @@ public class SpannerScanBuilder implements ScanBuilder {
 
   @Override
   public Scan build() {
-    return new SpannerScanner(this.opts);
+    this.scanner = new SpannerScanner(this.opts);
+    return this.scanner;
+  }
+
+  @Override
+  public Batch toBatch() {
+    return this;
+  }
+
+  @Override
+  public Filter[] pushedFilters() {
+    return this.filters;
+  }
+
+  @Override
+  public Filter[] pushFilters(Filter[] filters) {
+    this.filters.addAll(filters);
+    return this.filters.toArray();
+  }
+
+  @Override
+  public StructType readSchema() {
+    return this.scanner.readSchema();
+  }
+
+  @Override
+  public PartitionReaderFActory createReaderFactory() {
+    return new SpannerPartitionReaderFactory();
   }
 }

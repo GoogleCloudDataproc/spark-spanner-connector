@@ -15,14 +15,11 @@
 package com.google.cloud.spark.spanner;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.connector.read.Batch;
-import org.apache.spark.sql.connector.read.ColumnarBatch;
 import org.apache.spark.sql.connector.read.InputPartition;
-import org.apache.spark.sql.connector.read.Partition;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 public class SpannerPartitionReaderFactory implements PartitionReaderFactory {
   @Override

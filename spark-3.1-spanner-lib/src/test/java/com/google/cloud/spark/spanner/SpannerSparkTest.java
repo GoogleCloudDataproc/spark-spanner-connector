@@ -35,7 +35,7 @@ public class SpannerSparkTest {
         dbAdminClient.createDatabase(
             instanceId,
             databaseId,
-            Arrays.asList(
+            ArrayList.asList(
                 "CREATE TABLE ATable (\n"
                     + " A INT64 NOT NULL,\n"
                     + " B STRING(100),\n"
@@ -70,6 +70,6 @@ public class SpannerSparkTest {
                 new StructField("C", DataTypes.StringType, true, null),
                 new StructField("D", DataTypes.TimestampType, true, null)));
 
-    assertThat(gotSchema).isEqualTo(want);
+    assertThat(gotSchema).isEqualTo(wantSchema);
   }
 }

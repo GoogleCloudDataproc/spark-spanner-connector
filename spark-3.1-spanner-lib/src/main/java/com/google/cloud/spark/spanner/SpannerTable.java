@@ -35,9 +35,15 @@ public class SpannerTable implements Table {
   private StructType tableSchema;
 
   public SpannerTable(Map<String, String> properties) {
+    String connUriPrefix = "cloudspanner:";
+    String emulatorHost = properties.get("emulatorHost");
+    if (emulatorHost != null) {
+      connUriPrefix = "cloudspanner://" + emulatorHost;
+    }
+
     String spannerUri =
         String.format(
-            "cloudspanner:/projects/%s/instances/%s/databases/%s",
+            connUriPrefix + "/projects/%s/instances/%s/databases/%s",
             properties.get("projectId"),
             properties.get("instanceId"),
             properties.get("databaseId"));
@@ -81,14 +87,14 @@ public class SpannerTable implements Table {
       String columnName = row.getString(0);
       // Integer ordinalPosition = column.getInt(1);
       boolean isNullable = row.getBoolean(2);
-      DataType catalogType = ofSpannerStrType(row.getString(3), isNullable);
+      DataType catalogType = SpannerTable.ofSpannerStrType(row.getString(3), isNullable);
       schema = schema.add(columnName, catalogType, isNullable);
     }
     this.tableSchema = schema;
     return schema;
   }
 
-  private DataType ofSpannerStrType(String spannerStrType, boolean isNullable) {
+  public static DataType ofSpannerStrType(String spannerStrType, boolean isNullable) {
     switch (spannerStrType) {
       case "BOOL":
         return DataTypes.BooleanType;
@@ -137,7 +143,7 @@ public class SpannerTable implements Table {
       int se = spannerStrType.lastIndexOf(">");
       String str = spannerStrType.substring(si + 1, se);
       // At this point, str=STRING(MAX) or str=ARRAY<ARRAY<T>>
-      DataType innerDataType = ofSpannerStrType(str, isNullable);
+      DataType innerDataType = SpannerTable.ofSpannerStrType(str, isNullable);
       return DataTypes.createArrayType(innerDataType, isNullable);
     }
 

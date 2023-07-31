@@ -12,12 +12,15 @@ import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spark.spanner.SpannerSpark;
 import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -35,10 +38,12 @@ public class SpannerSparkTest {
   String projectId = "orijtech-161805";
   DatabaseAdminClient dbAdminClient;
   Spanner spanner;
+  String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
 
   @Before
   public void setUp() throws Exception {
-    SpannerOptions opts = SpannerOptions.newBuilder().build();
+    String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
+    SpannerOptions opts = SpannerOptions.newBuilder().setEmulatorHost(emulatorHost).build();
     spanner = opts.getService();
     // 1. Create the Spanner instance.
     // TODO: Skip this process if the instance already exists.
@@ -55,7 +60,9 @@ public class SpannerSparkTest {
     try {
       iop.get();
     } catch (Exception e) {
-      e.printStackTrace();
+      if (!e.toString().contains("ALREADY_EXISTS")) {
+        throw e;
+      }
     }
 
     dbAdminClient = spanner.getDatabaseAdminClient();
@@ -77,7 +84,9 @@ public class SpannerSparkTest {
     try {
       dop.get();
     } catch (Exception e) {
-      e.printStackTrace();
+      if (!e.toString().contains("ALREADY_EXISTS")) {
+        throw e;
+      }
     }
   }
 
@@ -86,16 +95,23 @@ public class SpannerSparkTest {
     spanner.close();
   }
 
-  @Test
-  public void testSpannerTable() {
+  private Map<String, String> connectionProperties() {
     Map<String, String> props = new HashMap<>();
     props.put("databaseId", databaseId);
     props.put("instanceId", instanceId);
     props.put("projectId", projectId);
+    if (false) {
+      props.put("emulatorHost", emulatorHost);
+    }
     props.put("table", "ATable");
+    return props;
+  }
 
-    SpannerTable sp = new SpannerTable(props);
-    StructType gotSchema = sp.schema();
+  @Test
+  public void testSpannerTable() {
+    Map<String, String> props = connectionProperties();
+    SpannerTable st = new SpannerTable(props);
+    StructType gotSchema = st.schema();
     StructType wantSchema =
         new StructType(
             Arrays.asList(
@@ -110,5 +126,13 @@ public class SpannerSparkTest {
                 .toArray(new StructField[6]));
 
     assertEquals(wantSchema, gotSchema);
+  }
+
+  @Test
+  public void testSpannerSpark() {
+    Map<String, String> props = connectionProperties();
+    SpannerSpark sp = new SpannerSpark(props);
+
+    Dataset<Row> data = sp.execute(null, "SELECT * FROM ATable");
   }
 }

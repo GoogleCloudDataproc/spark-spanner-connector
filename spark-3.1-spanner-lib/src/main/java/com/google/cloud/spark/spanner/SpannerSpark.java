@@ -34,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
@@ -92,7 +91,7 @@ public class SpannerSpark implements TableProvider, SupportsRead {
               // Run partitions in parallel, then combine them.
               try (ResultSet res = txn.execute(partition)) {
                 // Create rows per
-                List<Row> rows = ResultSetToSparkRow(res);
+                List<Row> rows = resultSetToSparkRow(res);
                 hm.put(partition, rows);
               }
             });
@@ -115,38 +114,31 @@ public class SpannerSpark implements TableProvider, SupportsRead {
     return spark.createDataset(coalescedRows, rowEncoder);
   }
 
-  private List<Row> ResultSetToSparkRow(ResultSet rs) {
+  private List<Row> resultSetToSparkRow(ResultSet rs) {
     List<Row> rows = new ArrayList();
     while (rs.next()) {
-      rows.add(ResultSetIndexToRow(rs));
+      rows.add(resultSetIndexToRow(rs));
     }
     return rows;
   }
 
-  private Row ResultSetIndexToRow(ResultSet rs) {
+  private Row resultSetIndexToRow(ResultSet rs) {
     Struct spannerRow = rs.getCurrentRowAsStruct();
     Integer columnCount = rs.getColumnCount();
     List<Object> objects = new ArrayList();
 
     for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
       String fieldTypeName = rs.getColumnType(columnIndex).toString();
-      int openBracIndex = StringUtils.indexOf(fieldTypeName, '(');
-      if (openBracIndex >= 0) {
-        fieldTypeName = StringUtils.truncate(fieldTypeName, openBracIndex);
-      }
 
       switch (fieldTypeName) {
         case "BOOL":
           objects.add(spannerRow.getBoolean(columnIndex));
           break;
-        case "BYTES":
-          objects.add(spannerRow.getBytes(columnIndex));
-          break;
         case "DATE":
           objects.add(spannerRow.getDate(columnIndex));
           break;
         case "FLOAT64":
-          objects.add(spannerRow.getBigDecimal(columnIndex));
+          objects.add(spannerRow.getDouble(columnIndex));
           break;
         case "INT64":
           objects.add(spannerRow.getLong(columnIndex));
@@ -155,16 +147,29 @@ public class SpannerSpark implements TableProvider, SupportsRead {
           objects.add(spannerRow.getBytes(columnIndex));
           break;
         case "NUMERIC":
+          // TODO: Deal with the precision truncation since Cloud Spanner's precision
+          // has (precision=38, scale=9) while Apache Spark has (precision=N, scale=M)
           objects.add(spannerRow.getBigDecimal(columnIndex));
-          break;
-        case "STRING":
-          objects.add(spannerRow.getString(columnIndex));
           break;
         case "TIMESTAMP":
           objects.add(spannerRow.getTimestamp(columnIndex));
           break;
         default: // "ARRAY", "STRUCT"
-          // throw new Exception("unhandled type: " + fieldTypeName);
+          if (fieldTypeName.indexOf("BYTES") == 0) {
+            objects.add(spannerRow.getBytes(columnIndex));
+          } else if (fieldTypeName.indexOf("STRING") == 0) {
+            objects.add(spannerRow.getString(columnIndex));
+          } else if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
+            objects.add(spannerRow.getBooleanArray(columnIndex));
+          } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
+            objects.add(spannerRow.getStringList(columnIndex));
+          } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
+            objects.add(spannerRow.getTimestampList(columnIndex));
+          } else if (fieldTypeName.indexOf("ARRAY<DATE") == 0) {
+            objects.add(spannerRow.getDateList(columnIndex));
+          } else if (fieldTypeName.indexOf("STRUCT") == 0) {
+            // TODO: Convert into a Spark STRUCT.
+          }
       }
     }
 

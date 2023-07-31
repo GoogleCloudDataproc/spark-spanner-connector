@@ -33,11 +33,13 @@ public class SpannerSparkTest {
   String databaseId = "spark-db";
   String instanceId = "spanner-spark";
   String projectId = "orijtech-161805";
+  DatabaseAdminClient dbAdminClient;
+  Spanner spanner;
 
   @Before
   public void setUp() throws Exception {
     SpannerOptions opts = SpannerOptions.newBuilder().build();
-    Spanner spanner = opts.getService();
+    spanner = opts.getService();
     // 1. Create the Spanner instance.
     // TODO: Skip this process if the instance already exists.
     InstanceAdminClient insAdminClient = spanner.getInstanceAdminClient();
@@ -56,7 +58,7 @@ public class SpannerSparkTest {
       e.printStackTrace();
     }
 
-    DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
+    dbAdminClient = spanner.getDatabaseAdminClient();
     // 2. Create the database.
     // TODO: Skip this process if the database already exists.
     OperationFuture<Database, CreateDatabaseMetadata> dop =
@@ -68,7 +70,9 @@ public class SpannerSparkTest {
                     + " A INT64 NOT NULL,\n"
                     + " B STRING(100),\n"
                     + " C BYTES(MAX),\n"
-                    + " D TIMESTAMP\n"
+                    + " D TIMESTAMP,\n"
+                    + " E NUMERIC,\n"
+                    + " F ARRAY<STRING(MAX)>\n"
                     + ") PRIMARY KEY(A)"));
     try {
       dop.get();
@@ -78,7 +82,9 @@ public class SpannerSparkTest {
   }
 
   @After
-  public void cleanupDB() {}
+  public void teardown() {
+    spanner.close();
+  }
 
   @Test
   public void testSpannerTable() {
@@ -93,12 +99,16 @@ public class SpannerSparkTest {
     StructType wantSchema =
         new StructType(
             Arrays.asList(
-                    new StructField("A", DataTypes.LongType, true, null),
+                    new StructField("A", DataTypes.LongType, false, null),
                     new StructField("B", DataTypes.StringType, true, null),
-                    new StructField("C", DataTypes.BinaryType, true, null),
-                    new StructField("D", DataTypes.TimestampType, true, null))
-                .toArray(new StructField[4]));
+                    new StructField(
+                        "C", DataTypes.createArrayType(DataTypes.ByteType, true), true, null),
+                    new StructField("D", DataTypes.TimestampType, true, null),
+                    new StructField("E", DataTypes.createDecimalType(38, 9), true, null),
+                    new StructField(
+                        "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null))
+                .toArray(new StructField[6]));
 
-    assertEquals(gotSchema, wantSchema);
+    assertEquals(wantSchema, gotSchema);
   }
 }

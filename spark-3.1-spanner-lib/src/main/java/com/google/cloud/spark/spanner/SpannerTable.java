@@ -21,7 +21,6 @@ import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.util.Map;
 import java.util.Set;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableCapability;
 import org.apache.spark.sql.types.DataType;
@@ -55,7 +54,7 @@ public class SpannerTable implements Table {
       // 3. Run an information schema query to get the type definition of the table.
       Statement stmt =
           Statement.newBuilder(
-                  "SELECT COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, SPANNER_TYPE "
+                  "SELECT COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE='YES' AS ISNULLABLE, SPANNER_TYPE "
                       + "FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@tableName "
                       + "ORDER BY ORDINAL_POSITION")
               .bind("tableName")
@@ -72,50 +71,79 @@ public class SpannerTable implements Table {
 
     Integer columnSize = rs.getColumnCount();
     // Expecting resultset columns in the ordering:
-    //      COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, SPANNER_TYPE
+    //       COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, SPANNER_TYPE
+    // row1:
+    // ...
+    // rowN:
     StructType schema = new StructType();
     while (rs.next()) {
       Struct row = rs.getCurrentRowAsStruct();
-
-      for (int columnIndex = 0; columnIndex < columnSize; columnIndex++) {
-        String columnName = row.getString(0);
-        // Integer ordinalPosition = column.getInt(1);
-        boolean isNullable = row.getBoolean(2);
-        DataType catalogType = SpannerTable.ofSpannerStrType(row.getString(3));
-        schema = schema.add(columnName, catalogType, isNullable);
-      }
+      String columnName = row.getString(0);
+      // Integer ordinalPosition = column.getInt(1);
+      boolean isNullable = row.getBoolean(2);
+      DataType catalogType = ofSpannerStrType(row.getString(3), isNullable);
+      schema = schema.add(columnName, catalogType, isNullable);
     }
     this.tableSchema = schema;
     return schema;
   }
 
-  public static DataType ofSpannerStrType(String spannerStrType) {
+  private DataType ofSpannerStrType(String spannerStrType, boolean isNullable) {
     switch (spannerStrType) {
       case "BOOL":
         return DataTypes.BooleanType;
+
       case "BYTES":
-        return DataTypes.BinaryType;
+        return DataTypes.createArrayType(DataTypes.ByteType);
+
       case "DATE":
         return DataTypes.DateType;
+
       case "FLOAT64":
         return DataTypes.DoubleType;
+
       case "INT64":
         return DataTypes.LongType;
+
       case "JSON":
-        return DataTypes.BinaryType;
+        return DataTypes.createArrayType(DataTypes.ByteType);
+
       case "NUMERIC":
-        return DataTypes.DoubleType;
+        // Please see https://cloud.google.com/spanner/docs/storing-numeric-data#precision
+        // We are using (decimalPrecision=38, scale=9)
+        return DataTypes.createDecimalType(38, 9);
+
       case "STRING":
         return DataTypes.StringType;
+
       case "TIMESTAMP":
         return DataTypes.TimestampType;
-      default: // "ARRAY", "STRUCT"
-        int openBracIndex = StringUtils.indexOf(spannerStrType, '(');
-        if (openBracIndex >= 0) {
-          return SpannerTable.ofSpannerStrType(StringUtils.truncate(spannerStrType, openBracIndex));
-        }
-        return DataTypes.NullType;
     }
+
+    // STRING(MAX), STRING(10) are the correct type
+    // definitions for STRING in Cloud Spanner.
+    // Non-composite types like "STRING(N)" and "BYTES(N)"
+    // can immediately be returned by prefix matching.
+    if (spannerStrType.indexOf("STRING") == 0) {
+      return DataTypes.StringType;
+    }
+    if (spannerStrType.indexOf("BYTES") == 0) {
+      return DataTypes.createArrayType(DataTypes.ByteType);
+    }
+
+    if (spannerStrType.indexOf("ARRAY") == 0) {
+      // Sample argument: ARRAY<STRING(MAX)>
+      int si = spannerStrType.indexOf("<");
+      int se = spannerStrType.lastIndexOf(">");
+      String str = spannerStrType.substring(si + 1, se);
+      // At this point, str=STRING(MAX) or str=ARRAY<ARRAY<T>>
+      DataType innerDataType = ofSpannerStrType(str, isNullable);
+      return DataTypes.createArrayType(innerDataType, isNullable);
+    }
+
+    // We are left with "STRUCT"
+    // TODO: Handle struct field traversal
+    return DataTypes.NullType;
   }
 
   @Override

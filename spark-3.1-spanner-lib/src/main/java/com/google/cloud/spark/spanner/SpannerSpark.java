@@ -215,7 +215,7 @@ public class SpannerSpark implements TableProvider, SupportsRead {
 
   @Override
   public String name() {
-    return "spanner";
+    return "cloud-spanner";
   }
 
   @Override

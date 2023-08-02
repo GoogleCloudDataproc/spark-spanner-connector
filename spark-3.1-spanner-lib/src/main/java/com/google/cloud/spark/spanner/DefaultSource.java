@@ -25,7 +25,7 @@ import scala.collection.immutable.Map;
 public class DefaultSource implements DataSourceRegister, RelationProvider, SchemaRelationProvider {
   @Override
   public String shortName() {
-    return "spanner";
+    return "cloud-spanner";
   }
 
   /*

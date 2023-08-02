@@ -43,6 +43,6 @@ public class Spark31SpannerTableProvider implements DataSourceRegister, TablePro
 
   @Override
   public String shortName() {
-    return "spanner";
+    return "cloud-spanner";
   }
 }

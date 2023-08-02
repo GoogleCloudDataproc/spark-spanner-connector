@@ -33,16 +33,16 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SpannerSparkTest {
 
-  String databaseId = "spark-db";
-  String instanceId = "spanner-spark";
-  String projectId = "orijtech-161805";
+  String databaseId = System.getenv("SPANNER_DATABASE_ID");
+  String instanceId = System.getenv("SPANNER_INSTANCE_ID");
+  String projectId = System.getenv("SPANNER_PROJECT_ID");
+  String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
+
   DatabaseAdminClient dbAdminClient;
   Spanner spanner;
-  String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
 
   @Before
   public void setUp() throws Exception {
-    String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
     SpannerOptions opts = SpannerOptions.newBuilder().setEmulatorHost(emulatorHost).build();
     spanner = opts.getService();
     // 1. Create the Spanner instance.
@@ -111,8 +111,8 @@ public class SpannerSparkTest {
   public void testSpannerTable() {
     Map<String, String> props = connectionProperties();
     SpannerTable st = new SpannerTable(props);
-    StructType gotSchema = st.schema();
-    StructType wantSchema =
+    StructType actualSchema = st.schema();
+    StructType expectSchema =
         new StructType(
             Arrays.asList(
                     new StructField("A", DataTypes.LongType, false, null),
@@ -125,7 +125,7 @@ public class SpannerSparkTest {
                         "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null))
                 .toArray(new StructField[6]));
 
-    assertEquals(wantSchema, gotSchema);
+    assertEquals(expectSchema, actualSchema);
   }
 
   @Test

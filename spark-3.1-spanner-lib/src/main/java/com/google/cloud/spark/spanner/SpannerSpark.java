@@ -183,7 +183,8 @@ public class SpannerSpark implements TableProvider, SupportsRead {
 
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    return null;
+    SpannerTable st = new SpannerTable(properties);
+    return st.schema();
   }
 
   @Override

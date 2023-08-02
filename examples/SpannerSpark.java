@@ -27,7 +27,7 @@ public class SpannerSpark {
 
 
         Dataset<Row> df = spark.read()
-            .format("cloud-spanner")
+            .format("spanner")
             .option("table", "people")
             .option("projectId", "orijtech-161805")
             .option("instanceId", "oragent-ws-spanner")

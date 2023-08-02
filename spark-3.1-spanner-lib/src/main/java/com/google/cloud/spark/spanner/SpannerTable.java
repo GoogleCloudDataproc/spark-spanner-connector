@@ -19,6 +19,7 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.sql.connector.catalog.Table;
@@ -157,8 +158,21 @@ public class SpannerTable implements Table {
     return this.tableSchema;
   }
 
+  /*
+   * Cloud Spanner tables support:
+   *    BATCH_READ
+   *    BATCH_WRITE
+   *    CONTINUOUS_READ
+   *    TRUNCATE
+   * as capabilities
+   */
   @Override
   public Set<TableCapability> capabilities() {
+    Set<TableCapability> caps = new HashSet<>();
+    caps.add(TableCapability.BATCH_READ);
+    caps.add(TableCapability.BATCH_WRITE);
+    caps.add(TableCapability.CONTINUOUS_READ);
+    caps.add(TableCapability.TRUNCATE);
     return null;
   }
 

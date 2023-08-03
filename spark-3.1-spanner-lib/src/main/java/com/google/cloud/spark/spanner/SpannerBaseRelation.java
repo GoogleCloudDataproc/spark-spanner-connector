@@ -15,24 +15,27 @@
 package com.google.cloud.spark.spanner;
 
 import java.util.HashMap;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.sources.BaseRelation;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructType;
-import scala.collection.immutable.Map;
 
-/*
- * SpannerBaseRelation implements BaseRelation.
- */
 public class SpannerBaseRelation extends BaseRelation {
   private final SQLContext sqlContext;
-  private final StructType schema;
   private final SpannerScanner scan;
+  private final Dataset<Row> dataToWrite;
 
-  public SpannerBaseRelation(SQLContext sqlContext, Map<String, String> opts, StructType schema) {
-    this.scan = new SpannerScanner(scalaToJavaMap(opts));
+  public SpannerBaseRelation(
+      SQLContext sqlContext,
+      SaveMode mode,
+      scala.collection.immutable.Map<String, String> parameters,
+      Dataset<Row> data) {
+    this.scan = new SpannerScanner(scalaToJavaMap(parameters));
     this.sqlContext = sqlContext;
-    this.schema = schema;
+    this.dataToWrite = data;
   }
 
   /*
@@ -43,7 +46,7 @@ public class SpannerBaseRelation extends BaseRelation {
    */
   @Override
   public boolean needConversion() {
-    return true;
+    return false;
   }
 
   @Override
@@ -67,9 +70,6 @@ public class SpannerBaseRelation extends BaseRelation {
 
   @Override
   public StructType schema() {
-    if (this.schema == null) {
-      return this.schema;
-    }
     return this.scan.readSchema();
   }
 

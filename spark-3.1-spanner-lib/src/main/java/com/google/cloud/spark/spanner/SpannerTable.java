@@ -22,20 +22,24 @@ import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.spark.sql.connector.catalog.SupportsRead;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableCapability;
+import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 /*
  * SpannerTable implements Table.
  */
-public class SpannerTable implements Table {
+public class SpannerTable implements Table, SupportsRead {
   private String tableName;
   private StructType tableSchema;
 
-  public SpannerTable(Map<String, String> properties) {
+  public SpannerTable(StructType providedSchema, Map<String, String> properties) {
+    // TODO: Use providedSchema in building the SpannerTable.
     String connUriPrefix = "cloudspanner:";
     String emulatorHost = properties.get("emulatorHost");
     if (emulatorHost != null) {
@@ -89,7 +93,7 @@ public class SpannerTable implements Table {
       // Integer ordinalPosition = column.getInt(1);
       boolean isNullable = row.getBoolean(2);
       DataType catalogType = SpannerTable.ofSpannerStrType(row.getString(3), isNullable);
-      schema = schema.add(columnName, catalogType, isNullable);
+      schema = schema.add(columnName, catalogType, isNullable, "" /* No comments for the text */);
     }
     this.tableSchema = schema;
     return schema;
@@ -179,5 +183,10 @@ public class SpannerTable implements Table {
   @Override
   public String name() {
     return this.tableName;
+  }
+
+  @Override
+  public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {
+    return new SpannerScanBuilder(options);
   }
 }

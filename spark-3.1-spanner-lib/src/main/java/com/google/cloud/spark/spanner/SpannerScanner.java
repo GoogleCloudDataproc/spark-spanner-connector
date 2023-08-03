@@ -26,7 +26,7 @@ public class SpannerScanner implements Scan {
   private SpannerTable spannerTable;
 
   public SpannerScanner(Map<String, String> opts) {
-    this.spannerTable = new SpannerTable(opts);
+    this.spannerTable = new SpannerTable(null, opts);
   }
 
   @Override

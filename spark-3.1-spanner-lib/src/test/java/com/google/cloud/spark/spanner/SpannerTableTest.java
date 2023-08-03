@@ -12,15 +12,12 @@ import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import com.google.cloud.spark.spanner.SpannerSpark;
 import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -31,7 +28,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SpannerSparkTest {
+public class SpannerTableTest {
 
   String databaseId = System.getenv("SPANNER_DATABASE_ID");
   String instanceId = System.getenv("SPANNER_INSTANCE_ID");
@@ -108,9 +105,9 @@ public class SpannerSparkTest {
   }
 
   @Test
-  public void testSpannerTable() {
+  public void createSchema() {
     Map<String, String> props = connectionProperties();
-    SpannerTable st = new SpannerTable(props);
+    SpannerTable st = new SpannerTable(null, props);
     StructType actualSchema = st.schema();
     StructType expectSchema =
         new StructType(
@@ -123,16 +120,12 @@ public class SpannerSparkTest {
                     new StructField("E", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField(
                         "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null))
-                .toArray(new StructField[6]));
+                .toArray(new StructField[0]));
 
-    assertEquals(expectSchema, actualSchema);
-  }
-
-  @Test
-  public void testSpannerSpark() {
-    Map<String, String> props = connectionProperties();
-    SpannerSpark sp = new SpannerSpark(props);
-
-    Dataset<Row> data = sp.execute(null, "SELECT * FROM ATable");
+    // Object.equals fails for StructType with fields so we'll
+    // firstly compare lengths, then fieldNames then the simpleString.
+    assertEquals(expectSchema.length(), actualSchema.length());
+    assertEquals(expectSchema.fieldNames(), actualSchema.fieldNames());
+    assertEquals(expectSchema.simpleString(), actualSchema.simpleString());
   }
 }

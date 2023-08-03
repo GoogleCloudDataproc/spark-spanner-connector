@@ -29,7 +29,6 @@ import com.google.cloud.spanner.TimestampBound;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,20 +39,12 @@ import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.connector.catalog.SupportsRead;
-import org.apache.spark.sql.connector.catalog.Table;
-import org.apache.spark.sql.connector.catalog.TableCapability;
-import org.apache.spark.sql.connector.catalog.TableProvider;
-import org.apache.spark.sql.connector.expressions.Transform;
-import org.apache.spark.sql.connector.read.ScanBuilder;
-import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 /*
  * SpannerSpark is the main entry point to
  * connect Cloud Spanner with Apache Spark.
  */
-public class SpannerSpark implements TableProvider, SupportsRead {
+public class SpannerSpark {
   private BatchClient batchClient;
   private Map<String, String> properties;
 
@@ -174,52 +165,5 @@ public class SpannerSpark implements TableProvider, SupportsRead {
     }
 
     return RowFactory.create(objects.toArray(new Object[0]));
-  }
-
-  @Override
-  public Transform[] inferPartitioning(CaseInsensitiveStringMap options) {
-    return null;
-  }
-
-  @Override
-  public StructType inferSchema(CaseInsensitiveStringMap options) {
-    SpannerTable st = new SpannerTable(properties);
-    return st.schema();
-  }
-
-  @Override
-  public boolean supportsExternalMetadata() {
-    return false;
-  }
-
-  @Override
-  public Table getTable(
-      StructType schema, Transform[] partitioning, Map<String, String> properties) {
-    return new SpannerTable(properties);
-  }
-
-  @Override
-  public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {
-    return new SpannerScanBuilder(options);
-  }
-
-  @Override
-  public Set<TableCapability> capabilities() {
-    return null;
-  }
-
-  @Override
-  public Map<String, String> properties() {
-    return this.properties;
-  }
-
-  @Override
-  public String name() {
-    return "cloud-spanner";
-  }
-
-  @Override
-  public StructType schema() {
-    return null;
   }
 }

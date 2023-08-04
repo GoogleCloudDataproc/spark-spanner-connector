@@ -19,7 +19,7 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
-import java.util.HashSet;
+import com.google.common.collect.ImmutableSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
@@ -37,6 +37,12 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 public class SpannerTable implements Table, SupportsRead {
   private String tableName;
   private StructType tableSchema;
+  private static final ImmutableSet<TableCapability> tableCapabilities =
+      ImmutableSet.of(
+          TableCapability.BATCH_READ,
+          TableCapability.BATCH_WRITE,
+          TableCapability.CONTINUOUS_READ,
+          TableCapability.TRUNCATE);
 
   public SpannerTable(StructType providedSchema, Map<String, String> properties) {
     // TODO: Use providedSchema in building the SpannerTable.
@@ -172,12 +178,7 @@ public class SpannerTable implements Table, SupportsRead {
    */
   @Override
   public Set<TableCapability> capabilities() {
-    Set<TableCapability> caps = new HashSet<>();
-    caps.add(TableCapability.BATCH_READ);
-    caps.add(TableCapability.BATCH_WRITE);
-    caps.add(TableCapability.CONTINUOUS_READ);
-    caps.add(TableCapability.TRUNCATE);
-    return null;
+    return tableCapabilities;
   }
 
   @Override

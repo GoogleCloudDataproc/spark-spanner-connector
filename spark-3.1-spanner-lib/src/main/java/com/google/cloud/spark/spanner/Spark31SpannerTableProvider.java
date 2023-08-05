@@ -62,7 +62,7 @@ public class Spark31SpannerTableProvider
 
   /*
    * Implements DataSourceRegister.shortName(). This method allows Spark to match
-   * the DataSource when spark.read(...).format("cloud-spanner") is invoked.
+   * the DataSource when spark.read(...).format("spanner") is invoked.
    */
   @Override
   public String shortName() {

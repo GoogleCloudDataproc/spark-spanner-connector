@@ -18,7 +18,6 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
-import com.google.cloud.spanner.connection.ConnectionOptions;
 import com.google.common.collect.ImmutableSet;
 import java.util.Map;
 import java.util.Set;
@@ -46,27 +45,7 @@ public class SpannerTable implements Table, SupportsRead {
 
   public SpannerTable(StructType providedSchema, Map<String, String> properties) {
     // TODO: Use providedSchema in building the SpannerTable.
-    String connUriPrefix = "cloudspanner:";
-    String emulatorHost = properties.get("emulatorHost");
-    if (emulatorHost != null) {
-      connUriPrefix = "cloudspanner://" + emulatorHost;
-    }
-
-    String spannerUri =
-        String.format(
-            connUriPrefix + "/projects/%s/instances/%s/databases/%s",
-            properties.get("projectId"),
-            properties.get("instanceId"),
-            properties.get("databaseId"));
-
-    ConnectionOptions.Builder builder = ConnectionOptions.newBuilder().setUri(spannerUri);
-    String gcpCredsUrl = properties.get("credentials");
-    if (gcpCredsUrl != null) {
-      builder = builder.setCredentialsUrl(gcpCredsUrl);
-    }
-    ConnectionOptions opts = builder.build();
-
-    try (Connection conn = opts.getConnection()) {
+    try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       String tableName = properties.get("table");
       // 3. Run an information schema query to get the type definition of the table.
       Statement stmt =

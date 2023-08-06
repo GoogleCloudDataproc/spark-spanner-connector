@@ -14,30 +14,47 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spanner.BatchClient;
+import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.Partition;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.TimestampBound;
 import java.io.IOException;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
 
-public class SpannerPartitionReader<T> implements PartitionReader<T> {
-  @Override
-  public boolean next() {
-    // TODO: Fill me in.
-    return false;
+public class SpannerPartitionReader<Row> implements PartitionReader<Row> {
+
+  private final ResultSet rs;
+  private BatchReadOnlyTransaction txn;
+
+  public <Row> SpannerPartitionReader(BatchClient batchClient, InputPartition sparkPartition) {
+    // TODO: Confirm if holding the transaction for longer
+    // than 10 seconds causes it to time out and if perhaps
+    // we can open up a longer standing transaction.
+    this.txn = batchClient.batchReadOnlyTransaction(TimestampBound.strong());
+    Partition spannerPartition = (Partition) sparkPartition;
+    this.rs = txn.execute(spannerPartition);
   }
 
   @Override
-  public T get() {
-    // TODO: Fill me in.
-    return null;
+  public boolean next() {
+    return this.rs.next();
+  }
+
+  @Override
+  public Row get() {
+    return SpannerSpark.resultSetRowToSparkRow(this.rs);
   }
 
   @Override
   public void close() throws IOException {
-    // TODO: Fill me in.
+    this.rs.close();
+    this.txn.close();
   }
 
   public boolean supportsColumnarReads(InputPartition partition) {
-    // TODO: Fill me in.
     return false;
   }
 }

@@ -14,6 +14,10 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spanner.BatchClient;
+import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.util.Map;
@@ -41,5 +45,14 @@ public class SpannerUtils {
     }
     ConnectionOptions opts = builder.build();
     return opts.getConnection();
+  }
+
+  public static BatchClient batchClientFromProperties(Map<String, String> properties) {
+    SpannerOptions options =
+        SpannerOptions.newBuilder().setProjectId(properties.get("projectId")).build();
+    Spanner spanner = options.getService();
+    return spanner.getBatchClient(
+        DatabaseId.of(
+            options.getProjectId(), properties.get("instanceId"), properties.get("databaseId")));
   }
 }

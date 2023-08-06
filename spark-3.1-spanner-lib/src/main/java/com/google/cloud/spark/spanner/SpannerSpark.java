@@ -108,12 +108,12 @@ public class SpannerSpark {
   private List<Row> resultSetToSparkRow(ResultSet rs) {
     List<Row> rows = new ArrayList();
     while (rs.next()) {
-      rows.add(resultSetIndexToRow(rs));
+      rows.add(resultSetRowToSparkRow(rs));
     }
     return rows;
   }
 
-  private Row resultSetIndexToRow(ResultSet rs) {
+  public static Row resultSetRowToSparkRow(ResultSet rs) {
     Struct spannerRow = rs.getCurrentRowAsStruct();
     Integer columnCount = rs.getColumnCount();
     List<Object> objects = new ArrayList();

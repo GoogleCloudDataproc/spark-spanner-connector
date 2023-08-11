@@ -22,16 +22,16 @@ public class SpannerSpark {
     public static void main(String[] args) {
         SparkSession spark = SparkSession
             .builder()
-            .appName("cloud spanner reading people")
+            .appName("cloud spanner for census 2020")
             .getOrCreate();
 
 
         Dataset<Row> df = spark.read()
             .format("cloud-spanner")
             .option("table", "people")
-            .option("projectId", "orijtech-161805")
-            .option("instanceId", "oragent-ws-spanner")
-            .option("database", "oragent")
+            .option("projectId", System.getenv("SPANNER_SPARK_PROJECT"))
+            .option("instanceId", System.getenv("SPANNER_SPARK_INSTANCE"))
+            .option("database", System.getenv("SPANNER_SPARK_DATABASE"))
             .load();
         df.show();
         df.printSchema();

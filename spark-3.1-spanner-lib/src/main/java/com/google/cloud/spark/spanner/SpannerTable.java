@@ -47,7 +47,11 @@ public class SpannerTable implements Table, SupportsRead {
     // TODO: Use providedSchema in building the SpannerTable.
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       String tableName = properties.get("table");
-      // 3. Run an information schema query to get the type definition of the table.
+      if (tableName == null) {
+        throw new Exception("\"table\" is expecting in properties");
+      }
+
+      // 2. Run an information schema query to get the type definition of the table.
       Statement stmt =
           Statement.newBuilder(
                   "SELECT COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE='YES' AS ISNULLABLE, SPANNER_TYPE "
@@ -102,12 +106,10 @@ public class SpannerTable implements Table, SupportsRead {
         return DataTypes.LongType;
 
       case "JSON":
-        return DataTypes.createArrayType(DataTypes.ByteType);
+        return DataTypes.createArrayType(DataTypes.StringType);
 
       case "NUMERIC":
-        // Please see https://cloud.google.com/spanner/docs/storing-numeric-data#precision
-        // We are using (decimalPrecision=38, scale=9)
-        return DataTypes.createDecimalType(38, 9);
+        return numericToCatalogDataType;
 
       case "STRING":
         return DataTypes.StringType;
@@ -133,14 +135,19 @@ public class SpannerTable implements Table, SupportsRead {
       int se = spannerStrType.lastIndexOf(">");
       String str = spannerStrType.substring(si + 1, se);
       // At this point, str=STRING(MAX) or str=ARRAY<ARRAY<T>>
+      // ARRAY<T>
       DataType innerDataType = SpannerTable.ofSpannerStrType(str, isNullable);
       return DataTypes.createArrayType(innerDataType, isNullable);
     }
 
-    // We are left with "STRUCT"
+    // We are left with "STRUCT<TYPE>"
     // TODO: Handle struct field traversal
     return DataTypes.NullType;
   }
+
+  // Please see https://cloud.google.com/spanner/docs/storing-numeric-data#precision
+  // We are using (decimalPrecision=38, scale=9)
+  private static final DataType numericToCatalogDataType = DataTypes.createDecimalType(38, 9);
 
   @Override
   public StructType schema() {

@@ -16,33 +16,69 @@
 package com.google.cloud.spark.spanner;
 
 import java.util.Map;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
+import org.apache.spark.sql.sources.BaseRelation;
+import org.apache.spark.sql.sources.CreatableRelationProvider;
 import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public class Spark31SpannerTableProvider implements DataSourceRegister, TableProvider {
+public class Spark31SpannerTableProvider
+    implements CreatableRelationProvider, DataSourceRegister, TableProvider {
 
+  /*
+   * Infers the schema of the table identified by the given options.
+   */
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    return null;
+    SpannerTable st = new SpannerTable(null, options);
+    return st.schema();
   }
 
+  /*
+   * Returns a Table instance with the specified table schema,
+   * partitioning and properties to perform a read or write.
+   */
   @Override
   public Table getTable(
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
-    return null;
+    return new SpannerTable(schema, properties);
   }
 
+  /*
+   * Returns true if the source has the ability of
+   * accepting external table metadata when getting tables.
+   */
   @Override
   public boolean supportsExternalMetadata() {
     return false;
   }
 
+  /*
+   * Implements DataSourceRegister.shortName(). This method allows Spark to match
+   * the DataSource when spark.read(...).format("spanner") is invoked.
+   */
   @Override
   public String shortName() {
-    return "spanner";
+    return "cloud-spanner";
+  }
+
+  /*
+   * Implements CreateRelationProvider.createRelation which essentially saves
+   * a DataFrame to the destination using the data-source specific parameters.
+   */
+  @Override
+  public BaseRelation createRelation(
+      SQLContext sqlContext,
+      SaveMode mode,
+      scala.collection.immutable.Map<String, String> parameters,
+      Dataset<Row> data) {
+    return new SpannerBaseRelation(sqlContext, mode, parameters, data);
   }
 }

@@ -29,6 +29,8 @@ import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * SpannerTable implements Table.
@@ -43,12 +45,14 @@ public class SpannerTable implements Table, SupportsRead {
           TableCapability.CONTINUOUS_READ,
           TableCapability.TRUNCATE);
 
+  private static final Logger log = LoggerFactory.getLogger(SpannerRelation.class);
+
   public SpannerTable(StructType providedSchema, Map<String, String> properties) {
     // TODO: Use providedSchema in building the SpannerTable.
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       String tableName = properties.get("table");
       if (tableName == null) {
-        throw new Exception("\"table\" is expecting in properties");
+        log.error("\"table\" is expecting in properties");
       }
 
       // 2. Run an information schema query to get the type definition of the table.

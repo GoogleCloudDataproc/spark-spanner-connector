@@ -32,6 +32,7 @@ import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.InternalRow;
 
 public class SpannerUtils {
 
@@ -73,6 +74,12 @@ public class SpannerUtils {
       rows.add(resultSetRowToSparkRow(rs));
     }
     return rows;
+  }
+
+  public static InternalRow resultSetRowToInternalRow(ResultSet rs) {
+    // TODO: Implement me.
+    // See https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues/54
+    return null;
   }
 
   public static Row resultSetRowToSparkRow(ResultSet rs) {

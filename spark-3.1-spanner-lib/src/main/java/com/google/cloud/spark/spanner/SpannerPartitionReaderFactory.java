@@ -40,7 +40,7 @@ public class SpannerPartitionReaderFactory implements PartitionReaderFactory {
 
   @Override
   public PartitionReader<InternalRow> createReader(InputPartition partition) {
-    // TODO: Fill me in.
-    return null;
+    InputPartitionContext<InternalRow> ctx = ((SpannerInputPartition) partition).getContext();
+    return new SpannerPartitionReader<>(ctx.createPartitionReaderContext());
   }
 }

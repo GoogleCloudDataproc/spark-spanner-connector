@@ -30,9 +30,10 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.types.Decimal;
 
 public class SpannerUtils {
 
@@ -68,72 +69,79 @@ public class SpannerUtils {
             options.getProjectId(), properties.get("instanceId"), properties.get("databaseId")));
   }
 
-  public static List<Row> resultSetToSparkRow(ResultSet rs) {
-    List<Row> rows = new ArrayList();
+  public static List<InternalRow> resultSetToSparkRow(ResultSet rs) {
+    List<InternalRow> rows = new ArrayList<>();
     while (rs.next()) {
-      rows.add(resultSetRowToSparkRow(rs));
+      rows.add(resultSetRowToInternalRow(rs));
     }
     return rows;
   }
 
   public static InternalRow resultSetRowToInternalRow(ResultSet rs) {
-    // TODO: Implement me.
-    // See https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues/54
-    return null;
-  }
-
-  public static Row resultSetRowToSparkRow(ResultSet rs) {
     Struct spannerRow = rs.getCurrentRowAsStruct();
     Integer columnCount = rs.getColumnCount();
-    List<Object> objects = new ArrayList();
 
-    for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-      String fieldTypeName = rs.getColumnType(columnIndex).toString();
+    GenericInternalRow sparkRow = new GenericInternalRow(columnCount);
+
+    for (int i = 0; i < columnCount; i++) {
+      // Using a string typename to aid in easy traversal in the meantime
+      // of non-composite ARRAY<T> kinds. TODO: Traverse ARRAY and STRUCT
+      // programmatically by access of the type elements.
+      String fieldTypeName = rs.getColumnType(i).toString();
 
       switch (fieldTypeName) {
         case "BOOL":
-          objects.add(spannerRow.getBoolean(columnIndex));
+          sparkRow.setBoolean(i, spannerRow.getBoolean(i));
           break;
+
         case "DATE":
-          objects.add(spannerRow.getDate(columnIndex));
+          sparkRow.update(i, spannerRow.getDate(i));
           break;
+
         case "FLOAT64":
-          objects.add(spannerRow.getDouble(columnIndex));
+          sparkRow.setDouble(i, spannerRow.getDouble(i));
           break;
+
         case "INT64":
-          objects.add(spannerRow.getLong(columnIndex));
+          sparkRow.setLong(i, spannerRow.getLong(i));
           break;
+
         case "JSON":
-          objects.add(spannerRow.getBytes(columnIndex));
+          sparkRow.update(i, spannerRow.getString(i));
           break;
+
         case "NUMERIC":
           // TODO: Deal with the precision truncation since Cloud Spanner's precision
           // has (precision=38, scale=9) while Apache Spark has (precision=N, scale=M)
-          objects.add(spannerRow.getBigDecimal(columnIndex));
+          Decimal dec = new Decimal();
+          dec.set(new scala.math.BigDecimal(spannerRow.getBigDecimal(i)), 38, 9);
+          sparkRow.setDecimal(i, dec, dec.precision());
           break;
+
         case "TIMESTAMP":
-          objects.add(spannerRow.getTimestamp(columnIndex));
+          sparkRow.update(i, spannerRow.getTimestamp(i));
           break;
+
         default: // "ARRAY", "STRUCT"
           if (fieldTypeName.indexOf("BYTES") == 0) {
-            objects.add(spannerRow.getBytes(columnIndex));
+            sparkRow.update(i, spannerRow.getBytes(i));
           } else if (fieldTypeName.indexOf("STRING") == 0) {
-            objects.add(spannerRow.getString(columnIndex));
+            sparkRow.update(i, spannerRow.getString(i));
           } else if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
-            objects.add(spannerRow.getBooleanArray(columnIndex));
+            sparkRow.update(i, spannerRow.getBooleanArray(i));
           } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
-            objects.add(spannerRow.getStringList(columnIndex));
+            sparkRow.update(i, spannerRow.getStringList(i));
           } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
-            objects.add(spannerRow.getTimestampList(columnIndex));
+            sparkRow.update(i, spannerRow.getTimestampList(i));
           } else if (fieldTypeName.indexOf("ARRAY<DATE") == 0) {
-            objects.add(spannerRow.getDateList(columnIndex));
+            sparkRow.update(i, spannerRow.getDateList(i));
           } else if (fieldTypeName.indexOf("STRUCT") == 0) {
             // TODO: Convert into a Spark STRUCT.
           }
       }
     }
 
-    return RowFactory.create(objects.toArray(new Object[0]));
+    return sparkRow;
   }
 
   public static Dataset<Row> datasetFromHashMap(SparkSession spark, Map<Partition, List<Row>> hm) {

@@ -38,6 +38,19 @@ public class SpannerRelation
     this.session = session;
   }
 
+  private String buildSQL(String[] requiredColumns, Filter[] filters) {
+    // 1. Create the conjuction of filters.
+    String filtered = getCompiledFilter(filters);
+    // 2. Join the requiredColumns by ","
+    String whereClause = filtered.length() > 0 ? " WHERE " + filtered : "";
+    // 3. Build the final SQL string and return it.
+    return "SELECT " + String.join(", ", requiredColumns) + " FROM " + table + whereClause;
+  }
+
+  private String getCompiledFilter(Filter[] filters) {
+    return SparkFilterUtils.getCompiledFilter(true, null, filters);
+  }
+
   /*
    * This method overrides PrunedFilteredScan.buildScan
    */
@@ -46,7 +59,8 @@ public class SpannerRelation
     // TODO: Implement me.
     // 1. Create a SQL query from the table by column names
     // and the conjunction of filters by an "AND".
-    // SpannerTable st = new SpannerTable(this.session.getAll());
+    String sql = buildSQL(requiredColumns, filters);
+    log.info("SQL built {}", sql);
 
     // 2. Query Cloud Spanner with the constructed SQL query.
     // 3. Convert the results to RDD per ResultSet.Row, as we do in SpannerSpark.execute.

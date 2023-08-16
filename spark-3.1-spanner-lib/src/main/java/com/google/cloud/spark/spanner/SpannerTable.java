@@ -95,7 +95,7 @@ public class SpannerTable implements Table, SupportsRead {
   public static DataType ofSpannerStrType(String spannerStrType, boolean isNullable) {
     // Trim both ends of the string firstly, it could have come in as:
     // "   STRUCT<a STRING(10), b INT64>  "
-    spannerStrType = spannerStrType.trim();
+    spannerStrType = spannerStrType.trim().toUpperCase();
     switch (spannerStrType) {
       case "BOOL":
         return DataTypes.BooleanType;

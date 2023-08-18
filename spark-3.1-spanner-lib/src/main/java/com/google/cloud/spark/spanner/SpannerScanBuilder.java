@@ -57,27 +57,4 @@ public class SpannerScanBuilder implements ScanBuilder, SupportsPushDownFilters 
   public StructType readSchema() {
     return this.scanner.readSchema();
   }
-
-  @Override
-  public PartitionReaderFactory createReaderFactory() {
-    return new SpannerPartitionReaderFactory(this.opts);
-  }
-
-  /*
-  * Returns a list of input partitions. Each InputPartition
-  * represents a data split that can be processed by one Spark task.
-  * The number of input partitions returned here is the same as the
-  * number of RDD partitions this scan outputs.
-  * If the Scan supports filter pushdown, this Batch is likely configured
-  * with a filter and is responsible for creating splits for that
-  * filter, which is not a full scan.
-
-   This method will be called only once during a data source scan, to launch one Spark job.
-  */
-  @Override
-  public InputPartition[] planInputPartitions() {
-    // TODO: Fill me in.
-    // Firstly check Cloud Spanner for the number of partitions.
-    return null;
-  }
 }

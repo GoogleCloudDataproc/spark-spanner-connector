@@ -81,6 +81,11 @@ public class SpannerUtils {
     Struct spannerRow = rs.getCurrentRowAsStruct();
     Integer columnCount = rs.getColumnCount();
 
+    return spannerStructToInternalRow(rs, spannerRow, columnCount);
+  }
+
+  public static InternalRow spannerStructToInternalRow(
+      ResultSet rs, Struct spannerRow, int columnCount) {
     GenericInternalRow sparkRow = new GenericInternalRow(columnCount);
 
     for (int i = 0; i < columnCount; i++) {

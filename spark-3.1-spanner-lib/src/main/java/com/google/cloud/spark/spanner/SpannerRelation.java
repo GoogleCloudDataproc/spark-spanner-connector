@@ -56,6 +56,31 @@ public class SpannerRelation
    */
   @Override
   public RDD<Row> buildScan(String[] requiredColumns, Filter[] filters) {
+    // requiredColumns=["id", "first_name"] or []
+    //  if requiredColumns=[], turn it into "*"
+    // filters = [(age > 10),
+    // TODO: Figure out what requiredColumns would be for the 2 queries below:
+    //  SELECT COUNT(*) FROM <TABLE> WHERE <FILTERS> -- that requiredColumns is NULL
+    //  SELECT * FROM <TABLE> WHERE <FILTERS> -- question is WHAT WOULD BE requiredColumns in this
+    // case
+    //
+    //  SELECT * FROM <TABLE> -- if requiredColumns is NULL.
+    //  1. Run Hao's experiment and print out what required columns is
+    //  2. Asking David in a Github issue.
+    //
+    //  Hao's suggestions:
+    //      * in the beginning just return ALL columns, then later ask David what they did for
+    // BigQuery
+    //      * if aggregating on *, use the primary index -- this case is not valid for Cloud Spanner
+    //
+    //  SELECT * FROM Games WHERE 1=1 GROUP BY id
+    //
+    // Verdicts:
+    //  * Treat "*" as fetch all columns
+    // Straightforward:
+    //  SELECT COL1, COL9 FROM <TABLE> (WHERE <FILTERS>)?
+    //
+    //
     // TODO: Implement me.
     // 1. Create a SQL query from the table by column names
     // and the conjunction of filters by an "AND".

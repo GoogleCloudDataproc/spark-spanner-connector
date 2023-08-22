@@ -38,7 +38,7 @@ public class SpannerInputPartitionReaderContextTest {
 
   @Test
   public void testCreatePartitionContext() throws Exception {
-    String sqlStmt = "SELECT * FROM games";
+    String sqlStmt = "SELECT * FROM ATable";
 
     try (final BatchReadOnlyTransaction txn =
         batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
@@ -52,6 +52,7 @@ public class SpannerInputPartitionReaderContextTest {
       try (InputPartitionReaderContext<InternalRow> ctx = sCtx.createPartitionReaderContext()) {
         while (ctx.next()) {
           InternalRow row = ctx.get();
+          System.out.println("Row " + row.toString());
         }
       }
     }

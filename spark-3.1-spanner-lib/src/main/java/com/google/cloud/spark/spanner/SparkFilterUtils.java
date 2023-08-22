@@ -179,12 +179,10 @@ public class SparkFilterUtils {
         .collect(Collectors.toList());
   }
 
-  public static String getCompiledFilter(
-      boolean pushAllFilters, Optional<String> configFilter, Filter... pushedFilters) {
+  public static String getCompiledFilter(boolean pushAllFilters, Filter... pushedFilters) {
     String compiledPushedFilter =
         compileFilters(handledFilters(pushAllFilters, ImmutableList.copyOf(pushedFilters)));
     return Stream.of(
-            configFilter,
             compiledPushedFilter.length() == 0
                 ? Optional.empty()
                 : Optional.of(compiledPushedFilter))

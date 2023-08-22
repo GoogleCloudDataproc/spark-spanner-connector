@@ -38,17 +38,24 @@ public class SpannerRelation
     this.session = session;
   }
 
-  private String buildSQL(String[] requiredColumns, Filter[] filters) {
+  public String buildSQL(String[] requiredColumns, Filter[] filters) {
     // 1. Create the conjuction of filters.
     String filtered = getCompiledFilter(filters);
-    // 2. Join the requiredColumns by ","
-    String whereClause = filtered.length() > 0 ? " WHERE " + filtered : "";
+    // 2. Join the requiredColumns by "," if necessary.
+    String colStr =
+        requiredColumns != null && requiredColumns.length > 0
+            ? String.join(", ", requiredColumns)
+            : "*";
+    String whereClause = filtered != null && filtered.length() > 0 ? " WHERE " + filtered : "";
     // 3. Build the final SQL string and return it.
-    return "SELECT " + String.join(", ", requiredColumns) + " FROM " + table + whereClause;
+    return "SELECT " + colStr + " FROM " + table + whereClause;
   }
 
   private String getCompiledFilter(Filter[] filters) {
-    return SparkFilterUtils.getCompiledFilter(true, null, filters);
+    if (filters == null) {
+      filters = new Filter[0];
+    }
+    return SparkFilterUtils.getCompiledFilter(true, filters);
   }
 
   /*
@@ -60,11 +67,11 @@ public class SpannerRelation
     //  if requiredColumns=[], turn it into "*"
     // filters = [(age > 10),
     // TODO: Figure out what requiredColumns would be for the 2 queries below:
-    //  SELECT COUNT(*) FROM <TABLE> WHERE <FILTERS> -- that requiredColumns is NULL
+    //  SELECT COUNT(*) FROM <TABLE> WHERE <FILTERS> -- that requiredColumns is null
     //  SELECT * FROM <TABLE> WHERE <FILTERS> -- question is WHAT WOULD BE requiredColumns in this
     // case
     //
-    //  SELECT * FROM <TABLE> -- if requiredColumns is NULL.
+    //  SELECT * FROM <TABLE> -- if requiredColumns is null.
     //  1. Run Hao's experiment and print out what required columns is
     //  2. Asking David in a Github issue.
     //
@@ -91,6 +98,7 @@ public class SpannerRelation
     // 3. Convert the results to RDD per ResultSet.Row, as we do in SpannerSpark.execute.
     // TODO: https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues/45
     log.error("Unimplemented:: buildScan");
+    // SpannerPartitionReaderFactory readerFactory = new SpannerPartitionReaderFactory();
     return null;
   }
 

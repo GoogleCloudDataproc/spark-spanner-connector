@@ -15,16 +15,13 @@
 package com.google.cloud.spark.spanner;
 
 import java.util.Map;
-import org.apache.spark.sql.connector.read.Batch;
-import org.apache.spark.sql.connector.read.InputPartition;
-import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.types.StructType;
 
 /*
  * SpannerScanner implements Scan.
  */
-public class SpannerScanner implements Batch, Scan {
+public class SpannerScanner implements Scan {
   private SpannerTable spannerTable;
   private Map<String, String> opts;
 
@@ -36,21 +33,5 @@ public class SpannerScanner implements Batch, Scan {
   @Override
   public StructType readSchema() {
     return this.spannerTable.schema();
-  }
-
-  @Override
-  public Batch toBatch() {
-    return this;
-  }
-
-  @Override
-  public PartitionReaderFactory createReaderFactory() {
-    return new SpannerPartitionReaderFactory(this.opts);
-  }
-
-  @Override
-  public InputPartition[] planInputPartitions() {
-    // TODO: Fill me in.
-    return null;
   }
 }

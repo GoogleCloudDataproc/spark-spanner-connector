@@ -15,8 +15,9 @@
 package com.google.cloud.spark.spanner;
 
 import org.apache.spark.Partition;
+import org.apache.spark.sql.connector.read.InputPartition;
 
-public class SpannerPartition implements Partition {
+public class SpannerPartition implements Partition, InputPartition {
 
   private final String stream;
   private final int index;
@@ -33,5 +34,10 @@ public class SpannerPartition implements Partition {
   @Override
   public int index() {
     return this.index;
+  }
+
+  @Override
+  public String toString() {
+    return "SpannerPartition{index=" + this.index + ", stream=" + this.stream + "}";
   }
 }

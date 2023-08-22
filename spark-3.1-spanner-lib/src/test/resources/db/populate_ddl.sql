@@ -29,3 +29,12 @@ CREATE TABLE players (
   current_game STRING(36),
   FOREIGN KEY(current_game) REFERENCES games(gameUUID),
 ) PRIMARY KEY(playerUUID);
+
+CREATE TABLE ATable(
+  A INT64 NOT NULL,
+  B STRING(100),
+  C BYTES(MAX),
+  D TIMESTAMP,
+  E NUMERIC,
+  F ARRAY<STRING(MAX)>
+) PRIMARY KEY(A);

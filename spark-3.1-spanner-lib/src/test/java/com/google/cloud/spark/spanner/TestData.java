@@ -10,11 +10,12 @@ import java.util.Objects;
 
 public final class TestData {
   public static List<String> initialDDL = createInitialDDL();
+  public static List<String> initialDML = createInitialDML();
 
   private TestData() {}
 
-  private static List<String> createInitialDDL() {
-    String initialDDL = mustReadResource("/db/populate_ddl.sql");
+  private static List<String> readAndParseSQL(String filename) {
+    String initialDDL = mustReadResource(filename);
     String[] splits = initialDDL.trim().split(";");
     List<String> stmts = new ArrayList<>();
     for (String stmt : splits) {
@@ -24,6 +25,14 @@ public final class TestData {
       }
     }
     return stmts;
+  }
+
+  private static List<String> createInitialDDL() {
+    return readAndParseSQL("/db/populate_ddl.sql");
+  }
+
+  private static List<String> createInitialDML() {
+    return readAndParseSQL("/db/insert_data.sql");
   }
 
   private static String mustReadResource(String path) {

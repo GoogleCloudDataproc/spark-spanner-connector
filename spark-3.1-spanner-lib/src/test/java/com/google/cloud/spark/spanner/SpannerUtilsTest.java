@@ -6,6 +6,7 @@ import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Instance;
 import com.google.cloud.spanner.InstanceAdminClient;
@@ -14,6 +15,7 @@ import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.Statement;
 import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
@@ -61,7 +63,6 @@ public class SpannerUtilsTest {
     }
 
     // 1. Create the Spanner instance.
-    // TODO: Skip this process if the instance already exists.
     InstanceAdminClient insAdminClient = spanner.getInstanceAdminClient();
     InstanceConfig config = insAdminClient.listInstanceConfigs().iterateAll().iterator().next();
     InstanceInfo insInfo =
@@ -84,18 +85,7 @@ public class SpannerUtilsTest {
     // 2. Create the database.
     // TODO: Skip this process if the database already exists.
     OperationFuture<Database, CreateDatabaseMetadata> dop =
-        dbAdminClient.createDatabase(
-            instanceId,
-            databaseId,
-            Arrays.asList(
-                "CREATE TABLE ATable (\n"
-                    + " A INT64 NOT NULL,\n"
-                    + " B STRING(100),\n"
-                    + " C BYTES(MAX),\n"
-                    + " D TIMESTAMP,\n"
-                    + " E NUMERIC,\n"
-                    + " F ARRAY<STRING(MAX)>\n"
-                    + ") PRIMARY KEY(A)"));
+        dbAdminClient.createDatabase(instanceId, databaseId, TestData.initialDDL);
     try {
       dop.get();
     } catch (Exception e) {
@@ -103,6 +93,15 @@ public class SpannerUtilsTest {
         throw e;
       }
     }
+
+    // 3. Insert data into the databse.
+    DatabaseClient db = spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
+    db.readWriteTransaction()
+        .run(
+            txn -> {
+              TestData.initialDML.forEach(sql -> txn.executeUpdate(Statement.of(sql)));
+              return null;
+            });
   }
 
   @Before

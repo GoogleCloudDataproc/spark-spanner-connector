@@ -43,6 +43,5 @@ public class SpannerInputPartitionReaderContext
   @Override
   public void close() throws IOException {
     this.rs.close();
-    this.txn.close();
   }
 }

@@ -80,11 +80,8 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
 
   @Override
   public InputPartition[] planInputPartitions() {
-    // There is no way to retrieve the partitions returned
-    // by Cloud Spanner except by running a partitionReadQuery,
-    // assuming that the max number of partitions will ALWAYS
-    // be the same returned if unchanged.
-    String sqlStmt = "SELECT * FROM " + this.opts.get("table") + " WHERE 0=0";
+    // TODO: Receive the columns and filters that were pushed down.
+    String sqlStmt = "SELECT * FROM " + this.opts.get("table");
     try (BatchReadOnlyTransaction txn =
         this.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
       List<com.google.cloud.spanner.Partition> rawPartitions =
@@ -96,9 +93,7 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
       List<Partition> parts =
           Streams.mapWithIndex(
                   rawPartitions.stream(),
-                  (part, index) ->
-                      new SpannerPartition(
-                          part.getPartitionToken().toString(), Math.toIntExact(index)))
+                  (part, index) -> new SpannerPartition(part, Math.toIntExact(index)))
               .collect(Collectors.toList());
 
       return parts.toArray(new InputPartition[0]);

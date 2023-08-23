@@ -26,6 +26,13 @@ gcloud dataproc jobs submit pyspark --cluster "spanner-spark-cluster" \
 ./bin/spark-shell --jars \
         local:/spark-spanner-connector/spark-3.1-spanner-lib/target/spark-3.1-spanner-lib-0.0.1-SNAPSHOT.jar
 ```
+
+and perhaps
+
+```scala
+var df = spark.read.format("cloud-spanner").option("table", "games").option("projectId", "orijtech-161805").option("instanceId", "spanner-spark").option("databaseId", "spark-db").option("enableDataBoost", "true").load()
+```
+
 which will pull up a spark shell and you can run it by passing in the options
 to create the connection to Cloud Spanner.
 

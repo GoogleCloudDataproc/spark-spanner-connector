@@ -49,7 +49,7 @@ public class SpannerUtils {
       };
 
   public static Connection connectionFromProperties(Map<String, String> properties) {
-    if (properties == null) {
+    if (properties == null || properties.size() == 0) {
       properties = defaultConnOpts;
     }
     String connUriPrefix = "cloudspanner:";

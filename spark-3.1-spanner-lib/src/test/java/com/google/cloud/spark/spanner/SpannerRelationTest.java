@@ -5,7 +5,6 @@ import static org.junit.Assert.assertEquals;
 import com.google.cloud.spark.spanner.SpannerRelation;
 import org.apache.spark.sql.sources.EqualTo;
 import org.apache.spark.sql.sources.Filter;
-import org.apache.spark.sql.sources.NotEqualTo;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -28,8 +27,8 @@ public class SpannerRelationTest {
     String sReqCols = sr.buildSQL(reqCols, null);
     assertEquals("SELECT A, C FROM ATable", sReqCols);
 
-    Filter[] noD = {new NotEqualTo("E", 20.9)};
+    Filter[] noD = {new EqualTo("E", 20.9)};
     String sReqColPlusD = sr.buildSQL(reqCols, noD);
-    assertEquals("SELECT A, C FROM ATable WHERE (E != 20.9)", sReqColPlusD);
+    assertEquals("SELECT A, C FROM ATable WHERE (`E` = 20.9)", sReqColPlusD);
   }
 }

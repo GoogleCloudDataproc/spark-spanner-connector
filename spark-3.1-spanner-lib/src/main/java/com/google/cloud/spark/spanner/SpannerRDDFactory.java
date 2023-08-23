@@ -57,9 +57,7 @@ public class SpannerRDDFactory {
       List<Partition> partitions =
           Streams.mapWithIndex(
                   rawPartitions.stream(),
-                  (partition, index) ->
-                      new SpannerPartition(
-                          partition.getPartitionToken().toString(), Math.toIntExact(index)))
+                  (partition, index) -> new SpannerPartition(partition, Math.toIntExact(index)))
               .collect(Collectors.toList());
 
       Partition[] parts = partitions.toArray(new Partition[0]);

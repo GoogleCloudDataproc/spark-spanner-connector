@@ -97,8 +97,6 @@ public class SpannerRelation
     // 2. Query Cloud Spanner with the constructed SQL query.
     // 3. Convert the results to RDD per ResultSet.Row, as we do in SpannerSpark.execute.
     // TODO: https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues/45
-    log.error("Unimplemented:: buildScan");
-    // SpannerPartitionReaderFactory readerFactory = new SpannerPartitionReaderFactory();
     return null;
   }
 

@@ -34,7 +34,7 @@ public class SpannerPartitionReaderFactory implements PartitionReaderFactory {
 
   @Override
   public PartitionReader<ColumnarBatch> createColumnarReader(InputPartition partition) {
-    // TODO: Fill me in.
+    // Unsupported!
     return null;
   }
 

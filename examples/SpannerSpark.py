@@ -17,10 +17,17 @@
 from pyspark.sql import SparkSession
 
 def main():
+    table = "games"
     spark = SparkSession.builder.appName("Query Spanner").getOrCreate()
-    df = spark.read.format("cloud-spanner").option("table", "ATable").load()
-    df.show()
+    df = spark.read.format('cloud-spanner') \
+                .option("projectId", "orijtech-161805") \
+                .option("instanceId", "spanner-spark") \
+                .option("databaseId", "spark-db") \
+                .option("enableDataBoost", "true") \
+                .option("table", table) \
+                .load(table)
     df.printSchema()
+    df.show()
 
 if __name__ == '__main__':
     main()

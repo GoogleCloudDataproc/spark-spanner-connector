@@ -14,21 +14,18 @@
 
 package com.google.cloud.spark.spanner;
 
+import java.io.Serializable;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.InputPartition;
 
-public class SpannerPartition implements Partition, InputPartition {
+public class SpannerPartition implements Partition, InputPartition, Serializable {
 
-  private final String stream;
+  private final com.google.cloud.spanner.Partition partition;
   private final int index;
 
-  public SpannerPartition(String stream, int index) {
+  public SpannerPartition(com.google.cloud.spanner.Partition partition, int index) {
     this.index = index;
-    this.stream = stream;
-  }
-
-  public String getStream() {
-    return this.stream;
+    this.partition = partition;
   }
 
   @Override
@@ -38,6 +35,6 @@ public class SpannerPartition implements Partition, InputPartition {
 
   @Override
   public String toString() {
-    return "SpannerPartition{index=" + this.index + ", stream=" + this.stream + "}";
+    return "SpannerPartition{index=" + this.index + ", stream=" + this.partition + "}";
   }
 }

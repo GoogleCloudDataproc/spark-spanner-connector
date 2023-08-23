@@ -43,4 +43,9 @@ public class SpannerPartitionReaderFactory implements PartitionReaderFactory {
     InputPartitionContext<InternalRow> ctx = ((SpannerInputPartition) partition).getContext();
     return new SpannerPartitionReader<>(ctx.createPartitionReaderContext());
   }
+
+  @Override
+  public boolean supportColumnarReads(InputPartition partition) {
+    return false;
+  }
 }

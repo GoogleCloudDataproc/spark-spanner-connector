@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
@@ -86,8 +87,10 @@ public class SpannerInputPartitionReaderContextTest {
 
       // Not using executor.execute as controlling immediate termination
       // is non-granular and out of scope of these tests.
+      Map<String, String> opts = SpannerUtilsTest.connectionProperties();
       for (final Partition partition : partitions) {
-        SpannerInputPartitionContext sCtx = new SpannerInputPartitionContext(txn, partition);
+        SpannerInputPartitionContext sCtx =
+            new SpannerInputPartitionContext(partition, txn.getBatchTransactionId(), opts);
         try {
           InputPartitionReaderContext<InternalRow> ctx = sCtx.createPartitionReaderContext();
 

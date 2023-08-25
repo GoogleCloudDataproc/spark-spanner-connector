@@ -23,6 +23,7 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -111,13 +112,21 @@ public class SpannerUtils {
       // programmatically by access of the type elements.
       String fieldTypeName = rs.getColumnType(i).toString();
 
+      if (spannerRow.isNull(i)) {
+        // TODO: Examine if we should perhaps translate to
+        // zero values for simple types like INT64, FLOAT64
+        // or just keep it as null.
+        sparkRow.update(i, null);
+        continue;
+      }
+
       switch (fieldTypeName) {
         case "BOOL":
           sparkRow.setBoolean(i, spannerRow.getBoolean(i));
           break;
 
         case "DATE":
-          sparkRow.update(i, spannerRow.getDate(i));
+          sparkRow.update(i, spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)));
           break;
 
         case "FLOAT64":
@@ -141,24 +150,56 @@ public class SpannerUtils {
           break;
 
         case "TIMESTAMP":
-          sparkRow.update(i, spannerRow.getTimestamp(i));
+          sparkRow.update(i, spannerRow.getTimestamp(i).toSqlTimestamp());
           break;
 
         default: // "ARRAY", "STRUCT"
           if (fieldTypeName.indexOf("BYTES") == 0) {
-            sparkRow.update(i, spannerRow.getBytes(i));
+            if (spannerRow.isNull(i)) {
+              sparkRow.update(i, null);
+            } else {
+              sparkRow.update(i, spannerRow.getBytes(i).toByteArray());
+            }
           } else if (fieldTypeName.indexOf("STRING") == 0) {
-            sparkRow.update(i, spannerRow.getString(i));
+            if (spannerRow.isNull(i)) {
+              sparkRow.update(i, null);
+            } else {
+              sparkRow.update(i, spannerRow.getString(i));
+            }
           } else if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
-            sparkRow.update(i, spannerRow.getBooleanArray(i));
+            if (spannerRow.isNull(i)) {
+              sparkRow.update(i, null);
+            } else {
+              sparkRow.update(i, spannerRow.getBooleanArray(i));
+            }
           } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
-            sparkRow.update(i, spannerRow.getStringList(i));
+            if (spannerRow.isNull(i)) {
+              sparkRow.update(i, null);
+            } else {
+              sparkRow.update(i, spannerRow.getStringList(i));
+            }
           } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
-            sparkRow.update(i, spannerRow.getTimestampList(i));
+            if (spannerRow.isNull(i)) {
+              sparkRow.update(i, null);
+            } else {
+              List<com.google.cloud.Timestamp> tsL = spannerRow.getTimestampList(i);
+              List<Timestamp> endTsL = new ArrayList<Timestamp>(tsL.size());
+              tsL.forEach((ts) -> endTsL.add(ts.toSqlTimestamp()));
+              sparkRow.update(i, endTsL);
+            }
           } else if (fieldTypeName.indexOf("ARRAY<DATE") == 0) {
-            sparkRow.update(i, spannerRow.getDateList(i));
-          } else if (fieldTypeName.indexOf("STRUCT") == 0) {
-            // TODO: Convert into a Spark STRUCT.
+            if (spannerRow.isNull(i)) {
+              sparkRow.update(i, null);
+              sparkRow.update(i, null);
+              // TODO: Convert to the java.sql type.
+              sparkRow.update(i, spannerRow.getDateList(i));
+            } else if (fieldTypeName.indexOf("STRUCT") == 0) {
+              if (spannerRow.isNull(i)) {
+                sparkRow.update(i, null);
+              } else {
+                // TODO: Convert into a Spark STRUCT.
+              }
+            }
           }
       }
     }

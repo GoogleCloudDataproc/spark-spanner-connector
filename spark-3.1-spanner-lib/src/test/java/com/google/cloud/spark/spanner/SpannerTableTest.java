@@ -2,12 +2,20 @@ package com.google.cloud.spark;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.spark.spanner.SpannerScanBuilder;
 import com.google.cloud.spark.spanner.SpannerTable;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
+import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.connector.read.InputPartition;
+import org.apache.spark.sql.connector.read.PartitionReader;
+import org.apache.spark.sql.connector.read.PartitionReaderFactory;
+import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,5 +46,27 @@ public class SpannerTableTest {
     assertEquals(expectSchema.length(), actualSchema.length());
     assertEquals(expectSchema.fieldNames(), actualSchema.fieldNames());
     assertEquals(expectSchema.simpleString(), actualSchema.simpleString());
+  }
+
+  @Test
+  public void show() {
+    Map<String, String> props = SpannerUtilsTest.connectionProperties();
+    SpannerTable st = new SpannerTable(null, props);
+    CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
+    ScanBuilder sb = st.newScanBuilder(csm);
+    SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);
+    InputPartition[] parts = ssb.planInputPartitions();
+    PartitionReaderFactory prf = ssb.createReaderFactory();
+
+    for (InputPartition part : parts) {
+      PartitionReader<InternalRow> ir = prf.createReader(part);
+      try {
+        while (ir.next()) {
+          InternalRow row = ir.get();
+          System.out.println("row: " + row.toString());
+        }
+      } catch (IOException e) {
+      }
+    }
   }
 }

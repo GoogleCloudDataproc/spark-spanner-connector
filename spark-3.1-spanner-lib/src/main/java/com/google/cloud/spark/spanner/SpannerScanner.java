@@ -37,12 +37,10 @@ import org.apache.spark.sql.types.StructType;
 public class SpannerScanner implements Batch, Scan {
   private SpannerTable spannerTable;
   private Map<String, String> opts;
-  private BatchClient batchClient;
 
   public SpannerScanner(Map<String, String> opts) {
     this.opts = opts;
     this.spannerTable = new SpannerTable(null, opts);
-    this.batchClient = SpannerUtils.batchClientFromProperties(this.opts);
   }
 
   @Override
@@ -63,9 +61,10 @@ public class SpannerScanner implements Batch, Scan {
   @Override
   public InputPartition[] planInputPartitions() {
     // TODO: Receive the columns and filters that were pushed down.
+    BatchClient batchClient = SpannerUtils.batchClientFromProperties(this.opts);
     String sqlStmt = "SELECT * FROM " + this.spannerTable.name();
     try (BatchReadOnlyTransaction txn =
-        this.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
+        batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
       List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
@@ -75,7 +74,12 @@ public class SpannerScanner implements Batch, Scan {
       List<Partition> parts =
           Streams.mapWithIndex(
                   rawPartitions.stream(),
-                  (part, index) -> new SpannerPartition(part, Math.toIntExact(index)))
+                  (part, index) ->
+                      new SpannerPartition(
+                          part,
+                          Math.toIntExact(index),
+                          new SpannerInputPartitionContext(
+                              part, txn.getBatchTransactionId(), this.opts)))
               .collect(Collectors.toList());
 
       return parts.toArray(new InputPartition[0]);

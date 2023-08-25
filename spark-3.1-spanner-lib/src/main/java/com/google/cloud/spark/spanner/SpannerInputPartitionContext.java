@@ -14,23 +14,44 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.BatchTransactionId;
+import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerOptions;
+import java.io.Serializable;
+import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 
-public class SpannerInputPartitionContext implements InputPartitionContext<InternalRow> {
+public class SpannerInputPartitionContext
+    implements InputPartitionContext<InternalRow>, Serializable {
 
-  private BatchReadOnlyTransaction txn;
+  private BatchTransactionId batchTransactionId;
   private Partition partition;
+  private Map<String, String> opts;
 
-  public SpannerInputPartitionContext(BatchReadOnlyTransaction txn, Partition partition) {
+  public SpannerInputPartitionContext(
+      Partition partition, BatchTransactionId batchTransactionId, Map<String, String> opts) {
+    this.opts = opts;
     this.partition = partition;
-    this.txn = txn;
+    this.batchTransactionId = batchTransactionId;
   }
 
   @Override
   public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
-    return new SpannerInputPartitionReaderContext(this.txn, this.txn.execute(this.partition));
+    SpannerOptions sopts =
+        SpannerOptions.newBuilder().setProjectId(this.opts.get("projectId")).build();
+    Spanner spanner = sopts.getService();
+    BatchClient batchClient =
+        spanner.getBatchClient(
+            DatabaseId.of(
+                sopts.getProjectId(), this.opts.get("instanceId"), this.opts.get("databaseId")));
+    try (BatchReadOnlyTransaction txn =
+        batchClient.batchReadOnlyTransaction(this.batchTransactionId)) {
+      return new SpannerInputPartitionReaderContext(txn.execute(this.partition));
+    }
   }
 
   @Override

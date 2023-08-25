@@ -14,7 +14,6 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import java.io.IOException;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -22,11 +21,9 @@ import org.apache.spark.sql.catalyst.InternalRow;
 public class SpannerInputPartitionReaderContext
     implements InputPartitionReaderContext<InternalRow> {
 
-  private BatchReadOnlyTransaction txn;
   private ResultSet rs;
 
-  public SpannerInputPartitionReaderContext(BatchReadOnlyTransaction txn, ResultSet rs) {
-    this.txn = txn;
+  public SpannerInputPartitionReaderContext(ResultSet rs) {
     this.rs = rs;
   }
 

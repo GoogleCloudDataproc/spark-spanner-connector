@@ -14,7 +14,6 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.google.cloud.spanner.BatchClient;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
@@ -26,21 +25,21 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
  * SpannerPartitionReaderFactory is an entry to implement PartitionReaderFactory.
  */
 public class SpannerPartitionReaderFactory implements PartitionReaderFactory {
-  private BatchClient batchClient;
+  private Map<String, String> opts;
 
   public SpannerPartitionReaderFactory(Map<String, String> opts) {
-    this.batchClient = SpannerUtils.batchClientFromProperties(opts);
+    this.opts = opts;
   }
 
   @Override
   public PartitionReader<ColumnarBatch> createColumnarReader(InputPartition partition) {
     // Unsupported!
-    return null;
+    throw new RuntimeException("createColumnarReader not supported");
   }
 
   @Override
   public PartitionReader<InternalRow> createReader(InputPartition partition) {
-    InputPartitionContext<InternalRow> ctx = ((SpannerInputPartition) partition).getContext();
+    InputPartitionContext<InternalRow> ctx = ((SpannerPartition) partition).getContext();
     return new SpannerPartitionReader<>(ctx.createPartitionReaderContext());
   }
 

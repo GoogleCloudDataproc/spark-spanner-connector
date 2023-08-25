@@ -44,12 +44,10 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
   private CaseInsensitiveStringMap opts;
   private Set<Filter> filters;
   private SpannerScanner scanner;
-  private BatchClient batchClient;
 
   public SpannerScanBuilder(CaseInsensitiveStringMap options) {
     this.opts = options;
     this.filters = new HashSet<Filter>();
-    this.batchClient = SpannerUtils.batchClientFromProperties(this.opts);
   }
 
   @Override
@@ -81,9 +79,10 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
   @Override
   public InputPartition[] planInputPartitions() {
     // TODO: Receive the columns and filters that were pushed down.
+    BatchClient batchClient = SpannerUtils.batchClientFromProperties(this.opts);
     String sqlStmt = "SELECT * FROM " + this.opts.get("table");
     try (BatchReadOnlyTransaction txn =
-        this.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
+        batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
       List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
@@ -93,7 +92,12 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
       List<Partition> parts =
           Streams.mapWithIndex(
                   rawPartitions.stream(),
-                  (part, index) -> new SpannerPartition(part, Math.toIntExact(index)))
+                  (part, index) ->
+                      new SpannerPartition(
+                          part,
+                          Math.toIntExact(index),
+                          new SpannerInputPartitionContext(
+                              part, txn.getBatchTransactionId(), this.opts)))
               .collect(Collectors.toList());
 
       return parts.toArray(new InputPartition[0]);

@@ -22,10 +22,13 @@ public class SpannerPartition implements Partition, InputPartition, Serializable
 
   private final com.google.cloud.spanner.Partition partition;
   private final int index;
+  private InputPartitionContext ctx;
 
-  public SpannerPartition(com.google.cloud.spanner.Partition partition, int index) {
+  public SpannerPartition(
+      com.google.cloud.spanner.Partition partition, int index, InputPartitionContext ctx) {
     this.index = index;
     this.partition = partition;
+    this.ctx = ctx;
   }
 
   @Override
@@ -36,5 +39,9 @@ public class SpannerPartition implements Partition, InputPartition, Serializable
   @Override
   public String toString() {
     return "SpannerPartition{index=" + this.index + ", stream=" + this.partition + "}";
+  }
+
+  public InputPartitionContext getContext() {
+    return this.ctx;
   }
 }

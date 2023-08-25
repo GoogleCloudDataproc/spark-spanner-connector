@@ -36,6 +36,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.unsafe.types.UTF8String;
 
 public class SpannerUtils {
   public static Map<String, String> defaultConnOpts =
@@ -138,7 +139,7 @@ public class SpannerUtils {
           break;
 
         case "JSON":
-          sparkRow.update(i, spannerRow.getString(i));
+          sparkRow.update(i, UTF8String.fromString(spannerRow.getString(i)));
           break;
 
         case "NUMERIC":
@@ -164,7 +165,7 @@ public class SpannerUtils {
             if (spannerRow.isNull(i)) {
               sparkRow.update(i, null);
             } else {
-              sparkRow.update(i, spannerRow.getString(i));
+              sparkRow.update(i, UTF8String.fromString(spannerRow.getString(i)));
             }
           } else if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
             if (spannerRow.isNull(i)) {

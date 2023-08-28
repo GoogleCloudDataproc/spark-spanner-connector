@@ -29,6 +29,8 @@ import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.types.StructType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * SpannerScanner implements Scan.
@@ -36,6 +38,7 @@ import org.apache.spark.sql.types.StructType;
 public class SpannerScanner implements Batch, Scan {
   private SpannerTable spannerTable;
   private Map<String, String> opts;
+  private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(Map<String, String> opts) {
     this.opts = opts;
@@ -64,6 +67,7 @@ public class SpannerScanner implements Batch, Scan {
     String sqlStmt = "SELECT * FROM " + this.spannerTable.name();
     try (BatchReadOnlyTransaction txn =
         batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
+      String mapAsJSON = SpannerUtils.serializeMap(this.opts);
       List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
@@ -78,10 +82,13 @@ public class SpannerScanner implements Batch, Scan {
                           part,
                           Math.toIntExact(index),
                           new SpannerInputPartitionContext(
-                              part, txn.getBatchTransactionId(), this.opts)))
+                              part, txn.getBatchTransactionId(), mapAsJSON)))
               .collect(Collectors.toList());
 
       return parts.toArray(new InputPartition[0]);
+    } catch (Exception e) {
+      log.error("planInputPartitions exception: " + e);
+      return null;
     }
   }
 }

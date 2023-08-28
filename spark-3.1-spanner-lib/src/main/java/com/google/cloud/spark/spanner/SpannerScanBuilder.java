@@ -35,6 +35,8 @@ import org.apache.spark.sql.connector.read.SupportsPushDownFilters;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * Allows us to implement ScanBuilder.
@@ -43,6 +45,7 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
   private CaseInsensitiveStringMap opts;
   private Set<Filter> filters;
   private SpannerScanner scanner;
+  private static final Logger log = LoggerFactory.getLogger(SpannerScanBuilder.class);
 
   public SpannerScanBuilder(CaseInsensitiveStringMap options) {
     this.opts = options;
@@ -82,6 +85,7 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
     String sqlStmt = "SELECT * FROM " + this.opts.get("table");
     try (BatchReadOnlyTransaction txn =
         batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
+      String mapAsJSON = SpannerUtils.serializeMap(this.opts.asCaseSensitiveMap());
       List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
@@ -96,10 +100,13 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
                           part,
                           Math.toIntExact(index),
                           new SpannerInputPartitionContext(
-                              part, txn.getBatchTransactionId(), this.opts)))
+                              part, txn.getBatchTransactionId(), mapAsJSON)))
               .collect(Collectors.toList());
 
       return parts.toArray(new InputPartition[0]);
+    } catch (Exception e) {
+      log.error("planInputPartitions exception: " + e);
+      return null;
     } finally {
       batchClient.close();
     }

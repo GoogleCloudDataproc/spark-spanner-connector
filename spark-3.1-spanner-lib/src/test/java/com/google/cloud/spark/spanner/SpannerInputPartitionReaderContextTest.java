@@ -12,6 +12,7 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.InputPartitionReaderContext;
 import com.google.cloud.spark.spanner.SpannerInputPartitionContext;
+import com.google.cloud.spark.spanner.SpannerUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,9 +90,11 @@ public class SpannerInputPartitionReaderContextTest {
       // Not using executor.execute as controlling immediate termination
       // is non-granular and out of scope of these tests.
       Map<String, String> opts = SpannerUtilsTest.connectionProperties();
+      String mapAsJSON = SpannerUtils.serializeMap(opts);
+
       for (final Partition partition : partitions) {
         SpannerInputPartitionContext sCtx =
-            new SpannerInputPartitionContext(partition, txn.getBatchTransactionId(), opts);
+            new SpannerInputPartitionContext(partition, txn.getBatchTransactionId(), mapAsJSON);
         try {
           InputPartitionReaderContext<InternalRow> ctx = sCtx.createPartitionReaderContext();
 

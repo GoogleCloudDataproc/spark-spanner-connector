@@ -25,6 +25,8 @@ import java.io.Closeable;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SpannerInputPartitionContext
     implements InputPartitionContext<InternalRow>, Serializable, Closeable {
@@ -34,10 +36,15 @@ public class SpannerInputPartitionContext
   private Map<String, String> opts;
   private Spanner spanner;
   private String projectId;
+  private static final Logger log = LoggerFactory.getLogger(SpannerInputPartitionContext.class);
 
   public SpannerInputPartitionContext(
-      Partition partition, BatchTransactionId batchTransactionId, Map<String, String> opts) {
-    this.opts = opts;
+      Partition partition, BatchTransactionId batchTransactionId, String mapAsJSONStr) {
+    try {
+      this.opts = SpannerUtils.deserializeMap(mapAsJSONStr);
+    } catch (Exception e) {
+    }
+
     this.partition = partition;
     this.batchTransactionId = batchTransactionId;
 

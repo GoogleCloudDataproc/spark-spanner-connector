@@ -194,12 +194,12 @@ public class SpannerUtils {
     return sparkRow;
   }
 
-  public String serializeMap(Map<String, String> m) throws Exception {
+  public static String serializeMap(Map<String, String> m) throws Exception {
     ObjectMapper mapper = new ObjectMapper();
-    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(m);
+    return mapper.writer().writeValueAsString(m);
   }
 
-  public Map<String, String> deserializeMap(String json) throws Exception {
+  public static Map<String, String> deserializeMap(String json) throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, String>> typeRef =
         new TypeReference<HashMap<String, String>>() {};

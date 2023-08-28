@@ -76,27 +76,4 @@ public class SpannerTableTest {
       }
     }
   }
-
-  @Test
-  public void testMoreDiverseTables() {
-    Map<String, String> props = SpannerUtilsTest.connectionProperties();
-    props.put("table", "games");
-    SpannerTable st = new SpannerTable(null, props);
-    CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
-    ScanBuilder sb = st.newScanBuilder(csm);
-    SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);
-    InputPartition[] parts = ssb.planInputPartitions();
-    PartitionReaderFactory prf = ssb.createReaderFactory();
-
-    for (InputPartition part : parts) {
-      PartitionReader<InternalRow> ir = prf.createReader(part);
-      try {
-        while (ir.next()) {
-          InternalRow row = ir.get();
-          System.out.println("row: " + row.toString());
-        }
-      } catch (IOException e) {
-      }
-    }
-  }
 }

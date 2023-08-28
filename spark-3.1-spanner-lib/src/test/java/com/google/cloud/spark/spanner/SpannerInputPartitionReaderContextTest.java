@@ -12,8 +12,11 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.InputPartitionReaderContext;
 import com.google.cloud.spark.spanner.SpannerInputPartitionContext;
+import com.google.cloud.spark.spanner.SpannerScanBuilder;
+import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.cloud.spark.spanner.SpannerUtils;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,6 +26,11 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.connector.read.InputPartition;
+import org.apache.spark.sql.connector.read.PartitionReader;
+import org.apache.spark.sql.connector.read.PartitionReaderFactory;
+import org.apache.spark.sql.connector.read.ScanBuilder;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.After;
 import org.junit.Before;
@@ -110,6 +118,63 @@ public class SpannerInputPartitionReaderContextTest {
         al.forEach(gotRows::add);
       }
     }
+
+    Comparator<InternalRow> cmp = new InternalRowComparator();
+    Collections.sort(expectRows, cmp);
+    Collections.sort(gotRows, cmp);
+
+    assertEquals(expectRows.size(), gotRows.size());
+    assertEquals(expectRows, gotRows);
+  }
+
+  public InternalRow makeGamesRow(
+      String playerId,
+      String[] playerIds,
+      String winner,
+      Timestamp createdAt,
+      Timestamp finishedAt) {
+    GenericInternalRow row = new GenericInternalRow(5);
+    row.update(0, UTF8String.fromString(playerId));
+    List<UTF8String> dest = new ArrayList<UTF8String>(playerIds.length);
+    for (String id : playerIds) {
+      dest.add(UTF8String.fromString(id));
+    }
+    row.update(1, dest);
+    row.update(2, UTF8String.fromString(winner));
+    row.update(3, createdAt);
+    row.update(4, finishedAt);
+    return row;
+  }
+
+  @Test
+  public void testMoreDiverseTables() {
+    Map<String, String> props = SpannerUtilsTest.connectionProperties();
+    props.put("table", "games");
+    SpannerTable st = new SpannerTable(null, props);
+    CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
+    ScanBuilder sb = st.newScanBuilder(csm);
+    SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);
+    InputPartition[] parts = ssb.planInputPartitions();
+    PartitionReaderFactory prf = ssb.createReaderFactory();
+
+    List<InternalRow> gotRows = new ArrayList<>();
+    for (InputPartition part : parts) {
+      PartitionReader<InternalRow> ir = prf.createReader(part);
+      try {
+        while (ir.next()) {
+          InternalRow row = ir.get();
+          gotRows.add(row);
+        }
+      } catch (IOException e) {
+      }
+    }
+
+    Timestamp createdAt = Timestamp.valueOf("2023-08-26 15:22:00");
+    Timestamp finishedAt = Timestamp.valueOf("2023-08-26 15:22:00");
+    List<InternalRow> expectRows =
+        Arrays.asList(
+            makeGamesRow("g1", new String[] {"p1", "p2", "p3"}, "T1", createdAt, finishedAt),
+            makeGamesRow("g2", new String[] {"p4", "p5", "p6"}, "T2", createdAt, finishedAt));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();
     Collections.sort(expectRows, cmp);

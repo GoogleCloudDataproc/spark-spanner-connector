@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,7 +54,7 @@ public class SpannerInputPartitionReaderContextTest {
   InternalRow makeInternalRow(int A, String B, double C) {
     GenericInternalRow row = new GenericInternalRow(3);
     row.setLong(0, A);
-    row.update(1, B);
+    row.update(1, UTF8String.fromString(B));
     row.setDouble(2, C);
     return row;
   }
@@ -97,8 +98,11 @@ public class SpannerInputPartitionReaderContextTest {
           while (ctx.next()) {
             al.add(ctx.get());
           }
+          ctx.close();
         } catch (IOException e) {
           System.out.println("\033[33mexception now: " + e + "\033[00m");
+        } finally {
+          sCtx.close();
         }
         al.forEach(gotRows::add);
       }

@@ -14,7 +14,6 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
@@ -25,6 +24,7 @@ import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,16 +76,20 @@ public class SpannerUtils {
     return opts.getConnection();
   }
 
-  public static BatchClient batchClientFromProperties(Map<String, String> properties) {
+  public static BatchClientWithCloser batchClientFromProperties(Map<String, String> properties) {
     if (properties == null) {
       properties = defaultConnOpts;
     }
     SpannerOptions options =
         SpannerOptions.newBuilder().setProjectId(properties.get("projectId")).build();
     Spanner spanner = options.getService();
-    return spanner.getBatchClient(
-        DatabaseId.of(
-            options.getProjectId(), properties.get("instanceId"), properties.get("databaseId")));
+    return new BatchClientWithCloser(
+        spanner,
+        spanner.getBatchClient(
+            DatabaseId.of(
+                options.getProjectId(),
+                properties.get("instanceId"),
+                properties.get("databaseId"))));
   }
 
   public static List<InternalRow> resultSetToSparkRow(ResultSet rs) {
@@ -156,50 +160,30 @@ public class SpannerUtils {
 
         default: // "ARRAY", "STRUCT"
           if (fieldTypeName.indexOf("BYTES") == 0) {
-            if (spannerRow.isNull(i)) {
-              sparkRow.update(i, null);
-            } else {
-              sparkRow.update(i, spannerRow.getBytes(i).toByteArray());
-            }
+            sparkRow.update(i, spannerRow.getBytes(i).toByteArray());
           } else if (fieldTypeName.indexOf("STRING") == 0) {
-            if (spannerRow.isNull(i)) {
-              sparkRow.update(i, null);
-            } else {
-              sparkRow.update(i, UTF8String.fromString(spannerRow.getString(i)));
-            }
+            sparkRow.update(i, UTF8String.fromString(spannerRow.getString(i)));
           } else if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
-            if (spannerRow.isNull(i)) {
-              sparkRow.update(i, null);
-            } else {
-              sparkRow.update(i, spannerRow.getBooleanArray(i));
-            }
+            sparkRow.update(i, spannerRow.getBooleanArray(i));
           } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
-            if (spannerRow.isNull(i)) {
-              sparkRow.update(i, null);
-            } else {
-              sparkRow.update(i, spannerRow.getStringList(i));
-            }
+            List<String> src = spannerRow.getStringList(i);
+            List<UTF8String> dest = new ArrayList<UTF8String>(src.size());
+            src.forEach((s) -> dest.add(UTF8String.fromString(s)));
+            sparkRow.update(i, dest);
           } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
+            List<com.google.cloud.Timestamp> tsL = spannerRow.getTimestampList(i);
+            List<Timestamp> endTsL = new ArrayList<Timestamp>(tsL.size());
+            tsL.forEach((ts) -> endTsL.add(ts.toSqlTimestamp()));
+            sparkRow.update(i, endTsL);
+          } else if (fieldTypeName.indexOf("ARRAY<DATE") == 0) {
+            List<Date> endDL = new ArrayList<Date>();
+            spannerRow.getDateList(i).forEach((ts) -> endDL.add(ts.toJavaUtilDate(ts)));
+            sparkRow.update(i, endDL);
+          } else if (fieldTypeName.indexOf("STRUCT") == 0) {
             if (spannerRow.isNull(i)) {
               sparkRow.update(i, null);
             } else {
-              List<com.google.cloud.Timestamp> tsL = spannerRow.getTimestampList(i);
-              List<Timestamp> endTsL = new ArrayList<Timestamp>(tsL.size());
-              tsL.forEach((ts) -> endTsL.add(ts.toSqlTimestamp()));
-              sparkRow.update(i, endTsL);
-            }
-          } else if (fieldTypeName.indexOf("ARRAY<DATE") == 0) {
-            if (spannerRow.isNull(i)) {
-              sparkRow.update(i, null);
-              sparkRow.update(i, null);
-              // TODO: Convert to the java.sql type.
-              sparkRow.update(i, spannerRow.getDateList(i));
-            } else if (fieldTypeName.indexOf("STRUCT") == 0) {
-              if (spannerRow.isNull(i)) {
-                sparkRow.update(i, null);
-              } else {
-                // TODO: Convert into a Spark STRUCT.
-              }
+              // TODO: Convert into a Spark STRUCT.
             }
           }
       }

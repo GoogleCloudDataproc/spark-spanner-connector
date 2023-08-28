@@ -21,33 +21,43 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import java.io.Closeable;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 
 public class SpannerInputPartitionContext
-    implements InputPartitionContext<InternalRow>, Serializable {
+    implements InputPartitionContext<InternalRow>, Serializable, Closeable {
 
   private BatchTransactionId batchTransactionId;
   private Partition partition;
   private Map<String, String> opts;
+  private Spanner spanner;
+  private String projectId;
 
   public SpannerInputPartitionContext(
       Partition partition, BatchTransactionId batchTransactionId, Map<String, String> opts) {
     this.opts = opts;
     this.partition = partition;
     this.batchTransactionId = batchTransactionId;
+
+    // TODO: Infer the default projectId as a fallback if opts["projectId"] was not set.
+    String projectId = this.opts.get("projectId");
+    SpannerOptions.Builder sb = SpannerOptions.newBuilder();
+    if (projectId != null && projectId != "") {
+      sb = sb.setProjectId(projectId);
+    }
+    SpannerOptions ss = sb.build();
+    this.projectId = ss.getProjectId();
+    this.spanner = ss.getService();
   }
 
   @Override
   public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
-    SpannerOptions sopts =
-        SpannerOptions.newBuilder().setProjectId(this.opts.get("projectId")).build();
-    Spanner spanner = sopts.getService();
     BatchClient batchClient =
-        spanner.getBatchClient(
+        this.spanner.getBatchClient(
             DatabaseId.of(
-                sopts.getProjectId(), this.opts.get("instanceId"), this.opts.get("databaseId")));
+                this.projectId, this.opts.get("instanceId"), this.opts.get("databaseId")));
     try (BatchReadOnlyTransaction txn =
         batchClient.batchReadOnlyTransaction(this.batchTransactionId)) {
       return new SpannerInputPartitionReaderContext(txn.execute(this.partition));
@@ -57,5 +67,10 @@ public class SpannerInputPartitionContext
   @Override
   public boolean supportsColumnarReads() {
     return false;
+  }
+
+  @Override
+  public void close() {
+    this.spanner.close();
   }
 }

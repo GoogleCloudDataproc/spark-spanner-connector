@@ -14,7 +14,6 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
@@ -79,10 +78,10 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
   @Override
   public InputPartition[] planInputPartitions() {
     // TODO: Receive the columns and filters that were pushed down.
-    BatchClient batchClient = SpannerUtils.batchClientFromProperties(this.opts);
+    BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
     String sqlStmt = "SELECT * FROM " + this.opts.get("table");
     try (BatchReadOnlyTransaction txn =
-        batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
+        batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
       List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
@@ -101,6 +100,8 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
               .collect(Collectors.toList());
 
       return parts.toArray(new InputPartition[0]);
+    } finally {
+      batchClient.close();
     }
   }
 }

@@ -16,12 +16,19 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class SpannerTableTest {
+
+  @Before
+  public void setUp() throws Exception {
+    SpannerUtilsTest ss = new SpannerUtilsTest();
+    ss.initDatabase();
+  }
 
   @Test
   public void createSchema() {
@@ -51,6 +58,29 @@ public class SpannerTableTest {
   @Test
   public void show() {
     Map<String, String> props = SpannerUtilsTest.connectionProperties();
+    SpannerTable st = new SpannerTable(null, props);
+    CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
+    ScanBuilder sb = st.newScanBuilder(csm);
+    SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);
+    InputPartition[] parts = ssb.planInputPartitions();
+    PartitionReaderFactory prf = ssb.createReaderFactory();
+
+    for (InputPartition part : parts) {
+      PartitionReader<InternalRow> ir = prf.createReader(part);
+      try {
+        while (ir.next()) {
+          InternalRow row = ir.get();
+          System.out.println("row: " + row.toString());
+        }
+      } catch (IOException e) {
+      }
+    }
+  }
+
+  @Test
+  public void testMoreDiverseTables() {
+    Map<String, String> props = SpannerUtilsTest.connectionProperties();
+    props.put("table", "games");
     SpannerTable st = new SpannerTable(null, props);
     CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
     ScanBuilder sb = st.newScanBuilder(csm);

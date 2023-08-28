@@ -14,6 +14,8 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
@@ -190,6 +192,18 @@ public class SpannerUtils {
     }
 
     return sparkRow;
+  }
+
+  public String serializeMap(Map<String, String> m) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(m);
+  }
+
+  public Map<String, String> deserializeMap(String json) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, String>> typeRef =
+        new TypeReference<HashMap<String, String>>() {};
+    return mapper.readValue(json, typeRef);
   }
 
   public static Dataset<Row> datasetFromHashMap(SparkSession spark, Map<Partition, List<Row>> hm) {

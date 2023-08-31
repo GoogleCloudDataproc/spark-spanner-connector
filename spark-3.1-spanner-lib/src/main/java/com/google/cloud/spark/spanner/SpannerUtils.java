@@ -22,6 +22,8 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Type.Code.*;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.sql.Timestamp;
@@ -106,66 +108,83 @@ public class SpannerUtils {
     Struct spannerRow = rs.getCurrentRowAsStruct();
     Integer columnCount = rs.getColumnCount();
 
-    return spannerStructToInternalRow(rs, spannerRow, columnCount);
+    return spannerStructToInternalRow(spannerRow);
   }
 
-  public static InternalRow spannerStructToInternalRow(
-      ResultSet rs, Struct spannerRow, int columnCount) {
+  private static void spannerNumericToSpark(Struct src, GenericInternalRow dest, int at) {
+    // TODO: Deal with the precision truncation since Cloud Spanner's precision
+    // has (precision=38, scale=9) while Apache Spark has (precision=N, scale=M)
+    Decimal dec = new Decimal();
+    dec.set(new scala.math.BigDecimal(src.getBigDecimal(at)), 38, 9);
+    dest.setDecimal(at, dec, dec.precision());
+  }
+
+  public static InternalRow spannerStructToInternalRow(Struct spannerRow) {
+    int columnCount = spannerRow.getColumnCount();
     GenericInternalRow sparkRow = new GenericInternalRow(columnCount);
 
     for (int i = 0; i < columnCount; i++) {
-      // Using a string typename to aid in easy traversal in the meantime
-      // of non-composite ARRAY<T> kinds. TODO: Traverse ARRAY and STRUCT
-      // programmatically by access of the type elements.
-      String fieldTypeName = rs.getColumnType(i).toString();
-
       if (spannerRow.isNull(i)) {
-        // TODO: Examine if we should perhaps translate to
-        // zero values for simple types like INT64, FLOAT64
-        // or just keep it as null.
         sparkRow.update(i, null);
         continue;
       }
 
-      switch (fieldTypeName) {
-        case "BOOL":
+      Type typ = spannerRow.getColumnType(i);
+
+      switch (typ.getCode()) {
+        case BOOL:
           sparkRow.setBoolean(i, spannerRow.getBoolean(i));
           break;
 
-        case "DATE":
+        case DATE:
           sparkRow.update(i, spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)));
           break;
 
-        case "FLOAT64":
+        case FLOAT64:
           sparkRow.setDouble(i, spannerRow.getDouble(i));
           break;
 
-        case "INT64":
+        case INT64:
           sparkRow.setLong(i, spannerRow.getLong(i));
           break;
 
-        case "JSON":
+        case JSON:
           sparkRow.update(i, UTF8String.fromString(spannerRow.getString(i)));
           break;
 
-        case "NUMERIC":
-          // TODO: Deal with the precision truncation since Cloud Spanner's precision
-          // has (precision=38, scale=9) while Apache Spark has (precision=N, scale=M)
-          Decimal dec = new Decimal();
-          dec.set(new scala.math.BigDecimal(spannerRow.getBigDecimal(i)), 38, 9);
-          sparkRow.setDecimal(i, dec, dec.precision());
+        case PG_JSONB:
+          sparkRow.update(i, UTF8String.fromString(spannerRow.getPgJsonb(i)));
           break;
 
-        case "TIMESTAMP":
+        case NUMERIC:
+          spannerNumericToSpark(spannerRow, sparkRow, i);
+          break;
+
+        case PG_NUMERIC:
+          spannerNumericToSpark(spannerRow, sparkRow, i);
+          break;
+
+        case TIMESTAMP:
           sparkRow.update(i, spannerRow.getTimestamp(i).toSqlTimestamp());
           break;
 
-        default: // "ARRAY", "STRUCT"
-          if (fieldTypeName.indexOf("BYTES") == 0) {
-            sparkRow.update(i, spannerRow.getBytes(i).toByteArray());
-          } else if (fieldTypeName.indexOf("STRING") == 0) {
-            sparkRow.update(i, UTF8String.fromString(spannerRow.getString(i)));
-          } else if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
+        case STRING:
+          sparkRow.update(i, UTF8String.fromString(spannerRow.getString(i)));
+          break;
+
+        case BYTES:
+          sparkRow.update(i, spannerRow.getBytes(i).toByteArray());
+          break;
+
+        case STRUCT:
+          sparkRow.update(i, spannerStructToInternalRow(spannerRow.getStruct(i)));
+          break;
+
+        default: // "ARRAY"
+          String fieldTypeName = spannerRow.getColumnType(i).toString();
+          // Note: for ARRAY<T,...>, T MUST be the homogenous (same type) within the ARRAY, per:
+          // https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#array_type
+          if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
             sparkRow.update(i, spannerRow.getBooleanArray(i));
           } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
             List<String> src = spannerRow.getStringList(i);
@@ -181,12 +200,11 @@ public class SpannerUtils {
             List<Date> endDL = new ArrayList<Date>();
             spannerRow.getDateList(i).forEach((ts) -> endDL.add(ts.toJavaUtilDate(ts)));
             sparkRow.update(i, endDL);
-          } else if (fieldTypeName.indexOf("STRUCT") == 0) {
-            if (spannerRow.isNull(i)) {
-              sparkRow.update(i, null);
-            } else {
-              // TODO: Convert into a Spark STRUCT.
-            }
+          } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
+            List<Struct> src = spannerRow.getStructList(i);
+            List<InternalRow> dest = new ArrayList<>(src.size());
+            src.forEach((st) -> dest.add(spannerStructToInternalRow(st)));
+            sparkRow.update(i, dest);
           }
       }
     }

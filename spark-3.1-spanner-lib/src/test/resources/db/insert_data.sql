@@ -18,10 +18,10 @@ VALUES
 DELETE FROM players WHERE 1=1;
 DELETE FROM games WHERE 1=1;
 INSERT INTO
-    games(gameUUID, players, winner, created, finished)
+    games(gameUUID, players, winner, created, finished, max_date)
 VALUES
-    ("g1", ["p1", "p2", "p3"], "T1", TIMESTAMP("2023-08-26 12:22:00+00"), TIMESTAMP("2023-08-26 12:22:00+00")),
-    ("g2", ["p4", "p5", "p6"], "T2", TIMESTAMP("2023-08-26 12:22:00+00"), TIMESTAMP("2023-08-26 12:22:00+00"));
+    ("g1", ["p1", "p2", "p3"], "T1", TIMESTAMP("2023-08-26 12:22:00+00"), TIMESTAMP("2023-08-26 12:22:00+00"), DATE("2023-12-31")),
+    ("g2", ["p4", "p5", "p6"], "T2", TIMESTAMP("2023-08-26 12:22:00+00"), TIMESTAMP("2023-08-26 12:22:00+00"), DATE("2023-12-31"));
 
 DELETE FROM game_items WHERE 1=1;
 INSERT INTO
@@ -31,7 +31,7 @@ VALUES
     ("gi_2", "diff", 500, TIMESTAMP("2023-08-22 12:22:00+00"), 90);
 
 INSERT INTO
-    players(playerUUID, player_name, email, password_hash, created, updated, stats, account_balance, is_logged_in, last_login, valid_email, current_game)
+    players(playerUUID, player_name, email, password_hash, created, updated, stats, account_balance, is_logged_in, last_login, valid_email, current_game, dob)
 VALUES
-    ("p1", "PLAYER 1", "p1@games.com", FROM_HEX("deadbeef"), TIMESTAMP("2023-08-26 12:22:00+00"), null, TO_JSON('{"a":"b"}'), 17517, true, TIMESTAMP("2023-08-26 12:22:00+00"), true, "g1"),
-    ("p2", "PLAYER 2", "p2@games.com", FROM_HEX("beefdead"), TIMESTAMP("2023-08-26 12:22:00+00"), null, TO_JSON('{"1":"2","k":291}'), 8519, false, TIMESTAMP("2023-08-26 12:22:00+00"), true, "g2");
+    ("p1", "PLAYER 1", "p1@games.com", FROM_HEX("deadbeef"), TIMESTAMP("2023-08-26 12:22:00+00"), null, TO_JSON('{"a":"b"}'), 17517, true, TIMESTAMP("2023-08-26 12:22:00+00"), true, "g1", DATE("1999-06-06")),
+    ("p2", "PLAYER 2", "p2@games.com", FROM_HEX("beefdead"), TIMESTAMP("2023-08-26 12:22:00+00"), null, TO_JSON('{"1":"2","k":291}'), 8519, false, TIMESTAMP("2023-08-26 12:22:00+00"), true, "g2", DATE("1997-12-06"));

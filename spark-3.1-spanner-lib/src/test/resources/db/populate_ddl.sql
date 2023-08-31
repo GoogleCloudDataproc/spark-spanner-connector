@@ -12,6 +12,7 @@ CREATE TABLE games (
   winner STRING(36),
   created TIMESTAMP,
   finished TIMESTAMP,
+  max_date DATE,
 ) PRIMARY KEY(gameUUID);
 
 CREATE TABLE players (
@@ -27,6 +28,7 @@ CREATE TABLE players (
   last_login TIMESTAMP,
   valid_email BOOL,
   current_game STRING(36),
+  dob DATE,
   FOREIGN KEY(current_game) REFERENCES games(gameUUID),
 ) PRIMARY KEY(playerUUID);
 

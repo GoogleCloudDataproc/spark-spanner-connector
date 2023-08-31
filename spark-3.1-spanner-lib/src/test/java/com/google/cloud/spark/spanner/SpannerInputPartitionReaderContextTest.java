@@ -16,6 +16,7 @@ import com.google.cloud.spark.spanner.SpannerScanBuilder;
 import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.cloud.spark.spanner.SpannerUtils;
 import java.io.IOException;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -132,8 +133,9 @@ public class SpannerInputPartitionReaderContextTest {
       String[] playerIds,
       String winner,
       Timestamp createdAt,
-      Timestamp finishedAt) {
-    GenericInternalRow row = new GenericInternalRow(5);
+      Timestamp finishedAt,
+      Date maxDate) {
+    GenericInternalRow row = new GenericInternalRow(6);
     row.update(0, UTF8String.fromString(playerId));
     List<UTF8String> dest = new ArrayList<UTF8String>(playerIds.length);
     for (String id : playerIds) {
@@ -143,6 +145,7 @@ public class SpannerInputPartitionReaderContextTest {
     row.update(2, UTF8String.fromString(winner));
     row.update(3, createdAt);
     row.update(4, finishedAt);
+    row.update(5, maxDate);
     return row;
   }
 
@@ -171,10 +174,13 @@ public class SpannerInputPartitionReaderContextTest {
 
     Timestamp createdAt = Timestamp.valueOf("2023-08-26 15:22:00");
     Timestamp finishedAt = Timestamp.valueOf("2023-08-26 15:22:00");
+    Date maxDate = Date.valueOf("2023-12-31");
     List<InternalRow> expectRows =
         Arrays.asList(
-            makeGamesRow("g1", new String[] {"p1", "p2", "p3"}, "T1", createdAt, finishedAt),
-            makeGamesRow("g2", new String[] {"p4", "p5", "p6"}, "T2", createdAt, finishedAt));
+            makeGamesRow(
+                "g1", new String[] {"p1", "p2", "p3"}, "T1", createdAt, finishedAt, maxDate),
+            makeGamesRow(
+                "g2", new String[] {"p4", "p5", "p6"}, "T2", createdAt, finishedAt, maxDate));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();
     Collections.sort(expectRows, cmp);

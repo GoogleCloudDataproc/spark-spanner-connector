@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.spanner.DatabaseId;
@@ -39,8 +40,11 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.types.UTF8String;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SpannerUtils {
   public static Map<String, String> defaultConnOpts =
@@ -137,7 +141,15 @@ public class SpannerUtils {
           break;
 
         case DATE:
-          sparkRow.update(i, spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)));
+          sparkRow.update(
+              i,
+              ((Long)
+                      (spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)).getTime()
+                          / 1000
+                          / 60
+                          / 60
+                          / 24))
+                  .intValue());
           break;
 
         case FLOAT64:
@@ -149,9 +161,8 @@ public class SpannerUtils {
           break;
 
         case JSON:
-          sparkRow.update(i, UTF8String.fromString(spannerRow.getString(i)));
+          sparkRow.update(i, UTF8String.fromString(spannerRow.getJson(i)));
           break;
-
         case PG_JSONB:
           sparkRow.update(i, UTF8String.fromString(spannerRow.getPgJsonb(i)));
           break;
@@ -165,7 +176,7 @@ public class SpannerUtils {
           break;
 
         case TIMESTAMP:
-          sparkRow.update(i, spannerRow.getTimestamp(i).toSqlTimestamp());
+          sparkRow.update(i, (Long) spannerRow.getTimestamp(i).toSqlTimestamp().getTime() * 1000);
           break;
 
         case STRING:
@@ -173,7 +184,7 @@ public class SpannerUtils {
           break;
 
         case BYTES:
-          sparkRow.update(i, spannerRow.getBytes(i).toByteArray());
+          sparkRow.update(i, new GenericArrayData(spannerRow.getBytes(i).toByteArray()));
           break;
 
         case STRUCT:
@@ -190,7 +201,8 @@ public class SpannerUtils {
             List<String> src = spannerRow.getStringList(i);
             List<UTF8String> dest = new ArrayList<UTF8String>(src.size());
             src.forEach((s) -> dest.add(UTF8String.fromString(s)));
-            sparkRow.update(i, dest);
+            UTF8String[] utf8String = new UTF8String[dest.size()];
+            sparkRow.update(i, new GenericArrayData(dest.toArray(utf8String)));
           } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
             List<com.google.cloud.Timestamp> tsL = spannerRow.getTimestampList(i);
             List<Timestamp> endTsL = new ArrayList<Timestamp>(tsL.size());
@@ -212,12 +224,12 @@ public class SpannerUtils {
     return sparkRow;
   }
 
-  public static String serializeMap(Map<String, String> m) throws Exception {
+  public static String serializeMap(Map<String, String> m) throws JsonProcessingException {
     ObjectMapper mapper = new ObjectMapper();
     return mapper.writer().writeValueAsString(m);
   }
 
-  public static Map<String, String> deserializeMap(String json) throws Exception {
+  public static Map<String, String> deserializeMap(String json) throws JsonProcessingException {
     ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, String>> typeRef =
         new TypeReference<HashMap<String, String>>() {};

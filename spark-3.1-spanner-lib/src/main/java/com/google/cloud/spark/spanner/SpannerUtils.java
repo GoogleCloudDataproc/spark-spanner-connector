@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SpannerUtils {
+  public static Long MILLISECOND_TO_DAYS = 1000 * 60 * 60 * 24;
   public static Map<String, String> defaultConnOpts =
       new HashMap<String, String>() {
         {
@@ -144,11 +145,7 @@ public class SpannerUtils {
           sparkRow.update(
               i,
               ((Long)
-                      (spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)).getTime()
-                          / 1000
-                          / 60
-                          / 60
-                          / 24))
+                      (spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)).getTime() / MILLISECOND_TO_DAYS))
                   .intValue());
           break;
 
@@ -176,7 +173,9 @@ public class SpannerUtils {
           break;
 
         case TIMESTAMP:
-          sparkRow.update(i, (Long) spannerRow.getTimestamp(i).toSqlTimestamp().getTime() * 1000);
+          Timestamp timestamp = spannerRow.getTimestamp(i).toSqlTimestamp();
+          // Convert the timestamp to microseconds, which is supported in the Spark.
+          sparkRow.update(i, (Long) timestamp.getTime() * 1000 + timestamp.getNanos() / 1000);
           break;
 
         case STRING:
@@ -196,6 +195,7 @@ public class SpannerUtils {
           // Note: for ARRAY<T,...>, T MUST be the homogenous (same type) within the ARRAY, per:
           // https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#array_type
           if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
+            // TODO: Update the GenericArrayData instead of using Boolean list.
             sparkRow.update(i, spannerRow.getBooleanArray(i));
           } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
             List<String> src = spannerRow.getStringList(i);
@@ -204,15 +204,18 @@ public class SpannerUtils {
             UTF8String[] utf8String = new UTF8String[dest.size()];
             sparkRow.update(i, new GenericArrayData(dest.toArray(utf8String)));
           } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
+            // TODO: Update the GenericArrayData instead of using ArrayList.
             List<com.google.cloud.Timestamp> tsL = spannerRow.getTimestampList(i);
             List<Timestamp> endTsL = new ArrayList<Timestamp>(tsL.size());
             tsL.forEach((ts) -> endTsL.add(ts.toSqlTimestamp()));
             sparkRow.update(i, endTsL);
           } else if (fieldTypeName.indexOf("ARRAY<DATE") == 0) {
+            // TODO: Update the GenericArrayData instead of using ArrayList.
             List<Date> endDL = new ArrayList<Date>();
             spannerRow.getDateList(i).forEach((ts) -> endDL.add(ts.toJavaUtilDate(ts)));
             sparkRow.update(i, endDL);
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
+            // TODO: Update the GenericArrayData instead of using ArrayList.
             List<Struct> src = spannerRow.getStructList(i);
             List<InternalRow> dest = new ArrayList<>(src.size());
             src.forEach((st) -> dest.add(spannerStructToInternalRow(st)));

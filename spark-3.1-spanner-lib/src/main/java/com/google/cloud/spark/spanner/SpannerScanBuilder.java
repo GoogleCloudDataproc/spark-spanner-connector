@@ -75,7 +75,7 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
 
   @Override
   public PartitionReaderFactory createReaderFactory() {
-    return new SpannerPartitionReaderFactory(this.opts);
+    return new SpannerPartitionReaderFactory();
   }
 
   @Override

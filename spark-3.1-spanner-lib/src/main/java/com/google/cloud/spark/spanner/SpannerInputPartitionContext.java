@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.BatchTransactionId;
@@ -21,7 +22,6 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import java.io.Closeable;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -29,42 +29,36 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SpannerInputPartitionContext
-    implements InputPartitionContext<InternalRow>, Serializable, Closeable {
+    implements InputPartitionContext<InternalRow>, Serializable {
 
   private BatchTransactionId batchTransactionId;
   private Partition partition;
   private Map<String, String> opts;
-  private Spanner spanner;
-  private String projectId;
   private static final Logger log = LoggerFactory.getLogger(SpannerInputPartitionContext.class);
 
   public SpannerInputPartitionContext(
       Partition partition, BatchTransactionId batchTransactionId, String mapAsJSONStr) {
     try {
       this.opts = SpannerUtils.deserializeMap(mapAsJSONStr);
-    } catch (Exception e) {
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException("The Json file is invalid %s.".format(e.getMessage()));
     }
-
     this.partition = partition;
     this.batchTransactionId = batchTransactionId;
+  }
 
-    // TODO: Infer the default projectId as a fallback if opts["projectId"] was not set.
-    String projectId = this.opts.get("projectId");
+  @Override
+  public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
+    String projectId = this.opts.get("projectid");
     SpannerOptions.Builder sb = SpannerOptions.newBuilder();
     if (projectId != null && projectId != "") {
       sb = sb.setProjectId(projectId);
     }
     SpannerOptions ss = sb.build();
-    this.projectId = ss.getProjectId();
-    this.spanner = ss.getService();
-  }
-
-  @Override
-  public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
+    Spanner spanner = ss.getService();
     BatchClient batchClient =
-        this.spanner.getBatchClient(
-            DatabaseId.of(
-                this.projectId, this.opts.get("instanceId"), this.opts.get("databaseId")));
+        spanner.getBatchClient(
+            DatabaseId.of(projectId, this.opts.get("instanceid"), this.opts.get("databaseid")));
     try (BatchReadOnlyTransaction txn =
         batchClient.batchReadOnlyTransaction(this.batchTransactionId)) {
       return new SpannerInputPartitionReaderContext(txn.execute(this.partition));
@@ -74,10 +68,5 @@ public class SpannerInputPartitionContext
   @Override
   public boolean supportsColumnarReads() {
     return false;
-  }
-
-  @Override
-  public void close() {
-    this.spanner.close();
   }
 }

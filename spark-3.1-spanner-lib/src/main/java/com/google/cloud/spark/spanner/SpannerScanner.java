@@ -57,7 +57,7 @@ public class SpannerScanner implements Batch, Scan {
 
   @Override
   public PartitionReaderFactory createReaderFactory() {
-    return new SpannerPartitionReaderFactory(this.opts);
+    return new SpannerPartitionReaderFactory();
   }
 
   @Override

@@ -45,7 +45,7 @@ public class SpannerTable implements Table, SupportsRead {
           TableCapability.CONTINUOUS_READ,
           TableCapability.TRUNCATE);
 
-  private static final Logger log = LoggerFactory.getLogger(SpannerRelation.class);
+  private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   public SpannerTable(StructType providedSchema, Map<String, String> properties) {
     // TODO: Use providedSchema in building the SpannerTable.
@@ -113,7 +113,7 @@ public class SpannerTable implements Table, SupportsRead {
         return DataTypes.LongType;
 
       case "JSON":
-        return DataTypes.createArrayType(DataTypes.StringType);
+        return DataTypes.StringType;
 
       case "NUMERIC":
         return numericToCatalogDataType;

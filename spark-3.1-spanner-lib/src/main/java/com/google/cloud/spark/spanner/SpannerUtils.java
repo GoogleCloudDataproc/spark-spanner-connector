@@ -43,11 +43,9 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.types.UTF8String;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SpannerUtils {
-  public static Long MILLISECOND_TO_DAYS = 1000 * 60 * 60 * 24;
+  public static Long MILLISECOND_TO_DAYS = 1000 * 60 * 60 * 24L;
   public static Map<String, String> defaultConnOpts =
       new HashMap<String, String>() {
         {
@@ -145,7 +143,8 @@ public class SpannerUtils {
           sparkRow.update(
               i,
               ((Long)
-                      (spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)).getTime() / MILLISECOND_TO_DAYS))
+                      (spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)).getTime()
+                          / MILLISECOND_TO_DAYS))
                   .intValue());
           break;
 

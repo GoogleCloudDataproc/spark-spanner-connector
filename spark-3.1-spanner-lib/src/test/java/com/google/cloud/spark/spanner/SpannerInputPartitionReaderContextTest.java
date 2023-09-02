@@ -113,8 +113,6 @@ public class SpannerInputPartitionReaderContextTest {
           ctx.close();
         } catch (IOException e) {
           System.out.println("\033[33mexception now: " + e + "\033[00m");
-        } finally {
-          sCtx.close();
         }
         al.forEach(gotRows::add);
       }

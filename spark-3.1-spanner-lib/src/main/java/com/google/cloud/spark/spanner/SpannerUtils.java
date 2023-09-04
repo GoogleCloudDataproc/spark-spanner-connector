@@ -122,6 +122,15 @@ public class SpannerUtils {
     dest.setDecimal(at, dec, dec.precision());
   }
 
+  public static Long timestampToLong(Timestamp ts) {
+    // Convert the timestamp to microseconds, which is supported in the Spark.
+    return (ts.getTime() * 1000 + ts.getNanos()) / 1000;
+  }
+
+  public static Long dateToLong(Date d) {
+    return ((d.getTime() / MILLISECOND_TO_DAYS));
+  }
+
   public static InternalRow spannerStructToInternalRow(Struct spannerRow) {
     int columnCount = spannerRow.getColumnCount();
     GenericInternalRow sparkRow = new GenericInternalRow(columnCount);
@@ -140,12 +149,8 @@ public class SpannerUtils {
           break;
 
         case DATE:
-          sparkRow.update(
-              i,
-              ((Long)
-                      (spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i)).getTime()
-                          / MILLISECOND_TO_DAYS))
-                  .intValue());
+          Date date = spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i));
+          sparkRow.update(i, dateToLong(date));
           break;
 
         case FLOAT64:
@@ -174,7 +179,7 @@ public class SpannerUtils {
         case TIMESTAMP:
           Timestamp timestamp = spannerRow.getTimestamp(i).toSqlTimestamp();
           // Convert the timestamp to microseconds, which is supported in the Spark.
-          sparkRow.update(i, (Long) timestamp.getTime() * 1000 + timestamp.getNanos() / 1000);
+          sparkRow.update(i, timestampToLong(timestamp));
           break;
 
         case STRING:
@@ -194,31 +199,26 @@ public class SpannerUtils {
           // Note: for ARRAY<T,...>, T MUST be the homogenous (same type) within the ARRAY, per:
           // https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#array_type
           if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
-            // TODO: Update the GenericArrayData instead of using Boolean list.
-            sparkRow.update(i, spannerRow.getBooleanArray(i));
+            sparkRow.update(i, new GenericArrayData(spannerRow.getBooleanArray(i)));
           } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
             List<String> src = spannerRow.getStringList(i);
             List<UTF8String> dest = new ArrayList<UTF8String>(src.size());
             src.forEach((s) -> dest.add(UTF8String.fromString(s)));
-            UTF8String[] utf8String = new UTF8String[dest.size()];
-            sparkRow.update(i, new GenericArrayData(dest.toArray(utf8String)));
+            sparkRow.update(i, new GenericArrayData(dest.toArray(new UTF8String[0])));
           } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
-            // TODO: Update the GenericArrayData instead of using ArrayList.
             List<com.google.cloud.Timestamp> tsL = spannerRow.getTimestampList(i);
-            List<Timestamp> endTsL = new ArrayList<Timestamp>(tsL.size());
-            tsL.forEach((ts) -> endTsL.add(ts.toSqlTimestamp()));
-            sparkRow.update(i, endTsL);
+            List<Long> endTsL = new ArrayList<Long>(tsL.size());
+            tsL.forEach((ts) -> endTsL.add(timestampToLong(ts.toSqlTimestamp())));
+            sparkRow.update(i, new GenericArrayData(endTsL));
           } else if (fieldTypeName.indexOf("ARRAY<DATE") == 0) {
-            // TODO: Update the GenericArrayData instead of using ArrayList.
-            List<Date> endDL = new ArrayList<Date>();
-            spannerRow.getDateList(i).forEach((ts) -> endDL.add(ts.toJavaUtilDate(ts)));
-            sparkRow.update(i, endDL);
+            List<Long> endDL = new ArrayList<>();
+            spannerRow.getDateList(i).forEach((ts) -> endDL.add(dateToLong(ts.toJavaUtilDate(ts))));
+            sparkRow.update(i, new GenericArrayData(endDL));
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
-            // TODO: Update the GenericArrayData instead of using ArrayList.
             List<Struct> src = spannerRow.getStructList(i);
             List<InternalRow> dest = new ArrayList<>(src.size());
             src.forEach((st) -> dest.add(spannerStructToInternalRow(st)));
-            sparkRow.update(i, dest);
+            sparkRow.update(i, new GenericArrayData(dest));
           }
       }
     }

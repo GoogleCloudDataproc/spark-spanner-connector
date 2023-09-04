@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
@@ -139,11 +140,11 @@ public class SpannerInputPartitionReaderContextTest {
     for (String id : playerIds) {
       dest.add(UTF8String.fromString(id));
     }
-    row.update(1, dest);
+    row.update(1, new GenericArrayData(dest.toArray(new UTF8String[0])));
     row.update(2, UTF8String.fromString(winner));
-    row.update(3, createdAt);
-    row.update(4, finishedAt);
-    row.update(5, maxDate);
+    row.update(3, SpannerUtils.timestampToLong(createdAt));
+    row.update(4, SpannerUtils.timestampToLong(finishedAt));
+    row.update(5, SpannerUtils.dateToLong(maxDate));
     return row;
   }
 

@@ -54,7 +54,7 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
 
   @Override
   public Scan build() {
-    this.scanner = new SpannerScanner(this.opts);
+    this.scanner = new SpannerScanner(this.opts.asCaseSensitiveMap());
     return this.scanner;
   }
 

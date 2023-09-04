@@ -49,7 +49,7 @@ public class SpannerInputPartitionContext
 
   @Override
   public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
-    String projectId = this.opts.get("projectid");
+    String projectId = this.opts.get("projectId");
     SpannerOptions.Builder sb = SpannerOptions.newBuilder();
     if (projectId != null && projectId != "") {
       sb = sb.setProjectId(projectId);
@@ -58,7 +58,7 @@ public class SpannerInputPartitionContext
     Spanner spanner = ss.getService();
     BatchClient batchClient =
         spanner.getBatchClient(
-            DatabaseId.of(projectId, this.opts.get("instanceid"), this.opts.get("databaseid")));
+            DatabaseId.of(projectId, this.opts.get("instanceId"), this.opts.get("databaseId")));
     try (BatchReadOnlyTransaction txn =
         batchClient.batchReadOnlyTransaction(this.batchTransactionId)) {
       return new SpannerInputPartitionReaderContext(txn.execute(this.partition));

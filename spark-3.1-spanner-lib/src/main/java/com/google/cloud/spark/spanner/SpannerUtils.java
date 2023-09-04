@@ -114,12 +114,16 @@ public class SpannerUtils {
     return spannerStructToInternalRow(spannerRow);
   }
 
-  private static void spannerNumericToSpark(Struct src, GenericInternalRow dest, int at) {
+  public static void asSparkDecimal(GenericInternalRow dest, java.math.BigDecimal v, int at) {
     // TODO: Deal with the precision truncation since Cloud Spanner's precision
     // has (precision=38, scale=9) while Apache Spark has (precision=N, scale=M)
     Decimal dec = new Decimal();
-    dec.set(new scala.math.BigDecimal(src.getBigDecimal(at)), 38, 9);
+    dec.set(new scala.math.BigDecimal(v), 38, 9);
     dest.setDecimal(at, dec, dec.precision());
+  }
+
+  private static void spannerNumericToSpark(Struct src, GenericInternalRow dest, int at) {
+    asSparkDecimal(dest, src.getBigDecimal(at), at);
   }
 
   public static Long timestampToLong(Timestamp ts) {
@@ -129,6 +133,18 @@ public class SpannerUtils {
 
   public static Long dateToLong(Date d) {
     return ((d.getTime() / MILLISECOND_TO_DAYS));
+  }
+
+  public static GenericArrayData timestampIterToSpark(Iterable<Timestamp> tsIt) {
+    List<Long> dest = new ArrayList<>();
+    tsIt.forEach((ts) -> dest.add(timestampToLong(ts)));
+    return new GenericArrayData(dest.toArray(new Long[0]));
+  }
+
+  public static GenericArrayData dateIterToSpark(Iterable<Date> tsIt) {
+    List<Long> dest = new ArrayList<>();
+    tsIt.forEach((ts) -> dest.add(dateToLong(ts)));
+    return new GenericArrayData(dest.toArray(new Long[0]));
   }
 
   public static InternalRow spannerStructToInternalRow(Struct spannerRow) {
@@ -164,6 +180,7 @@ public class SpannerUtils {
         case JSON:
           sparkRow.update(i, UTF8String.fromString(spannerRow.getJson(i)));
           break;
+
         case PG_JSONB:
           sparkRow.update(i, UTF8String.fromString(spannerRow.getPgJsonb(i)));
           break;
@@ -200,6 +217,10 @@ public class SpannerUtils {
           // https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#array_type
           if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
             sparkRow.update(i, new GenericArrayData(spannerRow.getBooleanArray(i)));
+          } else if (fieldTypeName.indexOf("ARRAY<FLOAT64>") == 0) {
+            sparkRow.update(i, new GenericArrayData(spannerRow.getDoubleArray(i)));
+          } else if (fieldTypeName.indexOf("ARRAY<INT64>") == 0) {
+            sparkRow.update(i, new GenericArrayData(spannerRow.getLongArray(i)));
           } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
             List<String> src = spannerRow.getStringList(i);
             List<UTF8String> dest = new ArrayList<UTF8String>(src.size());
@@ -207,18 +228,20 @@ public class SpannerUtils {
             sparkRow.update(i, new GenericArrayData(dest.toArray(new UTF8String[0])));
           } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
             List<com.google.cloud.Timestamp> tsL = spannerRow.getTimestampList(i);
-            List<Long> endTsL = new ArrayList<Long>(tsL.size());
+            List<Long> endTsL = new ArrayList<>();
             tsL.forEach((ts) -> endTsL.add(timestampToLong(ts.toSqlTimestamp())));
-            sparkRow.update(i, new GenericArrayData(endTsL));
-          } else if (fieldTypeName.indexOf("ARRAY<DATE") == 0) {
+            sparkRow.update(i, new GenericArrayData(endTsL.toArray(new Long[0])));
+          } else if (fieldTypeName.indexOf("ARRAY<DATE>") == 0) {
             List<Long> endDL = new ArrayList<>();
             spannerRow.getDateList(i).forEach((ts) -> endDL.add(dateToLong(ts.toJavaUtilDate(ts))));
-            sparkRow.update(i, new GenericArrayData(endDL));
+            sparkRow.update(i, new GenericArrayData(endDL.toArray(new Long[0])));
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
             List<Struct> src = spannerRow.getStructList(i);
             List<InternalRow> dest = new ArrayList<>(src.size());
             src.forEach((st) -> dest.add(spannerStructToInternalRow(st)));
             sparkRow.update(i, new GenericArrayData(dest));
+          } else {
+            sparkRow.update(i, null);
           }
       }
     }

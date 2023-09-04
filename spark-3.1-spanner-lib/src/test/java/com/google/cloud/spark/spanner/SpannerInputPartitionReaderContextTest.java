@@ -127,6 +127,39 @@ public class SpannerInputPartitionReaderContextTest {
     assertEquals(expectRows, gotRows);
   }
 
+  public InternalRow makeCompositeTableRow(
+      String id,
+      long[] A,
+      String[] B,
+      String C,
+      java.math.BigDecimal D,
+      Date E,
+      Timestamp F,
+      boolean G,
+      Date[] H,
+      Timestamp[] I) {
+    GenericInternalRow row = new GenericInternalRow(10);
+    row.update(0, UTF8String.fromString(id));
+    row.update(1, new GenericArrayData(A));
+    row.update(2, new GenericArrayData(toSparkStrList(B)));
+    row.update(3, UTF8String.fromString(C));
+    SpannerUtils.asSparkDecimal(row, D, 4);
+    row.update(5, SpannerUtils.dateToLong(E));
+    row.update(6, SpannerUtils.timestampToLong(F));
+    row.setBoolean(7, G);
+    row.update(8, SpannerUtils.dateIterToSpark(Arrays.asList(H)));
+    row.update(9, SpannerUtils.timestampIterToSpark(Arrays.asList(I)));
+    return row;
+  }
+
+  private UTF8String[] toSparkStrList(String[] strs) {
+    List<UTF8String> dest = new ArrayList<>();
+    for (String s : strs) {
+      dest.add(UTF8String.fromString(s));
+    }
+    return dest.toArray(new UTF8String[0]);
+  }
+
   public InternalRow makeGamesRow(
       String playerId,
       String[] playerIds,
@@ -180,6 +213,57 @@ public class SpannerInputPartitionReaderContextTest {
                 "g1", new String[] {"p1", "p2", "p3"}, "T1", createdAt, finishedAt, maxDate),
             makeGamesRow(
                 "g2", new String[] {"p4", "p5", "p6"}, "T2", createdAt, finishedAt, maxDate));
+
+    Comparator<InternalRow> cmp = new InternalRowComparator();
+    Collections.sort(expectRows, cmp);
+    Collections.sort(gotRows, cmp);
+
+    assertEquals(expectRows.size(), gotRows.size());
+    assertEquals(expectRows, gotRows);
+  }
+
+  @Test
+  public void testArraysConversions() {
+    Map<String, String> props = SpannerUtilsTest.connectionProperties();
+    props.put("table", "compositeTable");
+    SpannerTable st = new SpannerTable(null, props);
+    CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
+    ScanBuilder sb = st.newScanBuilder(csm);
+    SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);
+    InputPartition[] parts = ssb.planInputPartitions();
+    PartitionReaderFactory prf = ssb.createReaderFactory();
+
+    List<InternalRow> gotRows = new ArrayList<>();
+    for (InputPartition part : parts) {
+      PartitionReader<InternalRow> ir = prf.createReader(part);
+      try {
+        while (ir.next()) {
+          InternalRow row = ir.get();
+          gotRows.add(row);
+        }
+      } catch (IOException e) {
+      }
+    }
+
+    Date maxDate = Date.valueOf("2023-12-31");
+    List<InternalRow> expectRows =
+        Arrays.asList(
+            makeCompositeTableRow(
+                "id1",
+                new long[] {10, 100, 991, 567282},
+                new String[] {"a", "b", "c"},
+                "foobar",
+                new java.math.BigDecimal(2934),
+                Date.valueOf("2023-01-02"),
+                Timestamp.valueOf("2023-08-26 15:22:05"),
+                true,
+                new Date[] {
+                  Date.valueOf("2023-01-02"), Date.valueOf("2023-12-31"),
+                },
+                new Timestamp[] {
+                  Timestamp.valueOf("2023-08-26 15:11:10"),
+                  Timestamp.valueOf("2023-08-27 15:11:09"),
+                }));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();
     Collections.sort(expectRows, cmp);

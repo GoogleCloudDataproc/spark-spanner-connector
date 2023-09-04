@@ -35,3 +35,13 @@ INSERT INTO
 VALUES
     ("p1", "PLAYER 1", "p1@games.com", FROM_HEX("deadbeef"), TIMESTAMP("2023-08-26 12:22:00+00"), null, TO_JSON('{"a":"b"}'), 17517, true, TIMESTAMP("2023-08-26 12:22:00+00"), true, "g1", DATE("1999-06-06")),
     ("p2", "PLAYER 2", "p2@games.com", FROM_HEX("beefdead"), TIMESTAMP("2023-08-26 12:22:00+00"), null, TO_JSON('{"1":"2","k":291}'), 8519, false, TIMESTAMP("2023-08-26 12:22:00+00"), true, "g2", DATE("1997-12-06"));
+
+
+DELETE FROM compositeTable WHERE 1=1;
+INSERT INTO
+    compositeTable(id, A, B, C, D, E, F, G, H, I)
+VALUES
+    (
+        "id1", [10, 100, 991, 567282], ["a", "b", "c"], "foobar", 2934, DATE("2023-01-02"),
+        TIMESTAMP("2023-08-26 12:22:05+00"), true, [DATE("2023-01-02"), DATE("2023-12-31")],
+        [TIMESTAMP("2023-08-26 12:11:10+00"), TIMESTAMP("2023-08-27 12:11:09+00")]);

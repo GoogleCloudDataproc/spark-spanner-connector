@@ -31,7 +31,7 @@ jobs:
       env:
         JOB_TYPE: test
         SPANNER_EMULATOR_HOST: localhost:9010
-        GOOGLE_CLOUD_PROJECT: spark-spanner-test
+        GOOGLE_CLOUD_PROJECT: sparkspanner
         SPANNER_PROJECT_ID: sparkspanner
-        SPANNER_INSTANCE_ID: spark_spanner
+        SPANNER_INSTANCE_ID: sparkspanner
         SPANNER_DATABASE_ID: spark-db

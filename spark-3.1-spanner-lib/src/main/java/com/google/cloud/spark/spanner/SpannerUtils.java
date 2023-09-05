@@ -70,10 +70,11 @@ public class SpannerUtils {
 
     String spannerUri =
         String.format(
-            connUriPrefix + "/projects/%s/instances/%s/databases/%s",
+            connUriPrefix + "/projects/%s/instances/%s/databases/%s?autoConfigEmulator=%s",
             properties.get("projectId"),
             properties.get("instanceId"),
-            properties.get("databaseId"));
+            properties.get("databaseId"),
+            emulatorHost != null);
 
     ConnectionOptions.Builder builder = ConnectionOptions.newBuilder().setUri(spannerUri);
     String gcpCredsUrl = properties.get("credentials");

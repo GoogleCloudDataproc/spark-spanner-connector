@@ -70,18 +70,20 @@ public class SpannerUtils {
 
     String spannerUri =
         String.format(
-            connUriPrefix + "/projects/%s/instances/%s/databases/%s?autoConfigEmulator=%s",
+            connUriPrefix
+                + "/projects/%s/instances/%s/databases/%s?autoConfigEmulator=%s;usePlainText=%s",
             properties.get("projectId"),
             properties.get("instanceId"),
             properties.get("databaseId"),
+            emulatorHost != null,
             emulatorHost != null);
 
     ConnectionOptions.Builder builder = ConnectionOptions.newBuilder().setUri(spannerUri);
     String gcpCredsUrl = properties.get("credentials");
-    if (gcpCredsUrl != null) {
+    if (emulatorHost != null) {
+      builder = builder.setCredentialsUrl(null);
+    } else if (gcpCredsUrl != null) {
       builder = builder.setCredentialsUrl(gcpCredsUrl);
-    } else if (emulatorHost != null) {
-      builder = builder.setCredentialsUrl(NoCredentials.getInstance().toString());
     }
     ConnectionOptions opts = builder.build();
     return opts.getConnection();

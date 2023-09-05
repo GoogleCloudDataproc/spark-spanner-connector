@@ -87,8 +87,16 @@ public class SpannerUtils {
     if (properties == null) {
       properties = defaultConnOpts;
     }
-    SpannerOptions options =
-        SpannerOptions.newBuilder().setProjectId(properties.get("projectId")).build();
+
+    SpannerOptions.Builder builder =
+        SpannerOptions.newBuilder().setProjectId(properties.get("projectId"));
+
+    String emulatorHost = properties.get("emulatorHost");
+    if (emulatorHost != null) {
+      builder = builder.setHost(emulatorHost);
+    }
+
+    SpannerOptions options = builder.build();
     Spanner spanner = options.getService();
     return new BatchClientWithCloser(
         spanner,

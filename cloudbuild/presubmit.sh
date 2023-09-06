@@ -15,7 +15,7 @@
 
 set -euxo pipefail
 
-readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository"
+readonly MVN="./mvnw -B -e -Dmaven.repo.local=/workspace/.repository"
 readonly STEP=$1
 
 cd /workspace

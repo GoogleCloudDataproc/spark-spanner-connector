@@ -4,6 +4,14 @@ steps:
     id: 'docker-build'
     args: ['build', '--tag=gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit', '-f', 'cloudbuild/Dockerfile', '.']
 
+  # 2. Fetch maven and dependencies
+  - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
+    id: 'init'
+    waitFor: ['docker-build']
+    entrypoint: 'bash'
+    args: ['/workspace/cloudbuild/presubmit.sh', 'init']
+
+
 timeout: 3600s
 options:
   machineType: 'N1_HIGHCPU_32'

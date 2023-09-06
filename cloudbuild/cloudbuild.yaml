@@ -1,0 +1,8 @@
+steps:
+  # 1. Create a Docker image containing hadoop-connectors repo
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'docker-build'
+    args: ['build', '--tag=gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit', '-f', 'cloudbuild/Dockerfile', '.']
+
+timeout: 3600s
+options: 'N1_HIGHCPU_32'

@@ -10,7 +10,13 @@ steps:
     waitFor: ['docker-build']
     entrypoint: 'bash'
     args: ['/workspace/cloudbuild/presubmit.sh', 'init']
-
+k
+  # 3. Run integration tests with Spanner emulator
+  - name: 'gcr.io/$PROJECT_ID/dataproc-spark-bigquery-connector-presubmit'
+    id: 'integration-spanner-emulator'
+    waitFor: ['init']
+    entrypoint: 'bash'
+    args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest-spanner-emulator']
 
 timeout: 3600s
 options:

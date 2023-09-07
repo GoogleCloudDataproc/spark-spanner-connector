@@ -17,7 +17,6 @@ package com.google.cloud.spark.spanner;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.NoCredentials;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
@@ -79,12 +78,6 @@ public class SpannerUtils {
             emulatorHost != null);
 
     ConnectionOptions.Builder builder = ConnectionOptions.newBuilder().setUri(spannerUri);
-    String gcpCredsUrl = properties.get("credentials");
-    if (emulatorHost != null) {
-      builder = builder.setCredentialsUrl(null);
-    } else if (gcpCredsUrl != null) {
-      builder = builder.setCredentialsUrl(gcpCredsUrl);
-    }
     ConnectionOptions opts = builder.build();
     return opts.getConnection();
   }
@@ -99,7 +92,7 @@ public class SpannerUtils {
 
     String emulatorHost = properties.get("emulatorHost");
     if (emulatorHost != null) {
-      builder = builder.setHost(emulatorHost).setCredentials(NoCredentials.getInstance());
+      builder = builder.setEmulatorHost(emulatorHost);
     }
 
     SpannerOptions options = builder.build();

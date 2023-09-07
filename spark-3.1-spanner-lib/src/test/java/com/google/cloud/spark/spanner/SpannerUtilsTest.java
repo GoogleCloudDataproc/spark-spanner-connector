@@ -133,9 +133,7 @@ public class SpannerUtilsTest {
     props.put("databaseId", databaseId);
     props.put("instanceId", instanceId);
     props.put("projectId", projectId);
-    if (false) {
-      props.put("emulatorHost", emulatorHost);
-    }
+    props.put("emulatorHost", emulatorHost);
     props.put("table", "ATable");
     return props;
   }

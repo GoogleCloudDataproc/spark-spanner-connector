@@ -7,4 +7,5 @@ RUN \
   curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
   apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - && \
   apt-get update -y && \
-  apt-get install google-cloud-cli -y
+  apt-get install google-cloud-cli -y && \
+  apt-get install google-cloud-sdk-spanner-emulator

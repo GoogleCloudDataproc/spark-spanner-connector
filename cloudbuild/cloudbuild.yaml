@@ -12,7 +12,7 @@ steps:
     args: ['/workspace/cloudbuild/presubmit.sh', 'init']
 
   # 3. Run integration tests with Spanner emulator
-  - name: 'gcr.io/$PROJECT_ID/dataproc-spark-bigquery-connector-presubmit'
+  - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
     id: 'integration-spanner-emulator'
     waitFor: ['init']
     entrypoint: 'bash'

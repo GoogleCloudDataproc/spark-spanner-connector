@@ -83,6 +83,10 @@ public class SpannerScanBuilder implements Batch, ScanBuilder, SupportsPushDownF
     // TODO: Receive the columns and filters that were pushed down.
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
     String sqlStmt = "SELECT * FROM " + this.opts.get("table");
+    Filter[] filters = this.pushedFilters();
+    if (filters.length > 0) {
+      sqlStmt += " WHERE " + SparkFilterUtils.getCompiledFilter(true, filters);
+    }
     try (BatchReadOnlyTransaction txn =
         batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
       String mapAsJSON = SpannerUtils.serializeMap(this.opts.asCaseSensitiveMap());

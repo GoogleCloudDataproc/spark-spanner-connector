@@ -144,7 +144,7 @@ public class SpannerInputPartitionReaderContextTest {
     row.update(2, new GenericArrayData(toSparkStrList(B)));
     row.update(3, UTF8String.fromString(C));
     SpannerUtils.asSparkDecimal(row, D, 4);
-    row.update(5, SpannerUtils.dateToLong(E));
+    row.update(5, SpannerUtils.dateToInteger(E));
     row.update(6, SpannerUtils.timestampToLong(F));
     row.setBoolean(7, G);
     row.update(8, SpannerUtils.dateIterToSpark(Arrays.asList(H)));
@@ -177,7 +177,7 @@ public class SpannerInputPartitionReaderContextTest {
     row.update(2, UTF8String.fromString(winner));
     row.update(3, SpannerUtils.timestampToLong(createdAt));
     row.update(4, SpannerUtils.timestampToLong(finishedAt));
-    row.update(5, SpannerUtils.dateToLong(maxDate));
+    row.update(5, SpannerUtils.dateToInteger(maxDate));
     return row;
   }
 

@@ -138,8 +138,8 @@ public class SpannerUtils {
     return (ts.getTime() * 1000 + ts.getNanos()) / 1000;
   }
 
-  public static Long dateToLong(Date d) {
-    return ((d.getTime() / MILLISECOND_TO_DAYS));
+  public static Integer dateToInteger(Date d) {
+    return ((Long) (d.getTime() / MILLISECOND_TO_DAYS)).intValue();
   }
 
   public static GenericArrayData timestampIterToSpark(Iterable<Timestamp> tsIt) {
@@ -149,9 +149,9 @@ public class SpannerUtils {
   }
 
   public static GenericArrayData dateIterToSpark(Iterable<Date> tsIt) {
-    List<Long> dest = new ArrayList<>();
-    tsIt.forEach((ts) -> dest.add(dateToLong(ts)));
-    return new GenericArrayData(dest.toArray(new Long[0]));
+    List<Integer> dest = new ArrayList<>();
+    tsIt.forEach((ts) -> dest.add(dateToInteger(ts)));
+    return new GenericArrayData(dest.toArray(new Integer[0]));
   }
 
   public static InternalRow spannerStructToInternalRow(Struct spannerRow) {
@@ -173,7 +173,7 @@ public class SpannerUtils {
 
         case DATE:
           Date date = spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i));
-          sparkRow.update(i, dateToLong(date));
+          sparkRow.update(i, dateToInteger(date));
           break;
 
         case FLOAT64:
@@ -239,9 +239,11 @@ public class SpannerUtils {
             tsL.forEach((ts) -> endTsL.add(timestampToLong(ts.toSqlTimestamp())));
             sparkRow.update(i, new GenericArrayData(endTsL.toArray(new Long[0])));
           } else if (fieldTypeName.indexOf("ARRAY<DATE>") == 0) {
-            List<Long> endDL = new ArrayList<>();
-            spannerRow.getDateList(i).forEach((ts) -> endDL.add(dateToLong(ts.toJavaUtilDate(ts))));
-            sparkRow.update(i, new GenericArrayData(endDL.toArray(new Long[0])));
+            List<Integer> endDL = new ArrayList<>();
+            spannerRow
+                .getDateList(i)
+                .forEach((ts) -> endDL.add(dateToInteger(ts.toJavaUtilDate(ts))));
+            sparkRow.update(i, new GenericArrayData(endDL.toArray(new Integer[0])));
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
             List<Struct> src = spannerRow.getStructList(i);
             List<InternalRow> dest = new ArrayList<>(src.size());

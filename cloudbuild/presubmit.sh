@@ -31,10 +31,7 @@ case $STEP in
   integrationtest-real-spanner)
     # Starts the Spanner emulator and setup the gcloud command.
     # Sets the env used in the integration test.
-    export SPANNER_PROJECT_ID=$PROJECT_ID
-    export SPANNER_INSTANCE_ID=test-instance
-    export SPANNER_DATABASE_ID=test-database
-
+    #
     # TODO: Remove the test filter once Date zone issue is fixed in test SpannerInputPartitionReaderContextTest.
     $MVN test -Dtest=SpannerUtilsTest
     ;;

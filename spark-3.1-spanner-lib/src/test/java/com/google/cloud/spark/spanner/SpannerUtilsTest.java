@@ -56,7 +56,9 @@ public class SpannerUtilsTest {
   Spanner spanner = createSpanner();
 
   public static SpannerOptions createSpannerOptions() {
-    return SpannerOptions.newBuilder().setEmulatorHost(emulatorHost).build();
+    return emulatorHost != null
+        ? SpannerOptions.newBuilder().setProjectId(projectId).setEmulatorHost(emulatorHost).build()
+        : SpannerOptions.newBuilder().setProjectId(projectId).build();
   }
 
   public static Spanner createSpanner() {
@@ -113,7 +115,14 @@ public class SpannerUtilsTest {
     db.readWriteTransaction()
         .run(
             txn -> {
-              TestData.initialDML.forEach(sql -> txn.executeUpdate(Statement.of(sql)));
+              try {
+                TestData.initialDML.forEach(sql -> txn.executeUpdate(Statement.of(sql)));
+              } catch (Exception e) {
+                if (!e.toString().contains("ALREADY_EXISTS")) {
+                  throw e;
+                }
+              }
+
               return null;
             });
   }
@@ -133,7 +142,9 @@ public class SpannerUtilsTest {
     props.put("databaseId", databaseId);
     props.put("instanceId", instanceId);
     props.put("projectId", projectId);
-    props.put("emulatorHost", emulatorHost);
+    if (emulatorHost != null) {
+      props.put("emulatorHost", emulatorHost);
+    }
     props.put("table", "ATable");
     return props;
   }

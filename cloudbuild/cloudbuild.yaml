@@ -13,10 +13,10 @@ steps:
 
   # 3. Run integration tests with Spanner emulator
   - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
-    id: 'integration-spanner-emulator'
+    id: 'integration-real-spanner'
     waitFor: ['init']
     entrypoint: 'bash'
-    args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest-spanner-emulator']
+    args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest-real-spanner']
 
 timeout: 3600s
 options:

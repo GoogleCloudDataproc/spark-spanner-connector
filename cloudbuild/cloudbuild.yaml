@@ -17,6 +17,10 @@ steps:
     waitFor: ['init']
     entrypoint: 'bash'
     args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest-real-spanner']
+    env:
+      - 'SPANNER_PROJECT_ID=$PROJECT_ID'
+      - 'SPANNER_INSTANCE_ID=test-instance'
+      - 'SPANNER_DATABASE_ID=test-database'
 
 timeout: 3600s
 options:

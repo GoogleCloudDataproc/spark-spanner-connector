@@ -37,7 +37,7 @@ public class Spark31SpannerTableProvider
    */
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    SpannerTable st = new SpannerTable(null, options);
+    SpannerTable st = new SpannerTable(options);
     return st.schema();
   }
 
@@ -48,7 +48,7 @@ public class Spark31SpannerTableProvider
   @Override
   public Table getTable(
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
-    return new SpannerTable(schema, properties);
+    return new SpannerTable(properties);
   }
 
   /*

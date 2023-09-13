@@ -42,7 +42,7 @@ public class SpannerScanner implements Batch, Scan {
 
   public SpannerScanner(Map<String, String> opts) {
     this.opts = opts;
-    this.spannerTable = new SpannerTable(null, opts);
+    this.spannerTable = new SpannerTable(opts);
   }
 
   @Override

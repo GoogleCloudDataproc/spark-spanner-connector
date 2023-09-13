@@ -33,7 +33,8 @@ case $STEP in
     # Sets the env used in the integration test.
     #
     # TODO: Remove the test filter once Date zone issue is fixed in test SpannerInputPartitionReaderContextTest.
-    $MVN test -Dtest=SpannerUtilsTest
+    $MVN test -Dtest=SpannerTableTest
+    $MVN test -Dtest=SpannerScanBuilderTest
     ;;
 esac
 

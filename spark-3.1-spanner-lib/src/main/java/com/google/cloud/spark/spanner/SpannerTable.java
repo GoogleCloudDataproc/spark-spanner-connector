@@ -47,8 +47,7 @@ public class SpannerTable implements Table, SupportsRead {
 
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
-  public SpannerTable(StructType providedSchema, Map<String, String> properties) {
-    // TODO: Use providedSchema in building the SpannerTable.
+  public SpannerTable(Map<String, String> properties) {
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       String tableName = properties.get("table");
       if (tableName == null) {

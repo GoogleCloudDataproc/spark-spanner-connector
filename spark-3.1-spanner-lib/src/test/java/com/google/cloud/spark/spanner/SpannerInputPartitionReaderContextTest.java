@@ -7,7 +7,6 @@ import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.PartitionOptions;
-import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.InputPartitionReaderContext;
@@ -34,33 +33,12 @@ import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.apache.spark.unsafe.types.UTF8String;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SpannerInputPartitionReaderContextTest {
-
-  Spanner spanner = SpannerUtilsTest.createSpanner();
-  BatchClient batchClient =
-      SpannerUtilsTest.createBatchClient(spanner, SpannerUtilsTest.connectionProperties());
-
-  @Before
-  public void setUp() throws Exception {
-    // 0. Setup the database.
-    SpannerUtilsTest ss = new SpannerUtilsTest();
-    ss.initDatabase();
-    // 1. Insert some 10 rows.
-  }
-
-  @After
-  public void teardown() throws Exception {
-    // 1. TODO: Delete all the contents.
-    // 2. Close the Spanner connection.
-    spanner.close();
-  }
+public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
 
   InternalRow makeInternalRow(int A, String B, double C) {
     GenericInternalRow row = new GenericInternalRow(3);
@@ -89,6 +67,7 @@ public class SpannerInputPartitionReaderContextTest {
 
     CopyOnWriteArrayList<InternalRow> al = new CopyOnWriteArrayList<>();
 
+    BatchClient batchClient = this.createBatchClient();
     try (final BatchReadOnlyTransaction txn =
         batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
       List<Partition> partitions =
@@ -99,7 +78,7 @@ public class SpannerInputPartitionReaderContextTest {
 
       // Not using executor.execute as controlling immediate termination
       // is non-granular and out of scope of these tests.
-      Map<String, String> opts = SpannerUtilsTest.connectionProperties();
+      Map<String, String> opts = this.connectionProperties();
       String mapAsJSON = SpannerUtils.serializeMap(opts);
 
       for (final Partition partition : partitions) {
@@ -183,9 +162,9 @@ public class SpannerInputPartitionReaderContextTest {
 
   @Test
   public void testMoreDiverseTables() {
-    Map<String, String> props = SpannerUtilsTest.connectionProperties();
+    Map<String, String> props = this.connectionProperties();
     props.put("table", "games");
-    SpannerTable st = new SpannerTable(null, props);
+    SpannerTable st = new SpannerTable(props);
     CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
     ScanBuilder sb = st.newScanBuilder(csm);
     SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);
@@ -224,9 +203,9 @@ public class SpannerInputPartitionReaderContextTest {
 
   @Test
   public void testArraysConversions() {
-    Map<String, String> props = SpannerUtilsTest.connectionProperties();
+    Map<String, String> props = this.connectionProperties();
     props.put("table", "compositeTable");
-    SpannerTable st = new SpannerTable(null, props);
+    SpannerTable st = new SpannerTable(props);
     CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
     ScanBuilder sb = st.newScanBuilder(csm);
     SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);

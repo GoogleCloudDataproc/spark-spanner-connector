@@ -45,6 +45,8 @@ import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.types.UTF8String;
 
 public class SpannerUtils {
+  private static final ObjectMapper jsonMapper = new ObjectMapper();
+
   public static Long MILLISECOND_TO_DAYS = 1000 * 60 * 60 * 24L;
   public static Map<String, String> defaultConnOpts =
       new HashMap<String, String>() {
@@ -259,15 +261,13 @@ public class SpannerUtils {
   }
 
   public static String serializeMap(Map<String, String> m) throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
-    return mapper.writer().writeValueAsString(m);
+    return jsonMapper.writer().writeValueAsString(m);
   }
 
   public static Map<String, String> deserializeMap(String json) throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, String>> typeRef =
         new TypeReference<HashMap<String, String>>() {};
-    return mapper.readValue(json, typeRef);
+    return jsonMapper.readValue(json, typeRef);
   }
 
   public static Dataset<Row> datasetFromHashMap(SparkSession spark, Map<Partition, List<Row>> hm) {

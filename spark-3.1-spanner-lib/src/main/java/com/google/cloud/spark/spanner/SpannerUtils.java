@@ -48,21 +48,8 @@ public class SpannerUtils {
   private static final ObjectMapper jsonMapper = new ObjectMapper();
 
   public static Long MILLISECOND_TO_DAYS = 1000 * 60 * 60 * 24L;
-  public static Map<String, String> defaultConnOpts =
-      new HashMap<String, String>() {
-        {
-          put("projectId", "orijtech-161805");
-          put("instanceId", "spanner-spark");
-          put("databaseId", "spark-db");
-          put("enableDataBoost", "true");
-          put("table", "games");
-        }
-      };
 
   public static Connection connectionFromProperties(Map<String, String> properties) {
-    if (properties == null || properties.size() == 0) {
-      properties = defaultConnOpts;
-    }
     String connUriPrefix = "cloudspanner:";
     String emulatorHost = properties.get("emulatorHost");
     if (emulatorHost != null) {
@@ -85,10 +72,6 @@ public class SpannerUtils {
   }
 
   public static BatchClientWithCloser batchClientFromProperties(Map<String, String> properties) {
-    if (properties == null) {
-      properties = defaultConnOpts;
-    }
-
     SpannerOptions.Builder builder =
         SpannerOptions.newBuilder().setProjectId(properties.get("projectId"));
 

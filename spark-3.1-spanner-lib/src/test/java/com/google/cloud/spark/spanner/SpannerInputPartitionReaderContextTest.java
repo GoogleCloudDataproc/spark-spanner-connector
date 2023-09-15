@@ -65,7 +65,12 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
             makeInternalRow(1, "1", 2.5),
             makeInternalRow(2, "2", 5.0),
             makeInternalRow(3, "3", Double.POSITIVE_INFINITY),
-            makeInternalRow(4, "4", Double.NEGATIVE_INFINITY));
+            makeInternalRow(4, "4", Double.NEGATIVE_INFINITY),
+            makeInternalRow(5, "5", Double.NaN),
+            makeInternalRow(6, "6", 100000000017.100000000017),
+            makeInternalRow(7, "7", -0.0),
+            makeInternalRow(8, "8", +0.0),
+            makeInternalRow(9, "9", -19999997.9));
     List<InternalRow> gotRows = new ArrayList<>();
 
     CopyOnWriteArrayList<InternalRow> al = new CopyOnWriteArrayList<>();

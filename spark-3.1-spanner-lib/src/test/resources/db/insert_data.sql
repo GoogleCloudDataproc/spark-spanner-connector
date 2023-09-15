@@ -15,7 +15,12 @@ VALUES
     (1, "1", 2.5),
     (2, "2", 5.0),
     (3, "3", CAST("+inf" AS FLOAT64)),
-    (4, "4", CAST("-inf" AS FLOAT64));
+    (4, "4", CAST("-inf" AS FLOAT64)),
+    (5, "5", CAST("NaN" AS FLOAT64)),
+    (6, "6", 100000000017.100000000017),
+    (7, "7", -0.0),
+    (8, "8", +0.0),
+    (9, "9", -19999997.9);
 
 DELETE FROM players WHERE 1=1;
 DELETE FROM games WHERE 1=1;

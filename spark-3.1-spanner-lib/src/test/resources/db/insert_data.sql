@@ -13,7 +13,9 @@ INSERT INTO
     simpleTable(A, B, C)
 VALUES
     (1, "1", 2.5),
-    (2, "2", 5.0);
+    (2, "2", 5.0),
+    (3, "3", CAST("+inf" AS FLOAT64)),
+    (4, "4", CAST("-inf" AS FLOAT64));
 
 DELETE FROM players WHERE 1=1;
 DELETE FROM games WHERE 1=1;

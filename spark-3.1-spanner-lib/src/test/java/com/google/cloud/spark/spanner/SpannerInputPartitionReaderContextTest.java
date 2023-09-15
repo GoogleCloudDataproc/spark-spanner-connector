@@ -61,7 +61,11 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     // We expect that each partition will have some elements but
     // at the end we expect that the following will be present:
     List<InternalRow> expectRows =
-        Arrays.asList(makeInternalRow(1, "1", 2.5), makeInternalRow(2, "2", 5.0));
+        Arrays.asList(
+            makeInternalRow(1, "1", 2.5),
+            makeInternalRow(2, "2", 5.0),
+            makeInternalRow(3, "3", Double.POSITIVE_INFINITY),
+            makeInternalRow(4, "4", Double.NEGATIVE_INFINITY));
     List<InternalRow> gotRows = new ArrayList<>();
 
     CopyOnWriteArrayList<InternalRow> al = new CopyOnWriteArrayList<>();
@@ -101,7 +105,6 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     Collections.sort(expectRows, cmp);
     Collections.sort(gotRows, cmp);
 
-    assertEquals(expectRows.size(), gotRows.size());
     assertEquals(expectRows, gotRows);
   }
 

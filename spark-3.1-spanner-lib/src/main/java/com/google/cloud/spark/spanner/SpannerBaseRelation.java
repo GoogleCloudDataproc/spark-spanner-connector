@@ -23,11 +23,17 @@ import org.apache.spark.sql.sources.BaseRelation;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructType;
 
+/*
+ * SpannerBaseRelation implements BaseRelation.
+ */
 public class SpannerBaseRelation extends BaseRelation {
   private final SQLContext sqlContext;
   private final SpannerScanner scan;
   private final Dataset<Row> dataToWrite;
 
+  /*
+   * The constructor to create SpannerBaseRelation.
+   */
   public SpannerBaseRelation(
       SQLContext sqlContext,
       SaveMode mode,

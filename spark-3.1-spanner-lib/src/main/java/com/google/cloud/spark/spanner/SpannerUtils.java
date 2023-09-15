@@ -28,6 +28,8 @@ import com.google.cloud.spanner.Type.Code.*;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -118,13 +120,29 @@ public class SpannerUtils {
     asSparkDecimal(dest, src.getBigDecimal(at), at);
   }
 
-  public static Long timestampToLong(Timestamp ts) {
+  public static Long timestampToLong(com.google.cloud.Timestamp ts) {
     // Convert the timestamp to microseconds, which is supported in the Spark.
-    return (ts.getTime() * 1000 + ts.getNanos()) / 1000;
+    return (ts.getSeconds() * 1_000_000) + (ts.getNanos() / 1000);
   }
 
-  public static Integer dateToInteger(Date d) {
-    return ((Long) (d.getTime() / MILLISECOND_TO_DAYS)).intValue();
+  public static Long timestampToLong(Timestamp ts) {
+    // Convert the timestamp to microseconds, which is supported in the Spark.
+    return (ts.getTime() * 1_000_000) + (ts.getNanos() / 1000);
+  }
+
+  public static Long zonedDateTimeToLong(ZonedDateTime zdt) {
+    // Convert the zonedDateTime to microseconds which Spark supports.
+    return zdt.toEpochSecond() * 1_000_000;
+  }
+
+  public static Long dateToInteger(com.google.cloud.Date dc) {
+    Date d = dc.toJavaUtilDate(dc);
+    Instant ins = d.toInstant();
+    return (ins.getEpochSecond() * 1_000_000);
+  }
+
+  public static Long dateToInteger(Date d) {
+    return ((Long) (d.getTime() * 1_000));
   }
 
   public static GenericArrayData timestampIterToSpark(Iterable<Timestamp> tsIt) {
@@ -134,9 +152,15 @@ public class SpannerUtils {
   }
 
   public static GenericArrayData dateIterToSpark(Iterable<Date> tsIt) {
-    List<Integer> dest = new ArrayList<>();
+    List<Long> dest = new ArrayList<>();
     tsIt.forEach((ts) -> dest.add(dateToInteger(ts)));
-    return new GenericArrayData(dest.toArray(new Integer[0]));
+    return new GenericArrayData(dest.toArray(new Long[0]));
+  }
+
+  public static GenericArrayData zonedDateTimeIterToSparkInts(Iterable<ZonedDateTime> tsIt) {
+    List<Long> dest = new ArrayList<>();
+    tsIt.forEach((ts) -> dest.add(zonedDateTimeToLong(ts)));
+    return new GenericArrayData(dest.toArray(new Long[0]));
   }
 
   public static InternalRow spannerStructToInternalRow(Struct spannerRow) {
@@ -157,8 +181,7 @@ public class SpannerUtils {
           break;
 
         case DATE:
-          Date date = spannerRow.getDate(i).toJavaUtilDate(spannerRow.getDate(i));
-          sparkRow.update(i, dateToInteger(date));
+          sparkRow.update(i, dateToInteger(spannerRow.getDate(i)));
           break;
 
         case FLOAT64:
@@ -186,9 +209,8 @@ public class SpannerUtils {
           break;
 
         case TIMESTAMP:
-          Timestamp timestamp = spannerRow.getTimestamp(i).toSqlTimestamp();
           // Convert the timestamp to microseconds, which is supported in the Spark.
-          sparkRow.update(i, timestampToLong(timestamp));
+          sparkRow.update(i, timestampToLong(spannerRow.getTimestamp(i)));
           break;
 
         case STRING:
@@ -221,14 +243,12 @@ public class SpannerUtils {
           } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
             List<com.google.cloud.Timestamp> tsL = spannerRow.getTimestampList(i);
             List<Long> endTsL = new ArrayList<>();
-            tsL.forEach((ts) -> endTsL.add(timestampToLong(ts.toSqlTimestamp())));
+            tsL.forEach((ts) -> endTsL.add(timestampToLong(ts)));
             sparkRow.update(i, new GenericArrayData(endTsL.toArray(new Long[0])));
           } else if (fieldTypeName.indexOf("ARRAY<DATE>") == 0) {
-            List<Integer> endDL = new ArrayList<>();
-            spannerRow
-                .getDateList(i)
-                .forEach((ts) -> endDL.add(dateToInteger(ts.toJavaUtilDate(ts))));
-            sparkRow.update(i, new GenericArrayData(endDL.toArray(new Integer[0])));
+            List<Long> endDL = new ArrayList<>();
+            spannerRow.getDateList(i).forEach((ts) -> endDL.add(dateToInteger(ts)));
+            sparkRow.update(i, new GenericArrayData(endDL.toArray(new Long[0])));
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
             List<Struct> src = spannerRow.getStructList(i);
             List<InternalRow> dest = new ArrayList<>(src.size());

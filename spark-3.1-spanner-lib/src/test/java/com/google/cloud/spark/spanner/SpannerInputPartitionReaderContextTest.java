@@ -15,8 +15,7 @@ import com.google.cloud.spark.spanner.SpannerScanBuilder;
 import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.cloud.spark.spanner.SpannerUtils;
 import java.io.IOException;
-import java.sql.Date;
-import java.sql.Timestamp;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -112,22 +111,22 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
       String[] B,
       String C,
       java.math.BigDecimal D,
-      Date E,
-      Timestamp F,
+      ZonedDateTime E,
+      ZonedDateTime F,
       boolean G,
-      Date[] H,
-      Timestamp[] I) {
+      ZonedDateTime[] H,
+      ZonedDateTime[] I) {
     GenericInternalRow row = new GenericInternalRow(10);
     row.update(0, UTF8String.fromString(id));
     row.update(1, new GenericArrayData(A));
     row.update(2, new GenericArrayData(toSparkStrList(B)));
     row.update(3, UTF8String.fromString(C));
     SpannerUtils.asSparkDecimal(row, D, 4);
-    row.update(5, SpannerUtils.dateToInteger(E));
-    row.update(6, SpannerUtils.timestampToLong(F));
+    row.update(5, SpannerUtils.zonedDateTimeToLong(E));
+    row.update(6, SpannerUtils.zonedDateTimeToLong(F));
     row.setBoolean(7, G);
-    row.update(8, SpannerUtils.dateIterToSpark(Arrays.asList(H)));
-    row.update(9, SpannerUtils.timestampIterToSpark(Arrays.asList(I)));
+    row.update(8, SpannerUtils.zonedDateTimeIterToSparkInts(Arrays.asList(H)));
+    row.update(9, SpannerUtils.zonedDateTimeIterToSparkInts(Arrays.asList(I)));
     return row;
   }
 
@@ -143,9 +142,9 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
       String playerId,
       String[] playerIds,
       String winner,
-      Timestamp createdAt,
-      Timestamp finishedAt,
-      Date maxDate) {
+      ZonedDateTime createdAt,
+      ZonedDateTime finishedAt,
+      ZonedDateTime maxDate) {
     GenericInternalRow row = new GenericInternalRow(6);
     row.update(0, UTF8String.fromString(playerId));
     List<UTF8String> dest = new ArrayList<UTF8String>(playerIds.length);
@@ -154,9 +153,9 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     }
     row.update(1, new GenericArrayData(dest.toArray(new UTF8String[0])));
     row.update(2, UTF8String.fromString(winner));
-    row.update(3, SpannerUtils.timestampToLong(createdAt));
-    row.update(4, SpannerUtils.timestampToLong(finishedAt));
-    row.update(5, SpannerUtils.dateToInteger(maxDate));
+    row.update(3, SpannerUtils.zonedDateTimeToLong(createdAt));
+    row.update(4, SpannerUtils.zonedDateTimeToLong(finishedAt));
+    row.update(5, SpannerUtils.zonedDateTimeToLong(maxDate));
     return row;
   }
 
@@ -183,9 +182,9 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
       }
     }
 
-    Timestamp createdAt = Timestamp.valueOf("2023-08-26 15:22:00");
-    Timestamp finishedAt = Timestamp.valueOf("2023-08-26 15:22:00");
-    Date maxDate = Date.valueOf("2023-12-31");
+    ZonedDateTime createdAt = ZonedDateTime.parse("2023-08-26T12:22:00Z");
+    ZonedDateTime finishedAt = ZonedDateTime.parse("2023-08-26T12:22:00Z");
+    ZonedDateTime maxDate = ZonedDateTime.parse("2023-12-31T00:00:00Z");
     List<InternalRow> expectRows =
         Arrays.asList(
             makeGamesRow(
@@ -224,7 +223,6 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
       }
     }
 
-    Date maxDate = Date.valueOf("2023-12-31");
     List<InternalRow> expectRows =
         Arrays.asList(
             makeCompositeTableRow(
@@ -233,15 +231,16 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                 new String[] {"a", "b", "c"},
                 "foobar",
                 new java.math.BigDecimal(2934),
-                Date.valueOf("2023-01-02"),
-                Timestamp.valueOf("2023-08-26 15:22:05"),
+                ZonedDateTime.parse("2023-01-01T00:00:00Z"),
+                ZonedDateTime.parse("2023-08-26T12:22:05Z"),
                 true,
-                new Date[] {
-                  Date.valueOf("2023-01-02"), Date.valueOf("2023-12-31"),
+                new ZonedDateTime[] {
+                  ZonedDateTime.parse("2023-01-02T00:00:00Z"),
+                  ZonedDateTime.parse("2023-12-31T00:00:00Z"),
                 },
-                new Timestamp[] {
-                  Timestamp.valueOf("2023-08-26 15:11:10"),
-                  Timestamp.valueOf("2023-08-27 15:11:09"),
+                new ZonedDateTime[] {
+                  ZonedDateTime.parse("2023-08-26T12:11:10Z"),
+                  ZonedDateTime.parse("2023-08-27T12:11:09Z"),
                 }));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();

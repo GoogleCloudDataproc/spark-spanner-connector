@@ -60,6 +60,7 @@ public class IntegrationTestBase {
   @Before
   public void createTests() {}
 
+  // Point to the cloud spanner emulator if running local.
   private static Spanner createSpanner(String endpoint, String projectId) {
     return SpannerOptions.newBuilder()
         .setProjectId(projectId)
@@ -76,6 +77,8 @@ public class IntegrationTestBase {
         .getService();
   }
 
+  // SparkFactory will have an interceptor that links "cloud-spanner"
+  // to our DefaultTableProvider.
   protected static class SparkFactory extends ExternalResource {
     SparkSession spark;
 

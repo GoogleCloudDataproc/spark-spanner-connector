@@ -129,12 +129,12 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     row.update(1, new GenericArrayData(A));
     row.update(2, new GenericArrayData(toSparkStrList(B)));
     row.update(3, UTF8String.fromString(C));
-    SpannerUtils.asSparkDecimal(row, D, 4);
-    row.update(5, SpannerUtils.zonedDateTimeToLong(E));
-    row.update(6, SpannerUtils.zonedDateTimeToLong(F));
+    SpannerUtils.toSparkDecimal(row, D, 4);
+    row.update(5, SpannerUtils.zonedDateTimeToSparkDate(E));
+    row.update(6, SpannerUtils.zonedDateTimeToSparkTimestamp(F));
     row.setBoolean(7, G);
-    row.update(8, SpannerUtils.zonedDateTimeIterToSparkInts(Arrays.asList(H)));
-    row.update(9, SpannerUtils.zonedDateTimeIterToSparkInts(Arrays.asList(I)));
+    row.update(8, SpannerUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
+    row.update(9, SpannerUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
     return row;
   }
 
@@ -161,9 +161,9 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     }
     row.update(1, new GenericArrayData(dest.toArray(new UTF8String[0])));
     row.update(2, UTF8String.fromString(winner));
-    row.update(3, SpannerUtils.zonedDateTimeToLong(createdAt));
-    row.update(4, SpannerUtils.zonedDateTimeToLong(finishedAt));
-    row.update(5, SpannerUtils.zonedDateTimeToLong(maxDate));
+    row.update(3, SpannerUtils.zonedDateTimeToSparkTimestamp(createdAt));
+    row.update(4, SpannerUtils.zonedDateTimeToSparkTimestamp(finishedAt));
+    row.update(5, SpannerUtils.zonedDateTimeToSparkTimestamp(maxDate));
     return row;
   }
 
@@ -239,12 +239,12 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                 new String[] {"a", "b", "c"},
                 "foobar",
                 new java.math.BigDecimal(2934),
-                ZonedDateTime.parse("2023-01-01T00:00:00Z"),
+                ZonedDateTime.parse("2022-12-31T23:59:59Z"),
                 ZonedDateTime.parse("2023-08-26T12:22:05Z"),
                 true,
                 new ZonedDateTime[] {
-                  ZonedDateTime.parse("2023-01-02T00:00:00Z"),
-                  ZonedDateTime.parse("2023-12-31T00:00:00Z"),
+                  ZonedDateTime.parse("2023-01-01T23:59:59Z"),
+                  ZonedDateTime.parse("2023-12-30T23:59:59Z"),
                 },
                 new ZonedDateTime[] {
                   ZonedDateTime.parse("2023-08-26T12:11:10Z"),

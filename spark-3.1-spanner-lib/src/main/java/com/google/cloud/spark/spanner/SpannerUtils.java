@@ -28,10 +28,9 @@ import com.google.cloud.spanner.Type.Code.*;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.sql.Timestamp;
-import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +48,7 @@ import org.apache.spark.unsafe.types.UTF8String;
 public class SpannerUtils {
   private static final ObjectMapper jsonMapper = new ObjectMapper();
 
-  public static Long MILLISECOND_TO_DAYS = 1000 * 60 * 60 * 24L;
+  public static Long SECOND_TO_DAYS = 60 * 60 * 24L;
 
   public static Connection connectionFromProperties(Map<String, String> properties) {
     String connUriPrefix = "cloudspanner:";
@@ -108,7 +107,7 @@ public class SpannerUtils {
     return spannerStructToInternalRow(spannerRow);
   }
 
-  public static void asSparkDecimal(GenericInternalRow dest, java.math.BigDecimal v, int at) {
+  public static void toSparkDecimal(GenericInternalRow dest, java.math.BigDecimal v, int at) {
     // TODO: Deal with the precision truncation since Cloud Spanner's precision
     // has (precision=38, scale=9) while Apache Spark has (precision=N, scale=M)
     Decimal dec = new Decimal();
@@ -117,7 +116,7 @@ public class SpannerUtils {
   }
 
   private static void spannerNumericToSpark(Struct src, GenericInternalRow dest, int at) {
-    asSparkDecimal(dest, src.getBigDecimal(at), at);
+    toSparkDecimal(dest, src.getBigDecimal(at), at);
   }
 
   public static Long timestampToLong(com.google.cloud.Timestamp ts) {
@@ -130,19 +129,32 @@ public class SpannerUtils {
     return (ts.getTime() * 1_000_000) + (ts.getNanos() / 1000);
   }
 
-  public static Long zonedDateTimeToLong(ZonedDateTime zdt) {
+  public static Long zonedDateTimeToSparkTimestamp(ZonedDateTime zdt) {
     // Convert the zonedDateTime to microseconds which Spark supports.
     return zdt.toEpochSecond() * 1_000_000;
   }
 
-  public static Long dateToInteger(com.google.cloud.Date dc) {
-    Date d = dc.toJavaUtilDate(dc);
-    Instant ins = d.toInstant();
-    return (ins.getEpochSecond() * 1_000_000);
+  /*
+   * zonedDateTimeToSparkDate converts a ZonedDateTime to number of days
+   * since the Epoch: January 1st 1970, which is what Spark understands.
+   */
+  public static Integer zonedDateTimeToSparkDate(ZonedDateTime zdt) {
+    return ((Long) (zdt.toEpochSecond() / SECOND_TO_DAYS)).intValue();
   }
 
-  public static Long dateToInteger(Date d) {
-    return ((Long) (d.getTime() * 1_000));
+  private static ZoneId zoneUTC = ZoneId.of("UTC+00:00");
+
+  /*
+   * toSparkDate converts a Google Date into the number of Days since
+   * the Epoch: January 1st 1970, which is what Spark understands.
+   */
+  public static Integer toSparkDate(com.google.cloud.Date dc) {
+    // Cloud Spanner doesn't attach a zone to the Date, returning the time in UTC
+    // so we can't let it be interpreted in that of the system, hence using ZonedTimeDate with UTC.
+    // and not converting it to JavaUtilDate which uses the local system's timezone.
+    ZonedDateTime zdt =
+        ZonedDateTime.of(dc.getYear(), dc.getMonth(), dc.getDayOfMonth(), 0, 0, 0, 0, zoneUTC);
+    return zonedDateTimeToSparkDate(zdt);
   }
 
   public static GenericArrayData timestampIterToSpark(Iterable<Timestamp> tsIt) {
@@ -151,15 +163,15 @@ public class SpannerUtils {
     return new GenericArrayData(dest.toArray(new Long[0]));
   }
 
-  public static GenericArrayData dateIterToSpark(Iterable<Date> tsIt) {
-    List<Long> dest = new ArrayList<>();
-    tsIt.forEach((ts) -> dest.add(dateToInteger(ts)));
-    return new GenericArrayData(dest.toArray(new Long[0]));
+  public static GenericArrayData zonedDateTimeIterToSparkDates(Iterable<ZonedDateTime> tsIt) {
+    List<Integer> dest = new ArrayList<>();
+    tsIt.forEach((ts) -> dest.add(zonedDateTimeToSparkDate(ts)));
+    return new GenericArrayData(dest.toArray(new Integer[0]));
   }
 
-  public static GenericArrayData zonedDateTimeIterToSparkInts(Iterable<ZonedDateTime> tsIt) {
+  public static GenericArrayData zonedDateTimeIterToSparkTimestamps(Iterable<ZonedDateTime> tsIt) {
     List<Long> dest = new ArrayList<>();
-    tsIt.forEach((ts) -> dest.add(zonedDateTimeToLong(ts)));
+    tsIt.forEach((ts) -> dest.add(zonedDateTimeToSparkTimestamp(ts)));
     return new GenericArrayData(dest.toArray(new Long[0]));
   }
 
@@ -181,7 +193,7 @@ public class SpannerUtils {
           break;
 
         case DATE:
-          sparkRow.update(i, dateToInteger(spannerRow.getDate(i)));
+          sparkRow.update(i, toSparkDate(spannerRow.getDate(i)));
           break;
 
         case FLOAT64:
@@ -246,9 +258,9 @@ public class SpannerUtils {
             tsL.forEach((ts) -> endTsL.add(timestampToLong(ts)));
             sparkRow.update(i, new GenericArrayData(endTsL.toArray(new Long[0])));
           } else if (fieldTypeName.indexOf("ARRAY<DATE>") == 0) {
-            List<Long> endDL = new ArrayList<>();
-            spannerRow.getDateList(i).forEach((ts) -> endDL.add(dateToInteger(ts)));
-            sparkRow.update(i, new GenericArrayData(endDL.toArray(new Long[0])));
+            List<Integer> endDL = new ArrayList<>();
+            spannerRow.getDateList(i).forEach((ts) -> endDL.add(toSparkDate(ts)));
+            sparkRow.update(i, new GenericArrayData(endDL.toArray(new Integer[0])));
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
             List<Struct> src = spannerRow.getStructList(i);
             List<InternalRow> dest = new ArrayList<>(src.size());

@@ -163,7 +163,7 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     row.update(2, UTF8String.fromString(winner));
     row.update(3, SpannerUtils.zonedDateTimeToSparkTimestamp(createdAt));
     row.update(4, SpannerUtils.zonedDateTimeToSparkTimestamp(finishedAt));
-    row.update(5, SpannerUtils.zonedDateTimeToSparkTimestamp(maxDate));
+    row.update(5, SpannerUtils.zonedDateTimeToSparkDate(maxDate));
     return row;
   }
 
@@ -192,7 +192,7 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
 
     ZonedDateTime createdAt = ZonedDateTime.parse("2023-08-26T12:22:00Z");
     ZonedDateTime finishedAt = ZonedDateTime.parse("2023-08-26T12:22:00Z");
-    ZonedDateTime maxDate = ZonedDateTime.parse("2023-12-31T00:00:00Z");
+    ZonedDateTime maxDate = ZonedDateTime.parse("2023-12-30T23:59:59Z");
     List<InternalRow> expectRows =
         Arrays.asList(
             makeGamesRow(

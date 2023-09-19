@@ -17,6 +17,7 @@ package com.google.cloud.spark;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.spark.spanner.SpannerScanBuilder;
+import com.google.cloud.spark.spanner.SpannerScanner;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
@@ -67,8 +68,9 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
     Map<String, String> opts = this.connectionProperties();
     CaseInsensitiveStringMap optionMap = new CaseInsensitiveStringMap(opts);
     SpannerScanBuilder spannerScanBuilder = new SpannerScanBuilder(optionMap);
-    InputPartition[] partitions = spannerScanBuilder.planInputPartitions();
-    PartitionReaderFactory prf = spannerScanBuilder.createReaderFactory();
+    SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
+    InputPartition[] partitions = ss.planInputPartitions();
+    PartitionReaderFactory prf = ss.createReaderFactory();
     for (InputPartition partition : partitions) {
       PartitionReader<InternalRow> ir = prf.createReader(partition);
       try {

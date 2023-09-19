@@ -12,6 +12,7 @@ import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.InputPartitionReaderContext;
 import com.google.cloud.spark.spanner.SpannerInputPartitionContext;
 import com.google.cloud.spark.spanner.SpannerScanBuilder;
+import com.google.cloud.spark.spanner.SpannerScanner;
 import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.cloud.spark.spanner.SpannerUtils;
 import java.io.IOException;
@@ -175,8 +176,9 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
     ScanBuilder sb = st.newScanBuilder(csm);
     SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);
-    InputPartition[] parts = ssb.planInputPartitions();
-    PartitionReaderFactory prf = ssb.createReaderFactory();
+    SpannerScanner ss = ((SpannerScanner) ssb.build());
+    InputPartition[] parts = ss.planInputPartitions();
+    PartitionReaderFactory prf = ss.createReaderFactory();
 
     List<InternalRow> gotRows = new ArrayList<>();
     for (InputPartition part : parts) {
@@ -216,8 +218,9 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     CaseInsensitiveStringMap csm = new CaseInsensitiveStringMap(props);
     ScanBuilder sb = st.newScanBuilder(csm);
     SpannerScanBuilder ssb = ((SpannerScanBuilder) sb);
-    InputPartition[] parts = ssb.planInputPartitions();
-    PartitionReaderFactory prf = ssb.createReaderFactory();
+    SpannerScanner ss = ((SpannerScanner) ssb.build());
+    InputPartition[] parts = ss.planInputPartitions();
+    PartitionReaderFactory prf = ss.createReaderFactory();
 
     List<InternalRow> gotRows = new ArrayList<>();
     for (InputPartition part : parts) {

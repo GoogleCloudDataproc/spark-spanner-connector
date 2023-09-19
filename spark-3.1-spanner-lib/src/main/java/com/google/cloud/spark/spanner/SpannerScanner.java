@@ -28,6 +28,7 @@ import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
+import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SpannerScanner implements Batch, Scan {
   private SpannerTable spannerTable;
+  private Filter[] filters;
   private Map<String, String> opts;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
 
@@ -60,11 +62,23 @@ public class SpannerScanner implements Batch, Scan {
     return new SpannerPartitionReaderFactory();
   }
 
+  public void setFilters(Filter[] filters) {
+    this.filters = filters;
+  }
+
+  public Filter[] getFilters() {
+    return this.filters;
+  }
+
   @Override
   public InputPartition[] planInputPartitions() {
-    // TODO: Receive the columns and filters that were pushed down.
+    // TODO: Receive the columns that were pushed down.
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
     String sqlStmt = "SELECT * FROM " + this.spannerTable.name();
+    Filter[] filters = this.getFilters();
+    if (filters.length > 0) {
+      sqlStmt += " WHERE " + SparkFilterUtils.getCompiledFilter(true, filters);
+    }
     try (BatchReadOnlyTransaction txn =
         batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
       String mapAsJSON = SpannerUtils.serializeMap(this.opts);

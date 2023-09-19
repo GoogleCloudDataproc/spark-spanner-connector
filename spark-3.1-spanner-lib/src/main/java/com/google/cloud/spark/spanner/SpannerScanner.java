@@ -89,6 +89,12 @@ public class SpannerScanner implements Batch, Scan {
     if (filters.length > 0) {
       sqlStmt += " WHERE " + SparkFilterUtils.getCompiledFilter(true, filters);
     }
+
+    // By default, dataBoost is enabled, given the point of this
+    // integration was to take advantage of dataBoost firstly.
+    // Please see https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues/68
+    Boolean enableDataboost = this.opts.get("disableDataboost") != "true";
+
     try (BatchReadOnlyTransaction txn =
         batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
       String mapAsJSON = SpannerUtils.serializeMap(this.opts);
@@ -96,7 +102,7 @@ public class SpannerScanner implements Batch, Scan {
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
               Statement.of(sqlStmt),
-              Options.dataBoostEnabled(true));
+              Options.dataBoostEnabled(enableDataboost));
 
       List<Partition> parts =
           Streams.mapWithIndex(

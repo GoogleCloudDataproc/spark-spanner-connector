@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 public class SpannerScanner implements Batch, Scan {
   private SpannerTable spannerTable;
   private Filter[] filters;
+  private String[] requiredColumns;
   private Map<String, String> opts;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
 
@@ -70,11 +71,20 @@ public class SpannerScanner implements Batch, Scan {
     return this.filters;
   }
 
+  public void setRequiredColumns(String[] requiredColumns) {
+    this.requiredColumns = requiredColumns;
+  }
+
   @Override
   public InputPartition[] planInputPartitions() {
-    // TODO: Receive the columns that were pushed down.
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
-    String sqlStmt = "SELECT * FROM " + this.spannerTable.name();
+
+    // 1. Use * if no requiredColumns were requested else select them.
+    String selectPrefix = "SELECT *";
+    if (this.requiredColumns != null && this.requiredColumns.length > 0) {
+      selectPrefix = "SELECT " + String.join(", ", this.requiredColumns);
+    }
+    String sqlStmt = selectPrefix + " FROM " + this.spannerTable.name();
     Filter[] filters = this.getFilters();
     if (filters.length > 0) {
       sqlStmt += " WHERE " + SparkFilterUtils.getCompiledFilter(true, filters);

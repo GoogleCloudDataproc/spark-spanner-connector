@@ -14,13 +14,17 @@
 
 package com.google.cloud.spark.spanner;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.connector.read.SupportsPushDownFilters;
+import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns;
 import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
@@ -29,9 +33,11 @@ import org.slf4j.LoggerFactory;
 /*
  * Allows us to implement ScanBuilder.
  */
-public class SpannerScanBuilder implements ScanBuilder, SupportsPushDownFilters {
+public class SpannerScanBuilder
+    implements ScanBuilder, SupportsPushDownFilters, SupportsPushDownRequiredColumns {
   private CaseInsensitiveStringMap opts;
   private Set<Filter> filters;
+  private List<String> requiredColumns;
   private SpannerScanner scanner;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanBuilder.class);
 
@@ -64,5 +70,26 @@ public class SpannerScanBuilder implements ScanBuilder, SupportsPushDownFilters 
 
   public StructType readSchema() {
     return this.scanner.readSchema();
+  }
+
+  /*
+   * pruneColumns applies column pruning with respect to the requiredSchema.
+   * The docs recommend implementing this methood to push down required columns
+   * to the data source and only read these columns during scan to
+   * reduce the size of the data to be read.
+   */
+  @Override
+  public void pruneColumns(StructType requiredSchema) {
+    // A user could invoke: SELECT a, b, d, a FROM TABLE;
+    // and we should still be able to serve them back their
+    // query without deduplication.
+    List<String> requiredColumns = new ArrayList<>();
+    for (StructField col : requiredSchema.fields()) {
+      requiredColumns.add(col.name());
+    }
+    this.requiredColumns = requiredColumns;
+    if (this.scanner != null) {
+      this.scanner.setRequiredColumns(this.requiredColumns.toArray(new String[0]));
+    }
   }
 }

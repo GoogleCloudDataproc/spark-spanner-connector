@@ -17,6 +17,7 @@ package com.google.cloud.spark.spanner;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
@@ -68,13 +69,19 @@ public class SpannerUtils {
             emulatorHost != null);
 
     ConnectionOptions.Builder builder = ConnectionOptions.newBuilder().setUri(spannerUri);
+    // TODO: Fix out how to add the gRPC UserAgent when creating this Connection.
     ConnectionOptions opts = builder.build();
     return opts.getConnection();
   }
 
+  // TODO: Infer the UserAgent's version from the library version dynamically.
+  private static String userAgent = "spark-spanner/v0.0.1";
+
   public static BatchClientWithCloser batchClientFromProperties(Map<String, String> properties) {
     SpannerOptions.Builder builder =
-        SpannerOptions.newBuilder().setProjectId(properties.get("projectId"));
+        SpannerOptions.newBuilder()
+            .setProjectId(properties.get("projectId"))
+            .setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgent));
 
     String emulatorHost = properties.get("emulatorHost");
     if (emulatorHost != null) {

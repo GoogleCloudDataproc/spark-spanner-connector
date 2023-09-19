@@ -30,7 +30,16 @@ gcloud dataproc jobs submit pyspark --cluster "spanner-spark-cluster" \
 and perhaps
 
 ```scala
-var df = spark.read.format("cloud-spanner").option("table", "games").option("projectId", "orijtech-161805").option("instanceId", "spanner-spark").option("databaseId", "spark-db").option("enableDataBoost", "true").load()
+var df = spark
+              .read
+              .format("cloud-spanner")
+              .option("table", SPANNER_TABLE_NAME)
+              .option("projectId", SPANNER_PROJECT_ID)
+              .option("instanceId", SPANNER_INSTANCE_ID)
+              .option("databaseId", SPANNER_DATABASE_NAME)
+              .load()
+df.printSchema()
+df.select("created_at", "value").filter((df["value"] > 3720) & df["base_cur"] == "USD").show()
 ```
 
 which will pull up a spark shell and you can run it by passing in the options
@@ -38,12 +47,13 @@ to create the connection to Cloud Spanner.
 
 ### Variables needed
 
-Variable|Comments
+Variable|Validation|Comments
 ---|---
-projectId|The projectID containing the Cloud Spanner database
-instanceId|The instanceID of the Cloud Spanner database
-databaseId|The databaseID of the Cloud Spanner database
-table|The Table of the Cloud Spanner database that you are reading from
+projectId|String|The projectID containing the Cloud Spanner database
+instanceId|String|The instanceID of the Cloud Spanner database
+databaseId|String|The databaseID of the Cloud Spanner database
+table|String|The Table of the Cloud Spanner database that you are reading from
+disableDataboost|Boolean|Turns off dataBoost on the Cloud Spanner client
 
 
 ### Spark shell example

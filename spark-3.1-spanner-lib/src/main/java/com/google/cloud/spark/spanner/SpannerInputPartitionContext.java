@@ -25,8 +25,6 @@ import com.google.cloud.spanner.SpannerOptions;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SpannerInputPartitionContext
     implements InputPartitionContext<InternalRow>, Serializable {
@@ -34,7 +32,6 @@ public class SpannerInputPartitionContext
   private BatchTransactionId batchTransactionId;
   private Partition partition;
   private Map<String, String> opts;
-  private static final Logger log = LoggerFactory.getLogger(SpannerInputPartitionContext.class);
 
   public SpannerInputPartitionContext(
       Partition partition, BatchTransactionId batchTransactionId, String mapAsJSONStr) {
@@ -50,12 +47,12 @@ public class SpannerInputPartitionContext
   @Override
   public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
     String projectId = this.opts.get("projectId");
-    SpannerOptions.Builder sb = SpannerOptions.newBuilder();
+    SpannerOptions.Builder spannerOptionsBuilder = SpannerOptions.newBuilder();
     if (projectId != null && projectId != "") {
-      sb = sb.setProjectId(projectId);
+      spannerOptionsBuilder = spannerOptionsBuilder.setProjectId(projectId);
     }
-    SpannerOptions ss = sb.build();
-    Spanner spanner = ss.getService();
+    SpannerOptions spannerOptions = spannerOptionsBuilder.build();
+    Spanner spanner = spannerOptions.getService();
     BatchClient batchClient =
         spanner.getBatchClient(
             DatabaseId.of(projectId, this.opts.get("instanceId"), this.opts.get("databaseId")));

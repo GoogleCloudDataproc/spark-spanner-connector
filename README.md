@@ -48,7 +48,7 @@ to create the connection to Cloud Spanner.
 ### Variables needed
 
 Variable|Validation|Comments
----|---
+---|---|---
 projectId|String|The projectID containing the Cloud Spanner database
 instanceId|String|The instanceID of the Cloud Spanner database
 databaseId|String|The databaseID of the Cloud Spanner database

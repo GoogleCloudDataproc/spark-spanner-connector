@@ -17,14 +17,14 @@
 from pyspark.sql import SparkSession
 
 def main():
-    table = "games"
-    spark = SparkSession.builder.appName("Query Spanner").getOrCreate()
+    table = "TABLE_NAME"
+    spark = SparkSession.builder.appName("SparkSpannerDemo").getOrCreate()
     df = spark.read.format('cloud-spanner') \
-                .option("projectId", "orijtech-161805") \
-                .option("instanceId", "spanner-spark") \
-                .option("databaseId", "spark-db") \
+                .option("projectId", "<PROJECT_ID>") \
+                .option("instanceId", "<INSTANCE_ID>") \
+                .option("databaseId", "<DATABASE_ID>") \
                 .option("enableDataBoost", "true") \
-                .option("table", table) \
+                .option("table", "<TABLE_NAME>") \
                 .load(table)
     df.printSchema()
     df.show()

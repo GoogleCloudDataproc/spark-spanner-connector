@@ -31,8 +31,17 @@ import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
 import com.google.spanner.admin.instance.v1.InstanceName;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.util.GenericArrayData;
+import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -141,5 +150,78 @@ class SpannerTestBase {
     }
     props.put("table", table);
     return props;
+  }
+
+  InternalRow makeInternalRow(int A, String B, double C) {
+    GenericInternalRow row = new GenericInternalRow(3);
+    row.setLong(0, A);
+    row.update(1, UTF8String.fromString(B));
+    row.setDouble(2, C);
+    return row;
+  }
+
+  InternalRow makeATableInternalRow(
+      long A, String B, byte[] C, ZonedDateTime D, double E, String[] F) {
+    GenericInternalRow row = new GenericInternalRow(6);
+    row.setLong(0, ((Long) A));
+    row.update(1, UTF8String.fromString(B));
+    if (C == null) {
+      row.update(2, null);
+    } else {
+      row.update(2, new GenericArrayData(C));
+    }
+    row.update(3, SpannerUtils.zonedDateTimeToSparkTimestamp(D));
+    SpannerUtils.toSparkDecimal(row, new java.math.BigDecimal(E), 4);
+
+    if (F == null) {
+      row.update(5, null);
+    } else {
+      List<UTF8String> fDest = new ArrayList<UTF8String>(F.length);
+      for (String s : F) {
+        fDest.add(UTF8String.fromString(s));
+      }
+      row.update(5, fDest);
+    }
+    return row;
+  }
+
+  class InternalRowComparator implements Comparator<InternalRow> {
+    @Override
+    public int compare(InternalRow r1, InternalRow r2) {
+      return r1.toString().compareTo(r2.toString());
+    }
+  }
+
+  public InternalRow makeCompositeTableRow(
+      String id,
+      long[] A,
+      String[] B,
+      String C,
+      java.math.BigDecimal D,
+      ZonedDateTime E,
+      ZonedDateTime F,
+      boolean G,
+      ZonedDateTime[] H,
+      ZonedDateTime[] I) {
+    GenericInternalRow row = new GenericInternalRow(10);
+    row.update(0, UTF8String.fromString(id));
+    row.update(1, new GenericArrayData(A));
+    row.update(2, new GenericArrayData(toSparkStrList(B)));
+    row.update(3, UTF8String.fromString(C));
+    SpannerUtils.toSparkDecimal(row, D, 4);
+    row.update(5, SpannerUtils.zonedDateTimeToSparkDate(E));
+    row.update(6, SpannerUtils.zonedDateTimeToSparkTimestamp(F));
+    row.setBoolean(7, G);
+    row.update(8, SpannerUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
+    row.update(9, SpannerUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
+    return row;
+  }
+
+  private UTF8String[] toSparkStrList(String[] strs) {
+    List<UTF8String> dest = new ArrayList<>();
+    for (String s : strs) {
+      dest.add(UTF8String.fromString(s));
+    }
+    return dest.toArray(new UTF8String[0]);
   }
 }

@@ -17,10 +17,14 @@ package com.google.cloud.spark.spanner;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
@@ -66,21 +70,56 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
   @Test
   public void planInputPartitionsShouldSuccessInSpannerScanBuilder() throws Exception {
     Map<String, String> opts = this.connectionProperties();
+    opts.put("table", "ATable");
     CaseInsensitiveStringMap optionMap = new CaseInsensitiveStringMap(opts);
     SpannerScanBuilder spannerScanBuilder = new SpannerScanBuilder(optionMap);
     SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
     InputPartition[] partitions = ss.planInputPartitions();
     PartitionReaderFactory prf = ss.createReaderFactory();
-    List<InternalRow> rows = new ArrayList<>();
+    CopyOnWriteArrayList<InternalRow> al = new CopyOnWriteArrayList<>();
     for (InputPartition partition : partitions) {
       PartitionReader<InternalRow> ir = prf.createReader(partition);
       try {
         while (ir.next()) {
-          InternalRow row = ir.get();
-          System.out.println("row: " + row.toString());
+          al.add(ir.get());
         }
       } catch (IOException e) {
       }
     }
+
+    List<InternalRow> gotRows = new ArrayList<>();
+    al.forEach(gotRows::add);
+
+    Comparator<InternalRow> cmp = new InternalRowComparator();
+    Collections.sort(gotRows, cmp);
+
+    List<InternalRow> expectRows =
+        new ArrayList<>(
+            Arrays.asList(
+                makeATableInternalRow(
+                    1,
+                    "2",
+                    null,
+                    ZonedDateTime.parse("2023-08-22T12:22:00Z"),
+                    1000.282111401,
+                    null),
+                makeATableInternalRow(
+                    10,
+                    "20",
+                    null,
+                    ZonedDateTime.parse("2023-08-22T12:23:00Z"),
+                    10000.282111603,
+                    null),
+                makeATableInternalRow(
+                    30,
+                    "30",
+                    null,
+                    ZonedDateTime.parse("2023-08-22T12:24:00Z"),
+                    30000.282111805,
+                    null)));
+    Collections.sort(expectRows, cmp);
+
+    assertEquals(expectRows.size(), gotRows.size());
+    assertEquals(expectRows, gotRows);
   }
 }

@@ -48,21 +48,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
 
-  InternalRow makeInternalRow(int A, String B, double C) {
-    GenericInternalRow row = new GenericInternalRow(3);
-    row.setLong(0, A);
-    row.update(1, UTF8String.fromString(B));
-    row.setDouble(2, C);
-    return row;
-  }
-
-  class InternalRowComparator implements Comparator<InternalRow> {
-    @Override
-    public int compare(InternalRow r1, InternalRow r2) {
-      return r1.toString().compareTo(r2.toString());
-    }
-  }
-
   @Test
   public void testCreatePartitionContext() throws Exception {
     String sqlStmt = "SELECT * FROM simpleTable";
@@ -120,39 +105,6 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
     Collections.sort(gotRows, cmp);
 
     assertEquals(expectRows, gotRows);
-  }
-
-  public InternalRow makeCompositeTableRow(
-      String id,
-      long[] A,
-      String[] B,
-      String C,
-      java.math.BigDecimal D,
-      ZonedDateTime E,
-      ZonedDateTime F,
-      boolean G,
-      ZonedDateTime[] H,
-      ZonedDateTime[] I) {
-    GenericInternalRow row = new GenericInternalRow(10);
-    row.update(0, UTF8String.fromString(id));
-    row.update(1, new GenericArrayData(A));
-    row.update(2, new GenericArrayData(toSparkStrList(B)));
-    row.update(3, UTF8String.fromString(C));
-    SpannerUtils.toSparkDecimal(row, D, 4);
-    row.update(5, SpannerUtils.zonedDateTimeToSparkDate(E));
-    row.update(6, SpannerUtils.zonedDateTimeToSparkTimestamp(F));
-    row.setBoolean(7, G);
-    row.update(8, SpannerUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
-    row.update(9, SpannerUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
-    return row;
-  }
-
-  private UTF8String[] toSparkStrList(String[] strs) {
-    List<UTF8String> dest = new ArrayList<>();
-    for (String s : strs) {
-      dest.add(UTF8String.fromString(s));
-    }
-    return dest.toArray(new UTF8String[0]);
   }
 
   public InternalRow makeGamesRow(

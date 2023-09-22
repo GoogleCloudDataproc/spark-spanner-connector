@@ -95,10 +95,7 @@ public class SpannerScanner implements Batch, Scan {
                   true, DataFormat.AVRO, Optional.empty(), filters);
     }
 
-    // By default, dataBoost is enabled, given the point of this
-    // integration was to take advantage of dataBoost firstly.
-    // Please see https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues/68
-    Boolean enableDataboost = this.opts.get("disableDataboost") != "true";
+    Boolean enableDataboost = this.opts.get("enableDataboost") == "true";
 
     try (BatchReadOnlyTransaction txn =
         batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {

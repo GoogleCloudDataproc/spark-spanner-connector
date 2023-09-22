@@ -53,7 +53,7 @@ projectId|String|The projectID containing the Cloud Spanner database
 instanceId|String|The instanceID of the Cloud Spanner database
 databaseId|String|The databaseID of the Cloud Spanner database
 table|String|The Table of the Cloud Spanner database that you are reading from
-disableDataboost|Boolean|Turns off dataBoost on the Cloud Spanner client
+enableDataboost|Boolean|Turns on Google Cloud Spanner DataBoost on the Cloud Spanner client
 
 
 ### Spark shell example

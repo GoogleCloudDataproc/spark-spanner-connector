@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark;
+package com.google.cloud.spark.spanner;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.spark.spanner.SpannerScanBuilder;
-import com.google.cloud.spark.spanner.SpannerScanner;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
@@ -71,6 +71,7 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
     SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
     InputPartition[] partitions = ss.planInputPartitions();
     PartitionReaderFactory prf = ss.createReaderFactory();
+    List<InternalRow> rows = new ArrayList<>();
     for (InputPartition partition : partitions) {
       PartitionReader<InternalRow> ir = prf.createReader(partition);
       try {

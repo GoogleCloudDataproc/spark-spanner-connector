@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
@@ -22,6 +23,7 @@ import com.google.cloud.spanner.TimestampBound;
 import com.google.common.collect.Streams;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.Batch;
@@ -87,7 +89,10 @@ public class SpannerScanner implements Batch, Scan {
     String sqlStmt = selectPrefix + " FROM " + this.spannerTable.name();
     Filter[] filters = this.getFilters();
     if (filters.length > 0) {
-      sqlStmt += " WHERE " + SparkFilterUtils.getCompiledFilter(true, filters);
+      sqlStmt +=
+          " WHERE "
+              + SparkFilterUtils.getCompiledFilter(
+                  true, DataFormat.AVRO, Optional.empty(), filters);
     }
 
     // By default, dataBoost is enabled, given the point of this

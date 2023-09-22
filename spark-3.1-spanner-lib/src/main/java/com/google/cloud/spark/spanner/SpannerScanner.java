@@ -121,6 +121,8 @@ public class SpannerScanner implements Batch, Scan {
     } catch (Exception e) {
       log.error("planInputPartitions exception: " + e);
       return null;
+    } finally {
+      batchClient.close();
     }
   }
 }

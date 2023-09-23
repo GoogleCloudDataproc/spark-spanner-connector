@@ -51,6 +51,9 @@ public class SpannerUtils {
 
   public static Long SECOND_TO_DAYS = 60 * 60 * 24L;
 
+  // TODO: Infer the UserAgent's version from the library version dynamically.
+  private static String USER_AGENT = "spark-spanner/v0.0.1";
+
   public static Connection connectionFromProperties(Map<String, String> properties) {
     String connUriPrefix = "cloudspanner:";
     String emulatorHost = properties.get("emulatorHost");
@@ -74,14 +77,11 @@ public class SpannerUtils {
     return opts.getConnection();
   }
 
-  // TODO: Infer the UserAgent's version from the library version dynamically.
-  private static String userAgent = "spark-spanner/v0.0.1";
-
   public static BatchClientWithCloser batchClientFromProperties(Map<String, String> properties) {
     SpannerOptions.Builder builder =
         SpannerOptions.newBuilder()
             .setProjectId(properties.get("projectId"))
-            .setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgent));
+            .setHeaderProvider(FixedHeaderProvider.create("user-agent", USER_AGENT));
 
     String emulatorHost = properties.get("emulatorHost");
     if (emulatorHost != null) {

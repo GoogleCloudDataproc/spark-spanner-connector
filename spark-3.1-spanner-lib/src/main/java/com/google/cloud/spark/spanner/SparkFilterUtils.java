@@ -16,7 +16,6 @@ package com.google.cloud.spark.spanner;
 
 import static java.lang.String.format;
 
-import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.common.collect.ImmutableList;
 import java.sql.Date;
 import java.sql.Timestamp;
@@ -34,114 +33,98 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 public class SparkFilterUtils {
-
   private SparkFilterUtils() {}
 
   // Structs are not handled
   public static boolean isTopLevelFieldHandled(
-      boolean pushAllFilters,
-      Filter filter,
-      DataFormat readDataFormat,
-      Map<String, StructField> fields) {
+      boolean pushAllFilters, Filter filter, Map<String, StructField> fields) {
     if (pushAllFilters) {
       return true;
     }
     if (filter instanceof EqualTo) {
       EqualTo equalTo = (EqualTo) filter;
-      return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, equalTo.attribute());
+      return isFilterWithNamedFieldHandled(pushAllFilters, filter, fields, equalTo.attribute());
     }
     if (filter instanceof EqualNullSafe) {
       EqualNullSafe equalNullSafe = (EqualNullSafe) filter;
       return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, equalNullSafe.attribute());
+          pushAllFilters, filter, fields, equalNullSafe.attribute());
     }
     if (filter instanceof GreaterThan) {
       GreaterThan greaterThan = (GreaterThan) filter;
-      return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, greaterThan.attribute());
+      return isFilterWithNamedFieldHandled(pushAllFilters, filter, fields, greaterThan.attribute());
     }
     if (filter instanceof GreaterThanOrEqual) {
       GreaterThanOrEqual greaterThanOrEqual = (GreaterThanOrEqual) filter;
       return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, greaterThanOrEqual.attribute());
+          pushAllFilters, filter, fields, greaterThanOrEqual.attribute());
     }
     if (filter instanceof LessThan) {
       LessThan lessThan = (LessThan) filter;
-      return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, lessThan.attribute());
+      return isFilterWithNamedFieldHandled(pushAllFilters, filter, fields, lessThan.attribute());
     }
     if (filter instanceof LessThanOrEqual) {
       LessThanOrEqual lessThanOrEqual = (LessThanOrEqual) filter;
       return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, lessThanOrEqual.attribute());
+          pushAllFilters, filter, fields, lessThanOrEqual.attribute());
     }
     if (filter instanceof In) {
       In in = (In) filter;
-      return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, in.attribute());
+      return isFilterWithNamedFieldHandled(pushAllFilters, filter, fields, in.attribute());
     }
     if (filter instanceof IsNull) {
       IsNull isNull = (IsNull) filter;
-      return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, isNull.attribute());
+      return isFilterWithNamedFieldHandled(pushAllFilters, filter, fields, isNull.attribute());
     }
     if (filter instanceof IsNotNull) {
       IsNotNull isNotNull = (IsNotNull) filter;
-      return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, isNotNull.attribute());
+      return isFilterWithNamedFieldHandled(pushAllFilters, filter, fields, isNotNull.attribute());
     }
     if (filter instanceof And) {
       And and = (And) filter;
-      return isTopLevelFieldHandled(pushAllFilters, and.left(), readDataFormat, fields)
-          && isTopLevelFieldHandled(pushAllFilters, and.right(), readDataFormat, fields);
+      return isTopLevelFieldHandled(pushAllFilters, and.left(), fields)
+          && isTopLevelFieldHandled(pushAllFilters, and.right(), fields);
     }
     if (filter instanceof Or) {
       Or or = (Or) filter;
-      return readDataFormat == DataFormat.AVRO
-          && isTopLevelFieldHandled(pushAllFilters, or.left(), readDataFormat, fields)
-          && isTopLevelFieldHandled(pushAllFilters, or.right(), readDataFormat, fields);
+      return isTopLevelFieldHandled(pushAllFilters, or.left(), fields)
+          && isTopLevelFieldHandled(pushAllFilters, or.right(), fields);
     }
     if (filter instanceof Not) {
       Not not = (Not) filter;
-      return isTopLevelFieldHandled(pushAllFilters, not.child(), readDataFormat, fields);
+      return isTopLevelFieldHandled(pushAllFilters, not.child(), fields);
     }
     if (filter instanceof StringStartsWith) {
       StringStartsWith stringStartsWith = (StringStartsWith) filter;
       return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, stringStartsWith.attribute());
+          pushAllFilters, filter, fields, stringStartsWith.attribute());
     }
     if (filter instanceof StringEndsWith) {
       StringEndsWith stringEndsWith = (StringEndsWith) filter;
       return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, stringEndsWith.attribute());
+          pushAllFilters, filter, fields, stringEndsWith.attribute());
     }
     if (filter instanceof StringContains) {
       StringContains stringContains = (StringContains) filter;
       return isFilterWithNamedFieldHandled(
-          pushAllFilters, filter, readDataFormat, fields, stringContains.attribute());
+          pushAllFilters, filter, fields, stringContains.attribute());
     }
 
     throw new IllegalArgumentException(format("Invalid filter: %s", filter));
   }
 
   static boolean isFilterWithNamedFieldHandled(
-      boolean pushAllFilters,
-      Filter filter,
-      DataFormat readDataFormat,
-      Map<String, StructField> fields,
-      String fieldName) {
+      boolean pushAllFilters, Filter filter, Map<String, StructField> fields, String fieldName) {
     return Optional.ofNullable(fields.get(fieldName))
         .filter(
             field ->
                 ((field.dataType() instanceof StructType)
                     || (field.dataType() instanceof ArrayType)))
         .map(field -> false)
-        .orElse(isHandled(pushAllFilters, filter, readDataFormat));
+        .orElse(isHandled(pushAllFilters, filter));
   }
 
-  public static boolean isHandled(
-      boolean pushAllFilters, Filter filter, DataFormat readDataFormat) {
+  public static boolean isHandled(boolean pushAllFilters, Filter filter) {
     if (pushAllFilters) {
       return true;
     }
@@ -161,53 +144,43 @@ public class SparkFilterUtils {
     }
     if (filter instanceof And) {
       And and = (And) filter;
-      return isHandled(pushAllFilters, and.left(), readDataFormat)
-          && isHandled(pushAllFilters, and.right(), readDataFormat);
+      return isHandled(pushAllFilters, and.left()) && isHandled(pushAllFilters, and.right());
     }
     if (filter instanceof Or) {
       Or or = (Or) filter;
-      return readDataFormat == DataFormat.AVRO
-          && isHandled(pushAllFilters, or.left(), readDataFormat)
-          && isHandled(pushAllFilters, or.right(), readDataFormat);
+      return isHandled(pushAllFilters, or.left()) && isHandled(pushAllFilters, or.right());
     }
     if (filter instanceof Not) {
-      return isHandled(pushAllFilters, ((Not) filter).child(), readDataFormat);
+      return isHandled(pushAllFilters, ((Not) filter).child());
     }
     return false;
   }
 
-  public static Iterable<Filter> handledFilters(
-      boolean pushAllFilters, DataFormat readDataFormat, Filter... filters) {
-    return handledFilters(pushAllFilters, readDataFormat, ImmutableList.copyOf(filters));
+  public static Iterable<Filter> handledFilters(boolean pushAllFilters, Filter... filters) {
+    return handledFilters(pushAllFilters, ImmutableList.copyOf(filters));
   }
 
-  public static Iterable<Filter> handledFilters(
-      boolean pushAllFilters, DataFormat readDataFormat, Iterable<Filter> filters) {
+  public static Iterable<Filter> handledFilters(boolean pushAllFilters, Iterable<Filter> filters) {
     return StreamSupport.stream(filters.spliterator(), false)
-        .filter(f -> isHandled(pushAllFilters, f, readDataFormat))
+        .filter(f -> isHandled(pushAllFilters, f))
         .collect(Collectors.toList());
   }
 
-  public static Iterable<Filter> unhandledFilters(
-      boolean pushAllFilters, DataFormat readDataFormat, Filter... filters) {
-    return unhandledFilters(pushAllFilters, readDataFormat, ImmutableList.copyOf(filters));
+  public static Iterable<Filter> unhandledFilters(boolean pushAllFilters, Filter... filters) {
+    return unhandledFilters(pushAllFilters, ImmutableList.copyOf(filters));
   }
 
   public static Iterable<Filter> unhandledFilters(
-      boolean pushAllFilters, DataFormat readDataFormat, Iterable<Filter> filters) {
+      boolean pushAllFilters, Iterable<Filter> filters) {
     return StreamSupport.stream(filters.spliterator(), false)
-        .filter(f -> !isHandled(pushAllFilters, f, readDataFormat))
+        .filter(f -> !isHandled(pushAllFilters, f))
         .collect(Collectors.toList());
   }
 
   public static String getCompiledFilter(
-      boolean pushAllFilters,
-      DataFormat readDataFormat,
-      Optional<String> configFilter,
-      Filter... pushedFilters) {
+      boolean pushAllFilters, Optional<String> configFilter, Filter... pushedFilters) {
     String compiledPushedFilter =
-        compileFilters(
-            handledFilters(pushAllFilters, readDataFormat, ImmutableList.copyOf(pushedFilters)));
+        compileFilters(handledFilters(pushAllFilters, ImmutableList.copyOf(pushedFilters)));
     return Stream.of(
             configFilter,
             compiledPushedFilter.length() == 0

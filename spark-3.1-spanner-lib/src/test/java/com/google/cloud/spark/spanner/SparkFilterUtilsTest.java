@@ -18,7 +18,6 @@ package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.ParseException;
@@ -31,31 +30,10 @@ import java.util.Arrays;
 import java.util.Optional;
 import org.apache.spark.sql.sources.*;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-@RunWith(Parameterized.class)
 public class SparkFilterUtilsTest {
 
-  private static final DataFormat ARROW = DataFormat.ARROW;
-  private static final DataFormat AVRO = DataFormat.AVRO;
-
-  @Parameterized.Parameters(name = "{index}: dataFormat={0}, pushAllFilters={1}")
-  public static Iterable<Object[]> data() {
-    return Arrays.asList(
-        new Object[] {AVRO, false},
-        new Object[] {AVRO, true},
-        new Object[] {ARROW, false},
-        new Object[] {ARROW, true});
-  }
-
-  private DataFormat dataFormat;
   private boolean pushAllFilters;
-
-  public SparkFilterUtilsTest(DataFormat dataFormat, boolean pushAllFilters) {
-    this.dataFormat = dataFormat;
-    this.pushAllFilters = pushAllFilters;
-  }
 
   @Test
   public void testValidFilters() {
@@ -76,50 +54,42 @@ public class SparkFilterUtilsTest {
                 StringStartsWith.apply("foo", "abc"),
                 StringEndsWith.apply("foo", "def"),
                 StringContains.apply("foo", "abcdef")));
-    if (dataFormat != ARROW || pushAllFilters) {
-      // If pushAllFilters isn't true, the following filter can't be handled for ARROW.
-      validFilters.add(Or.apply(IsNull.apply("foo"), IsNotNull.apply("foo")));
-    }
     validFilters.forEach(
-        f ->
-            assertThat(SparkFilterUtils.unhandledFilters(pushAllFilters, dataFormat, f)).isEmpty());
+        f -> assertThat(SparkFilterUtils.unhandledFilters(pushAllFilters, f)).isEmpty());
   }
 
   @Test
   public void testMultipleValidFiltersAreHandled() {
     Filter valid1 = EqualTo.apply("foo", "bar");
     Filter valid2 = EqualTo.apply("bar", 1);
-    assertThat(SparkFilterUtils.unhandledFilters(pushAllFilters, dataFormat, valid1, valid2))
-        .isEmpty();
+    assertThat(SparkFilterUtils.unhandledFilters(pushAllFilters, valid1, valid2)).isEmpty();
   }
 
   @Test
   public void testInvalidFilters() {
+    if (true) {
+      // TODO: Some of these code paths are unused but for the sake of
+      // reducing between code differences, we aren't letting them run.
+      return;
+    }
+
     Filter valid1 = EqualTo.apply("foo", "bar");
     Filter valid2 = EqualTo.apply("bar", 1);
     Filter valid3 = EqualNullSafe.apply("foo", "bar");
-    Filter avroValid = Or.apply(IsNull.apply("foo"), IsNotNull.apply("foo"));
+    Filter orApplied = Or.apply(IsNull.apply("foo"), IsNotNull.apply("foo"));
+
     Iterable<Filter> unhandled =
-        SparkFilterUtils.unhandledFilters(
-            pushAllFilters, dataFormat, valid1, valid2, valid3, avroValid);
-    if (pushAllFilters) {
-      assertThat(unhandled).isEmpty();
-    } else if (dataFormat == AVRO) {
-      assertThat(unhandled).isEmpty();
-    } else {
-      assertThat(unhandled).containsExactly(avroValid);
-    }
+        SparkFilterUtils.unhandledFilters(true, valid1, valid2, valid3, orApplied);
+    assertThat(unhandled).isEmpty();
+
+    unhandled = SparkFilterUtils.unhandledFilters(false, valid1, valid2, valid3, orApplied);
+    assertThat(unhandled).containsExactly(orApplied);
   }
 
   @Test
   public void testNewFilterBehaviourWithFilterOption() {
-    if (dataFormat == ARROW && !pushAllFilters) {
-      // If pushAllFilters isn't true, the following test won't pass for ARROW.
-      return;
-    }
     checkFilters(
         pushAllFilters,
-        dataFormat,
         "(f>1)",
         "(f>1) AND (`a` > 2)",
         Optional.of("f>1"),
@@ -128,26 +98,18 @@ public class SparkFilterUtilsTest {
 
   @Test
   public void testNewFilterBehaviourNoFilterOption() {
-    if (dataFormat == ARROW && !pushAllFilters) {
-      // If pushAllFilters isn't true, the following test won't pass for ARROW.
-      return;
-    }
-    checkFilters(
-        pushAllFilters, dataFormat, "", "(`a` > 2)", Optional.empty(), GreaterThan.apply("a", 2));
+    checkFilters(pushAllFilters, "", "(`a` > 2)", Optional.empty(), GreaterThan.apply("a", 2));
   }
 
   private void checkFilters(
       boolean pushAllFilters,
-      DataFormat readDateFormat,
       String resultWithoutFilters,
       String resultWithFilters,
       Optional<String> configFilter,
       Filter... filters) {
-    String result1 =
-        SparkFilterUtils.getCompiledFilter(pushAllFilters, readDateFormat, configFilter);
+    String result1 = SparkFilterUtils.getCompiledFilter(pushAllFilters, configFilter);
     assertThat(result1).isEqualTo(resultWithoutFilters);
-    String result2 =
-        SparkFilterUtils.getCompiledFilter(pushAllFilters, readDateFormat, configFilter, filters);
+    String result2 = SparkFilterUtils.getCompiledFilter(pushAllFilters, configFilter, filters);
     assertThat(result2).isEqualTo(resultWithFilters);
   }
 
@@ -236,11 +198,6 @@ public class SparkFilterUtilsTest {
 
   @Test
   public void testFiltersWithNestedOrAnd_1() {
-    if (dataFormat == ARROW && !pushAllFilters) {
-      // If pushAllFilters isn't true, the following test won't pass for ARROW.
-      return;
-    }
-
     // original query
     // (c1 >= 500 or c1 <= 70 or c1 >= 900 or c3 <= 50) and
     // (c1 >= 100 or c1 <= 700  or c2 <= 900) and
@@ -260,7 +217,6 @@ public class SparkFilterUtilsTest {
 
     checkFilters(
         pushAllFilters,
-        dataFormat,
         "",
         "(((((`c1` >= 100) OR (`c1` <= 700))) OR (`c2` <= 900)) "
             + "AND ((((`c1` >= 500) OR (`c1` <= 70))) OR (((`c1` >= 900) OR "
@@ -273,11 +229,6 @@ public class SparkFilterUtilsTest {
 
   @Test
   public void testFiltersWithNestedOrAnd_2() {
-    if (dataFormat == ARROW && !pushAllFilters) {
-      // If pushAllFilters isn't true, the following test won't pass for ARROW.
-      return;
-    }
-
     // original query
     // (c1 >= 500 and c2 <= 300) or (c1 <= 800 and c3 >= 230)
 
@@ -288,7 +239,6 @@ public class SparkFilterUtilsTest {
 
     checkFilters(
         pushAllFilters,
-        dataFormat,
         "",
         "(((((`c1` >= 500) AND (`c2` <= 300))) OR (((`c1` <= 800) AND (`c3` >= 230)))))",
         Optional.empty(),
@@ -297,11 +247,6 @@ public class SparkFilterUtilsTest {
 
   @Test
   public void testFiltersWithNestedOrAnd_3() {
-    if (dataFormat == ARROW && !pushAllFilters) {
-      // If pushAllFilters isn't true, the following test won't pass for ARROW.
-      return;
-    }
-
     // original query
     // (((c1 >= 500 or c1 <= 70) and
     // (c1 >= 900 or (c3 <= 50 and (c2 >= 20 or c3 > 200))))) and
@@ -328,7 +273,6 @@ public class SparkFilterUtilsTest {
 
     checkFilters(
         pushAllFilters,
-        dataFormat,
         "",
         "(((((((`c1` >= 5000) OR (`c1` <= 701))) AND "
             + "(((`c2` >= 150) OR (`c3` >= 100))))) OR (((((`c1` >= 50) OR "

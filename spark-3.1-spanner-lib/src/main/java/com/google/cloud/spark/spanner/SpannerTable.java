@@ -39,11 +39,7 @@ public class SpannerTable implements Table, SupportsRead {
   private String tableName;
   private StructType tableSchema;
   private static final ImmutableSet<TableCapability> tableCapabilities =
-      ImmutableSet.of(
-          TableCapability.BATCH_READ,
-          TableCapability.BATCH_WRITE,
-          TableCapability.CONTINUOUS_READ,
-          TableCapability.TRUNCATE);
+      ImmutableSet.of(TableCapability.BATCH_READ);
 
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 

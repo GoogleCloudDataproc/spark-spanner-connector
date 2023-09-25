@@ -212,6 +212,23 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                 new ZonedDateTime[] {
                   ZonedDateTime.parse("2023-08-26T12:11:10Z"),
                   ZonedDateTime.parse("2023-08-27T12:11:09Z"),
+                }),
+            makeCompositeTableRow(
+                "id2",
+                new long[] {20, 200, 2991, 888885},
+                new String[] {"A", "B", "C"},
+                "this one",
+                new java.math.BigDecimal(93411),
+                ZonedDateTime.parse("2023-09-22T23:59:59Z"),
+                ZonedDateTime.parse("2023-09-22T12:22:05Z"),
+                false,
+                new ZonedDateTime[] {
+                  ZonedDateTime.parse("2023-09-01T23:59:59Z"),
+                  ZonedDateTime.parse("2023-12-30T23:59:59Z"),
+                },
+                new ZonedDateTime[] {
+                  ZonedDateTime.parse("2023-09-22T12:11:10Z"),
+                  ZonedDateTime.parse("2023-09-23T12:11:09Z"),
                 }));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();

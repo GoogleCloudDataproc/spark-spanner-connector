@@ -23,14 +23,12 @@ public final class AcceptanceTestUtils {
       Preconditions.checkNotNull(
           System.getenv("ACCEPTANCE_TEST_BUCKET"),
           "Please set the 'ACCEPTANCE_TEST_BUCKET' environment variable");
-
   static Storage storage =
       new StorageOptions.DefaultStorageFactory().create(StorageOptions.getDefaultInstance());
 
   public static Path getArtifact(Path targetDir, String prefix, String suffix) {
     Predicate<Path> prefixSuffixChecker = prefixSuffixChecker(prefix, suffix);
     try {
-      System.out.println(Files.list(targetDir));
       return Files.list(targetDir)
           .filter(Files::isRegularFile)
           .filter(prefixSuffixChecker)

@@ -28,13 +28,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** */
 public class DataprocAcceptanceTestBase {
 
-  // public static final String CONNECTOR_JAR_DIRECTORY = "target";
-  public static final String CONNECTOR_JAR_DIRECTORY =
-      "/usr/local/google/home/halio/Program/brand_new/spark-spanner-connector/spark-3.1-spanner/target";
+  public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.1-spanner/target";
   public static final String REGION = "us-central1";
   public static final String DATAPROC_ENDPOINT = REGION + "-dataproc.googleapis.com:443";
   public static final String PROJECT_ID =
@@ -52,6 +51,7 @@ public class DataprocAcceptanceTestBase {
   private static final String TABLE = "ATable";
   private static Spanner spanner =
       SpannerOptions.newBuilder().setProjectId(PROJECT_ID).build().getService();
+  private static final Logger logger = LoggerFactory.getLogger(DataprocAcceptanceTestBase.class);
 
   private AcceptanceTestContext context;
 
@@ -120,7 +120,7 @@ public class DataprocAcceptanceTestBase {
           CompletableFuture.supplyAsync(
               () -> waitForJobCompletion(jobControllerClient, PROJECT_ID, REGION, jobId));
       Job jobInfo = finishedJobFuture.get(timeout.getSeconds(), TimeUnit.SECONDS);
-      System.out.println(jobInfo);
+      logger.debug(jobInfo.toString());
       return jobInfo;
     }
   }

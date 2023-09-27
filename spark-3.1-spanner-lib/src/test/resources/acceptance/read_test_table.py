@@ -39,7 +39,4 @@ print('Table:')
 df.show()
 
 df.write.csv(sys.argv[1])
-#.withColumn("B", col("B")) \
-#  .withColumn("D", col("D")) \
-#  .withColumn("E", col("E")) \
 

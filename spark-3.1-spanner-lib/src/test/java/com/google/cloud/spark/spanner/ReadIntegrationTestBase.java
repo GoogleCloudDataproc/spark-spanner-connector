@@ -19,7 +19,11 @@ import static com.google.common.truth.Truth.assertThat;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.Dataset;
@@ -63,9 +67,30 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     List<Boolean> gotGs = df.select("G").as(Encoders.BOOLEAN()).collectAsList();
     List<Boolean> expectGs = Arrays.asList(true, false);
     assertThat(gotGs).containsExactlyElementsIn(expectGs);
+
+    // 4. Validate E field date values.
+    List<Date> gotEs = df.select("E").as(Encoders.DATE()).collectAsList();
+    List<Date> expectEs = Arrays.asList(Date.valueOf("2022-12-31"), Date.valueOf("2023-09-22"));
+    assertThat(gotEs).containsExactlyElementsIn(expectEs);
+
+    // 5. Validate F field timestamp values.
+    List<Timestamp> gotFs = df.select("F").as(Encoders.TIMESTAMP()).collectAsList();
+    List<Timestamp> expectFs =
+        Arrays.asList(
+            new Timestamp(ZonedDateTime.parse("2023-08-26T12:22:05Z").toInstant().toEpochMilli()),
+            new Timestamp(ZonedDateTime.parse("2023-09-22T12:22:05Z").toInstant().toEpochMilli()));
+    assertThat(gotFs).containsExactlyElementsIn(expectFs);
+
+    // 6. Validate D field numeric values.
+    List<BigDecimal> gotDs = df.select("D").as(Encoders.DECIMAL()).collectAsList();
+    List<BigDecimal> expectDs =
+        Arrays.asList(asSparkBigDecimal("2934000000000"), asSparkBigDecimal("93411000000000"));
+    Collections.sort(gotDs);
+    Collections.sort(expectDs);
+    assertThat(gotDs).containsExactlyElementsIn(expectDs);
   }
 
   BigDecimal asSparkBigDecimal(String v) {
-    return new BigDecimal(new BigInteger(v), 38, new MathContext(9));
+    return new BigDecimal(new BigInteger(v), 9, new MathContext(38));
   }
 }

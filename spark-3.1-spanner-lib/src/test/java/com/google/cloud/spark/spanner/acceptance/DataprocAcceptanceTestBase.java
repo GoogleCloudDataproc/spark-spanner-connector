@@ -43,11 +43,11 @@ public class DataprocAcceptanceTestBase {
   private static final String DATABASE_ID =
       Preconditions.checkNotNull(
           System.getenv("SPANNER_DATABASE_ID"),
-          "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
+          "Please set the 'SPANNER_DATABASE_ID' environment variable");
   private static final String INSTANCE_ID =
       Preconditions.checkNotNull(
           System.getenv("SPANNER_INSTANCE_ID"),
-          "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
+          "Please set the 'SPANNER_INSTANCE_ID' environment variable");
   private static final String TABLE = "ATable";
   private static Spanner spanner =
       SpannerOptions.newBuilder().setProjectId(PROJECT_ID).build().getService();

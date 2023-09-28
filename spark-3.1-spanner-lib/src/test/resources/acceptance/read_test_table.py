@@ -19,24 +19,27 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
 
-spark = SparkSession.builder.appName('Acceptance Test on Spark').getOrCreate()
+def main():
+  spark = SparkSession.builder.appName('Acceptance Test on Spark').getOrCreate()
 
-table = 'ATable'
-df = spark.read.format('cloud-spanner') \
-    .option("projectId", sys.argv[2]) \
-    .option("instanceId", sys.argv[3]) \
-    .option("databaseId", sys.argv[4]) \
-    .option("table", table) \
-    .load(table)
+  table = 'ATable'
+  df = spark.read.format('cloud-spanner') \
+      .option("projectId", sys.argv[2]) \
+      .option("instanceId", sys.argv[3]) \
+      .option("databaseId", sys.argv[4]) \
+      .option("table", table) \
+      .load(table)
 
-print('The resulting schema is')
-df.printSchema()
+  print('The resulting schema is')
+  df.printSchema()
 
-df = df.select("A", "B", "D", "E")
-df = df.groupBy().sum('A')
+  df = df.select("A", "B", "D", "E")
+  df = df.groupBy().sum('A')
 
-print('Table:')
-df.show()
+  print('Table:')
+  df.show()
 
-df.write.csv(sys.argv[1])
+  df.write.csv(sys.argv[1])
 
+if __name__ == '__main__':
+  main()

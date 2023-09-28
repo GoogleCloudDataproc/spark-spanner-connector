@@ -3,7 +3,6 @@ package com.google.cloud.spark.spanner.acceptance;
 import com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -26,7 +25,4 @@ public final class DataprocImage20AcceptanceTest extends DataprocAcceptanceTestB
   public static void tearDown() throws Exception {
     DataprocAcceptanceTestBase.tearDown(context);
   }
-
-  @Test
-  public void testVersion() {}
 }

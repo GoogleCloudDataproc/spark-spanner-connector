@@ -22,6 +22,20 @@ steps:
       - 'SPANNER_INSTANCE_ID=test-instance'
       - 'SPANNER_DATABASE_ID=test-database'
 
+  # 4. Run acceptance tests by creating real Dataproc clusters.
+  - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
+    id: 'acceptance-test'
+    waitFor: ['init']
+    entrypoint: 'bash'
+    args: ['/workspace/cloudbuild/presubmit.sh', 'acceptance-test']
+    env:
+      - 'SPANNER_PROJECT_ID=$PROJECT_ID'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
+      - 'SPANNER_INSTANCE_ID=test-instance'
+      - 'SPANNER_DATABASE_ID=test-database'
+      - 'ACCEPTANCE_TEST_BUCKET=spark-spanner-connector-acceptance-test'
+
+
 timeout: 3600s
 options:
   machineType: 'N1_HIGHCPU_32'

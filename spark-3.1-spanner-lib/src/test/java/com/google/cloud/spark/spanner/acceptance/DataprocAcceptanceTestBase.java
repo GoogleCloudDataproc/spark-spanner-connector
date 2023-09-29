@@ -318,7 +318,7 @@ public class DataprocAcceptanceTestBase {
   }
 
   public static String generateClusterName(String testId) {
-    return String.format("spark-spanner-connector-acceptance-%s", testId);
+    return String.format("spanner-connector-acceptance-%s", testId);
   }
 
   @FunctionalInterface

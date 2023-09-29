@@ -116,7 +116,8 @@ public class SpannerScanner implements Batch, Scan {
 
       return parts.toArray(new InputPartition[0]);
     } catch (JsonProcessingException e) {
-      throw new RuntimeException("Error parsing the input options.", e);
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SPANNER_FAILED_TO_PARSE_OPTIONS, "Error parsing the input options.", e);
     } finally {
       batchClient.close();
     }

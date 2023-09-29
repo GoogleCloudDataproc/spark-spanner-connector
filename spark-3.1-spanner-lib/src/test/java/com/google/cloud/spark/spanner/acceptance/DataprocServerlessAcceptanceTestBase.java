@@ -36,10 +36,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-/***
- * The acceptance test on the Dataproc Serverless. The test have to be running on
- * the project with requireOsLogin disabled, otherwise an org policy violation error
- * will be thrown.
+/**
+ * The acceptance test on the Dataproc Serverless. The test have to be running on the project with
+ * requireOsLogin disabled, otherwise an org policy violation error will be thrown.
  */
 public class DataprocServerlessAcceptanceTestBase {
   public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.1-spanner/target";

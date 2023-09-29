@@ -3,10 +3,9 @@ package com.google.cloud.spark.spanner.acceptance;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/***
- * The acceptance test on the Dataproc Serverless. The test have to be running on
- * the project with requireOsLogin disabled, otherwise an org policy violation error
- * will be thrown.
+/**
+ * The acceptance test on the Dataproc Serverless. The test have to be running on the project with
+ * requireOsLogin disabled, otherwise an org policy violation error will be thrown.
  */
 @RunWith(JUnit4.class)
 public final class DataprocServerlessImage11AcceptanceTest

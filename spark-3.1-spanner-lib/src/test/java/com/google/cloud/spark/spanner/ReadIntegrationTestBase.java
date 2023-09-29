@@ -33,7 +33,7 @@ import org.junit.Test;
 
 public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
-  private Dataset<Row> readFromTable(String table) {
+  public Dataset<Row> readFromTable(String table) {
     Map<String, String> props = this.connectionProperties();
     return spark
         .read()

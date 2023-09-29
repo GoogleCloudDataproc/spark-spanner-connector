@@ -38,7 +38,8 @@ public class SpannerInputPartitionContext
     try {
       this.opts = SpannerUtils.deserializeMap(mapAsJSONStr);
     } catch (JsonProcessingException e) {
-      throw new RuntimeException("The Json file is invalid %s.".format(e.getMessage()));
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SPANNER_FAILED_TO_PARSE_OPTIONS, "Error parsing the input options.", e);
     }
     this.partition = partition;
     this.batchTransactionId = batchTransactionId;

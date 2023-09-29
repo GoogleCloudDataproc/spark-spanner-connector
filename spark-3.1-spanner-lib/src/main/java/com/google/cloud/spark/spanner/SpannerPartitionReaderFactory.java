@@ -29,8 +29,9 @@ public class SpannerPartitionReaderFactory implements PartitionReaderFactory {
 
   @Override
   public PartitionReader<ColumnarBatch> createColumnarReader(InputPartition partition) {
-    // Unsupported!
-    throw new RuntimeException("columnar reads are not supported the Spark Spanner Connector");
+    throw new SpannerConnectorException(
+        SpannerErrorCode.COLUMNAR_READS_NOT_SUPPORTED,
+        "Columnar reads are not supported by the Spark Spanner Connector.");
   }
 
   @Override

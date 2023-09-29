@@ -52,14 +52,15 @@ public class SpannerInputPartitionContext
     if (projectId != null && projectId != "") {
       spannerOptionsBuilder = spannerOptionsBuilder.setProjectId(projectId);
     }
-    SpannerOptions spannerOptions = spannerOptionsBuilder.build();
-    Spanner spanner = spannerOptions.getService();
-    BatchClient batchClient =
-        spanner.getBatchClient(
-            DatabaseId.of(projectId, this.opts.get("instanceId"), this.opts.get("databaseId")));
-    try (BatchReadOnlyTransaction txn =
-        batchClient.batchReadOnlyTransaction(this.batchTransactionId)) {
+    try {
+      SpannerOptions spannerOptions = spannerOptionsBuilder.build();
+      Spanner spanner = spannerOptions.getService();
+      BatchClient batchClient =
+          spanner.getBatchClient(
+              DatabaseId.of(projectId, this.opts.get("instanceId"), this.opts.get("databaseId")));
+      BatchReadOnlyTransaction txn = batchClient.batchReadOnlyTransaction(this.batchTransactionId);
       return new SpannerInputPartitionReaderContext(txn.execute(this.partition));
+    } finally {
     }
   }
 

@@ -61,6 +61,7 @@ public class SpannerInputPartitionContext
       BatchReadOnlyTransaction txn = batchClient.batchReadOnlyTransaction(this.batchTransactionId);
       return new SpannerInputPartitionReaderContext(txn.execute(this.partition));
     } finally {
+      spanner.close();
     }
   }
 

@@ -26,9 +26,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
 public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
@@ -45,6 +49,12 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
         .option("emulatorHost", props.get("emulatorHost"))
         .option("table", table)
         .load();
+  }
+
+  @Test
+  public void testDataset_count() {
+    Dataset<Row> df = readFromTable("compositeTable");
+    assertThat(df.count()).isEqualTo(2);
   }
 
   @Test
@@ -88,6 +98,94 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     Collections.sort(gotDs);
     Collections.sort(expectDs);
     assertThat(gotDs).containsExactlyElementsIn(expectDs);
+  }
+
+  @Test
+  public void testDataset_schema() {
+    Dataset<Row> df = readFromTable("compositeTable");
+    StructType gotSchema = df.schema();
+    StructType expectSchema =
+        new StructType(
+            Arrays.asList(
+                    new StructField("id", DataTypes.StringType, false, null),
+                    new StructField(
+                        "A", DataTypes.createArrayType(DataTypes.LongType, true), true, null),
+                    new StructField(
+                        "B", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
+                    new StructField("C", DataTypes.StringType, true, null),
+                    new StructField("D", DataTypes.createDecimalType(38, 9), true, null),
+                    new StructField("E", DataTypes.DateType, true, null),
+                    new StructField("F", DataTypes.TimestampType, true, null),
+                    new StructField("G", DataTypes.BooleanType, true, null),
+                    new StructField(
+                        "H", DataTypes.createArrayType(DataTypes.DateType, true), true, null),
+                    new StructField(
+                        "I", DataTypes.createArrayType(DataTypes.TimestampType, true), true, null))
+                .toArray(new StructField[0]));
+
+    // For easy debugging, let's firstly compare the .treeString() values.
+    // Object.equals fails for StructType with fields so firstly
+    // compare lengths, then fieldNames then the treeString.
+    assertThat(gotSchema.length()).isEqualTo(expectSchema.length());
+    assertThat(gotSchema.fieldNames()).isEqualTo(expectSchema.fieldNames());
+    assertThat(gotSchema.treeString()).isEqualTo(expectSchema.treeString());
+  }
+
+  @Test
+  public void testDataset_sort() {
+    Dataset<Row> df1 = readFromTable("simpleTable").sort("C");
+    // 1. Sort by C, float64 values.
+    List<Long> gotAsSortedByC = df1.select("A").as(Encoders.LONG()).collectAsList();
+    List<Long> wantIdsSortedByC =
+        Arrays.stream(new long[] {4, 9, 7, 8, 1, 2, 6, 3, 5}).boxed().collect(Collectors.toList());
+    assertThat(gotAsSortedByC).isEqualTo(wantIdsSortedByC);
+    // 1.5. Examine the actual C values and ensure they are ascending order.
+    List<Double> gotCsSortedByC = df1.select("C").as(Encoders.DOUBLE()).collectAsList();
+    List<Double> wantCsSortedByC =
+        Arrays.asList(
+            Double.NEGATIVE_INFINITY,
+            -19999997.9,
+            -0.1,
+            +0.1,
+            2.5,
+            5.0,
+            100000000017.100000000017,
+            Double.POSITIVE_INFINITY,
+            Double.NaN);
+    assertThat(gotCsSortedByC).containsExactlyElementsIn(wantCsSortedByC).inOrder();
+
+    // 2. Sort by Id, values should be in a different order.
+    Dataset<Row> df2 = readFromTable("simpleTable").sort("A");
+    List<Double> gotCsSortedByA = df2.select("C").as(Encoders.DOUBLE()).collectAsList();
+    List<Double> wantCsSortedByA =
+        Arrays.asList(
+            2.5,
+            5.0,
+            Double.POSITIVE_INFINITY,
+            Double.NEGATIVE_INFINITY,
+            Double.NaN,
+            100000000017.100000000017,
+            -0.1,
+            +0.1,
+            -19999997.9);
+    assertThat(gotCsSortedByA).containsExactlyElementsIn(wantCsSortedByA).inOrder();
+  }
+
+  @Test
+  public void testDataset_where() {
+    // 1. SELECT WHERE A < 8
+    Dataset<Row> df = readFromTable("simpleTable");
+    List<Long> gotAsLessThan8 = df.select("A").where("A < 8").as(Encoders.LONG()).collectAsList();
+    List<Long> wantAsLessThan8 =
+        Arrays.stream(new long[] {4, 7, 1, 2, 6, 3, 5}).boxed().collect(Collectors.toList());
+    assertThat(gotAsLessThan8).containsExactlyElementsIn(wantAsLessThan8);
+
+    // 2. SELECT WHERE A >= 8
+    List<Long> gotAsGreaterThan7 =
+        df.select("A").where("A > 7").as(Encoders.LONG()).collectAsList();
+    List<Long> wantAsGreaterThan7 =
+        Arrays.stream(new long[] {8, 9}).boxed().collect(Collectors.toList());
+    assertThat(gotAsGreaterThan7).containsExactlyElementsIn(wantAsGreaterThan7);
   }
 
   BigDecimal asSparkBigDecimal(String v) {

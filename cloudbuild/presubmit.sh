@@ -34,7 +34,9 @@ case $STEP in
     $MVN test -Dtest=SpannerTableTest
     $MVN test -Dtest=SpannerScanBuilderTest
     $MVN test -Dtest=SpannerInputPartitionReaderContextTest
+    $MVN test -Dtest=SparkFilterUtilsTest
     $MVN test -Dtest=ReadIntegrationTestBase
+    $MVN test -Dtest=WriteIntegrationTestBase
     ;;
 
   acceptance-test)

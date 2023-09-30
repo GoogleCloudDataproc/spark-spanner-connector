@@ -16,9 +16,8 @@ package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.Spanner;
-import java.io.Closeable;
 
-public class BatchClientWithCloser implements Closeable {
+public class BatchClientWithCloser implements AutoCloseable {
   public BatchClient batchClient;
   private Spanner spanner;
 
@@ -27,8 +26,17 @@ public class BatchClientWithCloser implements Closeable {
     this.batchClient = batchClient;
   }
 
+  /*
+   * close is a runtime hook for AutoCloseable to properly shut down resources
+   * before this object is garbage collected. It is useful in scenarios such as
+   * asynchronous processing for which we won't have a deterministic time/scope
+   * for when a Spanner object will be closed.
+   */
   @Override
   public void close() {
-    this.spanner.close();
+    if (this.spanner != null) {
+      this.spanner.close();
+      this.spanner = null;
+    }
   }
 }

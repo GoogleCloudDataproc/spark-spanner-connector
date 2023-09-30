@@ -14,16 +14,9 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.cloud.spanner.BatchClient;
-import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.BatchTransactionId;
-import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
 import java.io.Serializable;
-import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 
 public class SpannerInputPartitionContext
@@ -31,36 +24,20 @@ public class SpannerInputPartitionContext
 
   private BatchTransactionId batchTransactionId;
   private Partition partition;
-  private Map<String, String> opts;
+  private String mapAsJSONStr;
 
   public SpannerInputPartitionContext(
       Partition partition, BatchTransactionId batchTransactionId, String mapAsJSONStr) {
-    try {
-      this.opts = SpannerUtils.deserializeMap(mapAsJSONStr);
-    } catch (JsonProcessingException e) {
-      throw new SpannerConnectorException(
-          SpannerErrorCode.SPANNER_FAILED_TO_PARSE_OPTIONS, "Error parsing the input options.", e);
-    }
+
+    this.mapAsJSONStr = mapAsJSONStr;
     this.partition = partition;
     this.batchTransactionId = batchTransactionId;
   }
 
   @Override
   public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
-    String projectId = this.opts.get("projectId");
-    SpannerOptions.Builder spannerOptionsBuilder = SpannerOptions.newBuilder();
-    if (projectId != null && projectId != "") {
-      spannerOptionsBuilder = spannerOptionsBuilder.setProjectId(projectId);
-    }
-    SpannerOptions spannerOptions = spannerOptionsBuilder.build();
-    Spanner spanner = spannerOptions.getService();
-    BatchClient batchClient =
-        spanner.getBatchClient(
-            DatabaseId.of(projectId, this.opts.get("instanceId"), this.opts.get("databaseId")));
-    try (BatchReadOnlyTransaction txn =
-        batchClient.batchReadOnlyTransaction(this.batchTransactionId)) {
-      return new SpannerInputPartitionReaderContext(txn.execute(this.partition));
-    }
+    return new SpannerInputPartitionReaderContext(
+        this.partition, this.batchTransactionId, this.mapAsJSONStr);
   }
 
   @Override

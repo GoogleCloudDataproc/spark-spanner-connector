@@ -14,17 +14,40 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.BatchTransactionId;
+import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
 import java.io.IOException;
+import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 
 public class SpannerInputPartitionReaderContext
-    implements InputPartitionReaderContext<InternalRow> {
+    implements AutoCloseable, InputPartitionReaderContext<InternalRow> {
 
+  private BatchClientWithCloser batchClientWithCloser;
   private ResultSet rs;
 
-  public SpannerInputPartitionReaderContext(ResultSet rs) {
-    this.rs = rs;
+  public SpannerInputPartitionReaderContext(
+      Partition partition, BatchTransactionId batchTransactionId, String mapAsJSONStr) {
+    Map<String, String> opts;
+    try {
+      opts = SpannerUtils.deserializeMap(mapAsJSONStr);
+    } catch (JsonProcessingException e) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SPANNER_FAILED_TO_PARSE_OPTIONS, "Error parsing the input options.", e);
+    }
+
+    // Please note that we are using BatchClientWithCloser to avoid resource leaks.
+    // That is because, since we do have a deterministic scope and timeline for how long
+    // SpannerInputPartitionReaderContext's BatchClient.Spanner will execute, we use this
+    // custom client with an AutoCloser that'll clean up resources as it is garbage collected.
+    this.batchClientWithCloser = SpannerUtils.batchClientFromProperties(opts);
+    try (BatchReadOnlyTransaction txn =
+        batchClientWithCloser.batchClient.batchReadOnlyTransaction(batchTransactionId)) {
+      this.rs = txn.execute(partition);
+    }
   }
 
   @Override
@@ -39,6 +62,13 @@ public class SpannerInputPartitionReaderContext
 
   @Override
   public void close() throws IOException {
-    this.rs.close();
+    if (this.rs != null) {
+      this.rs.close();
+      this.rs = null;
+    }
+    if (this.batchClientWithCloser != null) {
+      this.batchClientWithCloser.close();
+      this.batchClientWithCloser = null;
+    }
   }
 }

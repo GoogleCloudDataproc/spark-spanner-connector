@@ -23,9 +23,10 @@ steps:
       - 'SPANNER_DATABASE_ID=test-database'
 
   # 4. Run acceptance tests by creating real Dataproc clusters.
+  # TODO: Make the acceptance test run in parallel with integration-real-spanner.
   - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
     id: 'acceptance-test'
-    waitFor: ['init']
+    waitFor: ['integration-real-spanner']
     entrypoint: 'bash'
     args: ['/workspace/cloudbuild/presubmit.sh', 'acceptance-test']
     env:

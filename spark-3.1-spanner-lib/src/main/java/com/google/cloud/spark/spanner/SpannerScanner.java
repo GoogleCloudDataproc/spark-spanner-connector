@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
@@ -114,9 +115,9 @@ public class SpannerScanner implements Batch, Scan {
               .collect(Collectors.toList());
 
       return parts.toArray(new InputPartition[0]);
-    } catch (Exception e) {
-      log.error("planInputPartitions exception: " + e);
-      return null;
+    } catch (JsonProcessingException e) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SPANNER_FAILED_TO_PARSE_OPTIONS, "Error parsing the input options.", e);
     } finally {
       batchClient.close();
     }

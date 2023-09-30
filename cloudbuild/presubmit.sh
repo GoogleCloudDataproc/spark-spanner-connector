@@ -36,5 +36,14 @@ case $STEP in
     $MVN test -Dtest=SpannerInputPartitionReaderContextTest
     $MVN test -Dtest=ReadIntegrationTestBase
     ;;
-esac
 
+  acceptance-test)
+    $MVN test -Dtest=DataprocImage20AcceptanceTest
+    $MVN test -Dtest=DataprocImage21AcceptanceTest
+    ;;
+
+  *)
+    echo "Unknown step $STEP"
+    exit 1
+    ;;
+esac

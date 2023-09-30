@@ -22,9 +22,12 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
+import org.apache.spark.sql.connector.catalog.SupportsWrite;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableCapability;
 import org.apache.spark.sql.connector.read.ScanBuilder;
+import org.apache.spark.sql.connector.write.LogicalWriteInfo;
+import org.apache.spark.sql.connector.write.WriteBuilder;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
@@ -35,7 +38,7 @@ import org.slf4j.LoggerFactory;
 /*
  * SpannerTable implements Table.
  */
-public class SpannerTable implements Table, SupportsRead {
+public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   private String tableName;
   private StructType tableSchema;
   private static final ImmutableSet<TableCapability> tableCapabilities =
@@ -159,9 +162,6 @@ public class SpannerTable implements Table, SupportsRead {
   /*
    * Cloud Spanner tables support:
    *    BATCH_READ
-   *    BATCH_WRITE
-   *    CONTINUOUS_READ
-   *    TRUNCATE
    * as capabilities
    */
   @Override
@@ -177,5 +177,12 @@ public class SpannerTable implements Table, SupportsRead {
   @Override
   public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {
     return new SpannerScanBuilder(options);
+  }
+
+  @Override
+  public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
+    throw new SpannerConnectorException(
+        SpannerErrorCode.WRITES_NOT_SUPPORTED,
+        "writes are not supported in the Spark Spanner Connector");
   }
 }

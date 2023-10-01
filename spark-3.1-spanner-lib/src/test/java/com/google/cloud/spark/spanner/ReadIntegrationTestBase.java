@@ -188,6 +188,30 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     assertThat(gotAsGreaterThan7).containsExactlyElementsIn(wantAsGreaterThan7);
   }
 
+  @Test
+  public void testDataset_takeAsList() {
+    // 1. Firstly check that the count of rows unlimited is 9.
+    assertThat(readFromTable("simpleTable").count()).isEqualTo(9);
+
+    // 2. First 2 rows
+    assertThat(readFromTable("simpleTable").takeAsList(2).size()).isEqualTo(2);
+
+    // 3. Take the first 5 rows
+    assertThat(readFromTable("simpleTable").takeAsList(5).size()).isEqualTo(5);
+  }
+
+  @Test
+  public void testDataset_limit() {
+    // 1. Firstly check that the count of rows unlimited is 9.
+    assertThat(readFromTable("simpleTable").count()).isEqualTo(9);
+
+    // 2. Limit to the first 2 rows.
+    assertThat(readFromTable("simpleTable").limit(2).count()).isEqualTo(2);
+
+    // 3. Limit to the first 5 rows.
+    assertThat(readFromTable("simpleTable").limit(5).count()).isEqualTo(5);
+  }
+
   BigDecimal asSparkBigDecimal(String v) {
     return new BigDecimal(new BigInteger(v), 9, new MathContext(38));
   }

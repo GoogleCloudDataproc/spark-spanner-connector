@@ -94,7 +94,10 @@ public class SpannerScanner implements Batch, Scan {
       sqlStmt += " WHERE " + SparkFilterUtils.getCompiledFilter(true, Optional.empty(), filters);
     }
 
-    Boolean enableDataboost = this.opts.get("enableDataboost") == "true";
+    Boolean enableDataboost = false;
+    if (this.opts.containsKey("enableDataBoost")) {
+      enableDataboost = this.opts.get("enableDataBoost").equalsIgnoreCase("true");
+    }
 
     try (BatchReadOnlyTransaction txn =
         batchClient.batchClient.batchReadOnlyTransaction(

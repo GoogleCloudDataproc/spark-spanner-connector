@@ -15,14 +15,21 @@
 package com.google.cloud.spark.spanner;
 
 import java.util.Map;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
+import org.apache.spark.sql.sources.BaseRelation;
+import org.apache.spark.sql.sources.CreatableRelationProvider;
 import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public class Spark31SpannerTableProvider implements DataSourceRegister, TableProvider {
+public class Spark31SpannerTableProvider
+    implements DataSourceRegister, TableProvider, CreatableRelationProvider {
 
   /*
    * Infers the schema of the table identified by the given options.
@@ -59,5 +66,17 @@ public class Spark31SpannerTableProvider implements DataSourceRegister, TablePro
   @Override
   public String shortName() {
     return "cloud-spanner";
+  }
+
+  /** Creation of Database is not supported by the Spark Spanner Connector. */
+  @Override
+  public BaseRelation createRelation(
+      SQLContext sqlContext,
+      SaveMode mode,
+      scala.collection.immutable.Map<String, String> parameters,
+      Dataset<Row> data) {
+    throw new SpannerConnectorException(
+        SpannerErrorCode.WRITES_NOT_SUPPORTED,
+        "writes are not supported in the Spark Spanner Connector");
   }
 }

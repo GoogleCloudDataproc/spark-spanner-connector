@@ -97,7 +97,9 @@ public class SpannerScanner implements Batch, Scan {
     Boolean enableDataboost = this.opts.get("enableDataBoost").equalsIgnoreCase("true");
 
     try (BatchReadOnlyTransaction txn =
-        batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.ofReadTimestamp(INIT_TIME))) {
+        batchClient.batchClient.batchReadOnlyTransaction(
+            TimestampBound.ofReadTimestamp(INIT_TIME))) {
+
       String mapAsJSON = SpannerUtils.serializeMap(this.opts);
       List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(

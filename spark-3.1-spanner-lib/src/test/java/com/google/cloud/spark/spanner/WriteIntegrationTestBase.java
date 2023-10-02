@@ -55,4 +55,20 @@ public class WriteIntegrationTestBase extends SparkSpannerIntegrationTestBase {
         .hasMessageThat()
         .isEqualTo("Table implementation does not support writes: default.compositeTable");
   }
+
+  @Test
+  public void testCreateTableFail() {
+    String table = "compositeTable";
+    Dataset<Row> drf = readIntegration.readFromTable(table);
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> {
+              DataFrameWriter<Row> dwf = writerToTable(drf.select("id"), table);
+              dwf.save();
+            });
+    assertThat(e)
+        .hasMessageThat()
+        .isEqualTo("writes are not supported in the Spark Spanner Connector");
+  }
 }

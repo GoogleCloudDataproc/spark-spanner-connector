@@ -17,7 +17,9 @@ package com.google.cloud.spark.spanner;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
+import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
@@ -45,8 +47,16 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.types.UTF8String;
+import org.threeten.bp.Duration;
 
 public class SpannerUtils {
+  private static final RetrySettings RETRY_SETTING =
+      RetrySettings.newBuilder()
+          .setInitialRetryDelay(Duration.ofMillis(500))
+          .setMaxRetryDelay(Duration.ofSeconds(16))
+          .setRetryDelayMultiplier(1.5)
+          .setMaxAttempts(5)
+          .build();
   private static final ObjectMapper jsonMapper = new ObjectMapper();
 
   public static Long SECOND_TO_DAYS = 60 * 60 * 24L;
@@ -82,6 +92,26 @@ public class SpannerUtils {
         SpannerOptions.newBuilder()
             .setProjectId(properties.get("projectId"))
             .setHeaderProvider(FixedHeaderProvider.create("user-agent", USER_AGENT));
+    builder
+        .getSpannerStubSettingsBuilder()
+        .executeSqlSettings()
+        .setRetryableCodes(
+            Code.UNAVAILABLE, Code.RESOURCE_EXHAUSTED, Code.INTERNAL, Code.DEADLINE_EXCEEDED)
+        .setRetrySettings(RETRY_SETTING);
+
+    builder
+        .getSpannerStubSettingsBuilder()
+        .partitionQuerySettings()
+        .setRetryableCodes(
+            Code.UNAVAILABLE, Code.RESOURCE_EXHAUSTED, Code.INTERNAL, Code.DEADLINE_EXCEEDED)
+        .setRetrySettings(RETRY_SETTING);
+
+    builder
+        .getSpannerStubSettingsBuilder()
+        .readSettings()
+        .setRetryableCodes(
+            Code.UNAVAILABLE, Code.RESOURCE_EXHAUSTED, Code.INTERNAL, Code.DEADLINE_EXCEEDED)
+        .setRetrySettings(RETRY_SETTING);
 
     String emulatorHost = properties.get("emulatorHost");
     if (emulatorHost != null) {

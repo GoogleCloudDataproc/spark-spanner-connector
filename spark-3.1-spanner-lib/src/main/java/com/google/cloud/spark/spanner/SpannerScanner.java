@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
@@ -44,6 +45,7 @@ public class SpannerScanner implements Batch, Scan {
   private String[] requiredColumns;
   private Map<String, String> opts;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
+  private static final Timestamp INIT_TIME = Timestamp.now();
 
   public SpannerScanner(Map<String, String> opts) {
     this.opts = opts;
@@ -95,7 +97,8 @@ public class SpannerScanner implements Batch, Scan {
     Boolean enableDataboost = this.opts.get("enableDataboost") == "true";
 
     try (BatchReadOnlyTransaction txn =
-        batchClient.batchClient.batchReadOnlyTransaction(TimestampBound.strong())) {
+        batchClient.batchClient.batchReadOnlyTransaction(
+            TimestampBound.ofReadTimestamp(INIT_TIME))) {
       String mapAsJSON = SpannerUtils.serializeMap(this.opts);
       List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(

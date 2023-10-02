@@ -17,8 +17,10 @@ package com.google.cloud.spark.spanner;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.BatchTransactionId;
+import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.SpannerException;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -52,7 +54,17 @@ public class SpannerInputPartitionReaderContext
 
   @Override
   public boolean next() throws IOException {
-    return this.rs.next();
+    try {
+      return this.rs.next();
+    } catch (SpannerException e) {
+      if (e.getErrorCode() == ErrorCode.RESOURCE_EXHAUSTED) {
+        throw new SpannerConnectorException(
+            SpannerErrorCode.RESOURCE_EXHAUSTED_ON_SPANNER,
+            e.getMessage().split("- Statement:")[0]
+                + "You may receive the error message due to not enough quota on the project.");
+      }
+      throw e;
+    }
   }
 
   @Override

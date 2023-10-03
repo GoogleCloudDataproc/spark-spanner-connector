@@ -76,3 +76,11 @@ CREATE TABLE nullsTable (
   N ARRAY<JSON>,
   O ARRAY<NUMERIC>,
 ) PRIMARY KEY(id);
+
+CREATE TABLE Shakespeare (
+  id INT64,
+  word STRING(MAX),
+  word_count INT64,
+  corpus STRING(MAX),
+  corpus_date INT64,
+) PRIMARY KEY(id);

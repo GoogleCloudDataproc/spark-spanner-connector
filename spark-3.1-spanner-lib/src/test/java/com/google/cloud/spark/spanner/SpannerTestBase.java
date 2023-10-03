@@ -132,7 +132,7 @@ class SpannerTestBase {
       }
     }
 
-    // 3. Insert data into the databse.
+    // 3.1. Insert data into the databse.
     DatabaseClient databaseClient =
         spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
     databaseClient
@@ -149,6 +149,47 @@ class SpannerTestBase {
 
               return null;
             });
+
+    // 3.2. Insert the Shakespeare data.
+    // Using a smaller value of 8_000 statements per transaction
+    // given that presubmit tests timeout when we use a large value of 35K.
+    int maxValuesPerTxn = 8_000;
+    int MAX_BYTE_SIZE_PER_TXN = 1_048_576 / 2;
+
+    List<String> shakespearValues = TestData.shakespearValues;
+    for (int start = 0; start < shakespearValues.size(); ) {
+      int end = start + maxValuesPerTxn;
+      if (end > shakespearValues.size()) {
+        end = shakespearValues.size();
+      }
+
+      String sqlPrefix =
+          "INSERT INTO Shakespeare(id, word, word_count, corpus, corpus_date) VALUES";
+      int i = start;
+      int byteSize = sqlPrefix.length();
+      for (i = start; i < end && (i - start) < maxValuesPerTxn; i++) {
+        String currentValue = shakespearValues.get(i);
+        if (currentValue.length() + 1 + byteSize >= MAX_BYTE_SIZE_PER_TXN) {
+          break;
+        } else {
+          byteSize += currentValue.length() + 1;
+        }
+      }
+
+      end = i;
+      List<String> values = shakespearValues.subList(start, end);
+      start = end;
+
+      databaseClient
+          .readWriteTransaction()
+          .run(
+              txn -> {
+                String sql = sqlPrefix + String.join(",", values) + ";";
+                txn.executeUpdate(Statement.of(sql));
+
+                return null;
+              });
+    }
   }
 
   @BeforeClass

@@ -25,6 +25,7 @@ import java.util.Objects;
 public final class TestData {
   public static List<String> initialDDL = createInitialDDL();
   public static List<String> initialDML = createInitialDML();
+  public static List<String> shakespearValues = createShakespeareTableValues();
 
   private TestData() {}
 
@@ -59,5 +60,29 @@ public final class TestData {
     } catch (IOException e) {
       throw new RuntimeException("failed to read resource " + path, e);
     }
+  }
+
+  private static List<String> createShakespeareTableValues() {
+    String csv = mustReadResource("/db/shakespeare_bq.csv");
+    String[] csvLines = csv.trim().split("\n");
+    List<String> valueLines = new ArrayList<>();
+    Long id = 1L;
+    for (String csvLine : csvLines) {
+      csvLine = csvLine.trim();
+      if (csvLine == "" || csvLine == "\n") {
+        continue;
+      }
+
+      String[] splits = csvLine.split(",");
+
+      // Now create the lines that'll be inserted per entry.
+      // The format is: <id:STRING>, <word:STRING>, <word_count:INT64>, <corpus:STRING>,
+      // <corpus_date:INT64>
+      valueLines.add(
+          String.format(
+              "(%d,\"%s\",%s,\"%s\",%s)", id, splits[0], splits[1], splits[2], splits[3]));
+      id++;
+    }
+    return valueLines;
   }
 }

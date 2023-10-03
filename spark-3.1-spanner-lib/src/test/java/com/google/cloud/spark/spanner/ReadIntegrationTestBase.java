@@ -15,16 +15,20 @@
 package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.math.MathContext;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.text.Collator;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.spark.sql.Dataset;
@@ -87,17 +91,20 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     List<Timestamp> gotFs = df.select("F").as(Encoders.TIMESTAMP()).collectAsList();
     List<Timestamp> expectFs =
         Arrays.asList(
-            new Timestamp(ZonedDateTime.parse("2023-08-26T12:22:05Z").toInstant().toEpochMilli()),
-            new Timestamp(ZonedDateTime.parse("2023-09-22T12:22:05Z").toInstant().toEpochMilli()));
+            asSparkTimestamp("2023-08-26T12:22:05Z"), asSparkTimestamp("2023-09-22T12:22:05Z"));
     assertThat(gotFs).containsExactlyElementsIn(expectFs);
 
     // 6. Validate D field numeric values.
     List<BigDecimal> gotDs = df.select("D").as(Encoders.DECIMAL()).collectAsList();
     List<BigDecimal> expectDs =
-        Arrays.asList(asSparkBigDecimal("2934000000000"), asSparkBigDecimal("93411000000000"));
+        Arrays.asList(asSparkBigDecimal("2934"), asSparkBigDecimal("93411"));
     Collections.sort(gotDs);
     Collections.sort(expectDs);
     assertThat(gotDs).containsExactlyElementsIn(expectDs);
+  }
+
+  Timestamp asSparkTimestamp(String s) {
+    return new Timestamp(ZonedDateTime.parse(s).toInstant().toEpochMilli());
   }
 
   @Test
@@ -212,7 +219,208 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     assertThat(readFromTable("simpleTable").limit(5).count()).isEqualTo(5);
   }
 
+  private final Collator US_COLLATOR = Collator.getInstance(Locale.US);
+
+  class customComparator implements Comparator<Object> {
+    public int compare(Object a, Object b) {
+      if (a == null && b == null) {
+        return 0;
+      }
+      if (a == null) {
+        return -1;
+      }
+      if (b == null) {
+        return 1;
+      }
+
+      if ((a instanceof String) && (b instanceof String)) {
+        return US_COLLATOR.compare(((String) a), ((String) b));
+      }
+      if ((a instanceof Long) && (b instanceof Long)) {
+        return ((Long) a).compareTo(((Long) b));
+      }
+      if ((a instanceof BigDecimal) && (b instanceof BigDecimal)) {
+        return ((BigDecimal) a).compareTo(((BigDecimal) b));
+      }
+      if ((a instanceof Date) && (b instanceof Date)) {
+        return ((Date) a).compareTo(((Date) b));
+      }
+      if ((a instanceof Timestamp) && (b instanceof Timestamp)) {
+        return ((Timestamp) a).compareTo(((Timestamp) b));
+      }
+      if ((a instanceof Boolean) && (b instanceof Boolean)) {
+        return ((Boolean) a).compareTo(((Boolean) b));
+      }
+      return -1;
+    }
+  }
+
+  @Test
+  public void testDataNullsTable() {
+    Dataset<Row> df = readFromTable("nullsTable");
+
+    // ARRAY<INT64>: NULL.
+    List<Row> allAs = df.select("A").collectAsList();
+    assertEquals(allAs.size(), 4);
+    List<Long> gotAs = new ArrayList();
+
+    int nullArrayCounts = 0;
+    for (int i = 0; i < allAs.size(); i++) {
+      Row row = allAs.get(i);
+
+      for (int j = 0; j < row.size(); j++) {
+        Object obj = row.get(j);
+        if (obj == null) {
+          nullArrayCounts++;
+          continue;
+        }
+
+        List<Long> ai = row.getList(j);
+        gotAs.addAll(ai);
+      }
+    }
+    assertEquals(1, nullArrayCounts);
+
+    List<Object> wantAs = Arrays.asList(1L, 2L, null, 2L, 3L, null, null, 4L, 57L, 10L);
+    List<Object> gotAsObj = new ArrayList();
+    gotAs.forEach(v -> gotAsObj.add(v));
+
+    customComparator cmp = new customComparator();
+    Collections.sort(wantAs, cmp);
+    Collections.sort(gotAsObj, cmp);
+    assertThat(gotAsObj).isEqualTo(wantAs);
+
+    // ARRAY<STRING>: NULL.
+    List<Row> allBs = df.select("B").collectAsList();
+    assertEquals(allBs.size(), 4);
+    List<String> gotBs = new ArrayList();
+
+    nullArrayCounts = 0;
+    for (int i = 0; i < allBs.size(); i++) {
+      Row row = allBs.get(i);
+
+      for (int j = 0; j < row.size(); j++) {
+        Object obj = row.get(j);
+        if (obj == null) {
+          nullArrayCounts++;
+          continue;
+        }
+
+        List<String> bj = row.getList(j);
+        gotBs.addAll(bj);
+      }
+    }
+    assertEquals(2, nullArrayCounts);
+
+    List<Object> wantBs =
+        Arrays.asList(((String) null), ((String) null), "a", "b", "FF", "💡🚨", "b", "fg");
+    List<Object> gotBsObj = new ArrayList();
+    gotBs.forEach(v -> gotBsObj.add(v));
+    Collections.sort(wantBs, cmp);
+    Collections.sort(gotBsObj, cmp);
+    assertThat(gotBsObj).isEqualTo(wantBs);
+
+    // STRING: NULL.
+    List<String> gotCs = df.select("C").as(Encoders.STRING()).collectAsList();
+    List<String> wantCs = Arrays.asList(((String) null), ((String) null), "😎🚨", "🚨");
+
+    Collections.sort(wantCs, cmp);
+    Collections.sort(gotCs, cmp);
+    assertThat(gotCs).isEqualTo(wantCs);
+
+    // NUMERIC: NULL.
+    List<BigDecimal> gotDs = df.select("D").as(Encoders.DECIMAL()).collectAsList();
+    List<BigDecimal> wantDs =
+        Arrays.asList(null, null, asSparkBigDecimal("55.7"), asSparkBigDecimal("99.37171"));
+    Collections.sort(gotDs, cmp);
+    Collections.sort(wantDs, cmp);
+    assertThat(gotDs).isEqualTo(wantDs);
+
+    // DATE: NULL.
+    List<Date> gotEs = df.select("E").as(Encoders.DATE()).collectAsList();
+    List<Date> wantEs = Arrays.asList(null, null, null, Date.valueOf("2023-12-30"));
+    Collections.sort(gotEs, cmp);
+    Collections.sort(wantEs, cmp);
+    assertThat(gotEs).isEqualTo(wantEs);
+
+    // TIMESTAMP: NULL.
+    List<Timestamp> gotFs = df.select("F").as(Encoders.TIMESTAMP()).collectAsList();
+    List<Timestamp> wantFs =
+        Arrays.asList(null, null, null, asSparkTimestamp("2023-09-23T12:11:09Z"));
+    Collections.sort(gotFs, cmp);
+    Collections.sort(wantFs, cmp);
+    assertThat(gotFs).isEqualTo(wantFs);
+
+    // BOOL: NULL.
+    List<Boolean> gotGs = df.select("G").as(Encoders.BOOLEAN()).sort().collectAsList();
+    List<Boolean> wantGs = Arrays.asList(null, true, false, false);
+    Collections.sort(gotGs, cmp);
+    Collections.sort(wantGs, cmp);
+    assertThat(gotGs).isEqualTo(wantGs);
+
+    // ARRAY<DATE>: NULL.
+    List<Row> allHs = df.select("H").collectAsList();
+    assertEquals(allHs.size(), 4);
+    List<Date> gotHs = new ArrayList();
+
+    nullArrayCounts = 0;
+    for (int i = 0; i < allHs.size(); i++) {
+      Row row = allHs.get(i);
+
+      for (int j = 0; j < row.size(); j++) {
+        Object obj = row.get(j);
+        if (obj == null) {
+          nullArrayCounts++;
+          continue;
+        }
+
+        List<Date> dj = row.getList(j);
+        gotHs.addAll(dj);
+      }
+    }
+    assertEquals(2, nullArrayCounts);
+
+    List<Object> wantHs =
+        Arrays.asList(
+            ((Date) null), ((Date) null), Date.valueOf("2022-10-01"), Date.valueOf("2023-09-22"));
+    List<Object> gotHsObj = new ArrayList();
+    gotHs.forEach(v -> gotHsObj.add(v));
+    Collections.sort(wantHs, cmp);
+    Collections.sort(gotHsObj, cmp);
+    assertThat(gotHsObj).isEqualTo(wantHs);
+
+    // ARRAY<TIMESTAMP>: NULL.
+    List<Row> allIs = df.select("I").collectAsList();
+    assertEquals(allIs.size(), 4);
+    List<Timestamp> gotIs = new ArrayList();
+
+    nullArrayCounts = 0;
+    for (int i = 0; i < allIs.size(); i++) {
+      Row row = allIs.get(i);
+
+      for (int j = 0; j < row.size(); j++) {
+        Object obj = row.get(j);
+        if (obj == null) {
+          nullArrayCounts++;
+          continue;
+        }
+
+        List<Timestamp> tj = row.getList(j);
+        gotIs.addAll(tj);
+      }
+    }
+    assertEquals(3, nullArrayCounts);
+
+    List<Object> wantIs =
+        Arrays.asList(((Timestamp) null), asSparkTimestamp("2023-09-23T12:11:09Z"));
+    List<Object> gotIsObj = new ArrayList();
+    gotIs.forEach(v -> gotIsObj.add(v));
+    Collections.sort(wantIs, cmp);
+    Collections.sort(gotIsObj, cmp);
+    assertThat(gotIsObj).isEqualTo(wantIs);
+  }
+
   BigDecimal asSparkBigDecimal(String v) {
-    return new BigDecimal(new BigInteger(v), 9, new MathContext(38));
+    return (new BigDecimal(v, new MathContext(38))).setScale(9);
   }
 }

@@ -171,7 +171,7 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
   }
 
   @Test
-  public void testArraysConversions() {
+  public void testArraysConversions() throws Exception {
     Map<String, String> props = this.connectionProperties();
     props.put("table", "compositeTable");
     SpannerTable st = new SpannerTable(props);
@@ -190,8 +190,15 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
           InternalRow row = ir.get();
           gotRows.add(row);
         }
+        SpannerPartitionReader sr = ((SpannerPartitionReader) ir);
+        sr.close();
       } catch (IOException e) {
       }
+    }
+
+    if (prf instanceof SpannerInputPartitionReaderContext) {
+      SpannerInputPartitionReaderContext spc = ((SpannerInputPartitionReaderContext) prf);
+      spc.close();
     }
 
     List<InternalRow> expectRows =

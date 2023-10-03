@@ -28,6 +28,7 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Type.Code.*;
+import com.google.cloud.spanner.Value;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.sql.Timestamp;
@@ -157,6 +158,9 @@ public class SpannerUtils {
   }
 
   public static Long toSparkTimestamp(com.google.cloud.Timestamp ts) {
+    if (ts == null) {
+      return null;
+    }
     // Convert the timestamp to microseconds, which is supported in the Spark.
     Timestamp sqlTs = ts.toSqlTimestamp();
     return toSparkTimestamp(sqlTs);
@@ -167,6 +171,9 @@ public class SpannerUtils {
    * stored in a Long as Spark expects.
    */
   public static Long toSparkTimestamp(Timestamp ts) {
+    if (ts == null) {
+      return null;
+    }
     // ts.getTime() returns time in milliseconds, so *1000 -> microseconds
     // ts.getNanos() returns time in nanoseconds, so /1000 -> microseconds
     return (ts.getTime() * 1000) + (ts.getNanos() / 1000);
@@ -192,6 +199,9 @@ public class SpannerUtils {
    * the Epoch: January 1st 1970, which is what Spark understands.
    */
   public static Integer toSparkDate(com.google.cloud.Date dc) {
+    if (dc == null) {
+      return null;
+    }
     // Cloud Spanner doesn't attach a zone to the Date, returning the time in UTC
     // so we can't let it be interpreted in that of the system, hence using ZonedTimeDate with UTC.
     // and not converting it to JavaUtilDate which uses the local system's timezone.
@@ -284,29 +294,43 @@ public class SpannerUtils {
           String fieldTypeName = spannerRow.getColumnType(i).toString();
           // Note: for ARRAY<T,...>, T MUST be the homogenous (same type) within the ARRAY, per:
           // https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#array_type
+
+          // It is imperative that we use .getValue(i) instead of directly invoking
+          // spannerRow.get<T>Array(i) that we invoke spannerRow.getValue(i).get<T>Array()
+          // otherwise if the array contains any NULL values such as in:
+          //    [1, 2, NULL, 4, 5]
+          // that Cloud Spanner's Java library will panic due to its checkNotNull checks.
+          // Please see https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues/95
+          Value value = spannerRow.getValue(i);
+
           if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
-            sparkRow.update(i, new GenericArrayData(spannerRow.getBooleanArray(i)));
+            sparkRow.update(i, new GenericArrayData(value.getBoolArray().toArray(new Boolean[0])));
           } else if (fieldTypeName.indexOf("ARRAY<FLOAT64>") == 0) {
-            sparkRow.update(i, new GenericArrayData(spannerRow.getDoubleArray(i)));
+            sparkRow.update(
+                i, new GenericArrayData(value.getFloat64Array().toArray(new Double[0])));
           } else if (fieldTypeName.indexOf("ARRAY<INT64>") == 0) {
-            sparkRow.update(i, new GenericArrayData(spannerRow.getLongArray(i)));
+            if (value.isNull()) {
+              sparkRow.update(i, null);
+            } else {
+              List<Long> i64L = value.getInt64Array();
+              sparkRow.update(i, new GenericArrayData(i64L.toArray(new Long[0])));
+            }
           } else if (fieldTypeName.indexOf("ARRAY<STRING") == 0) {
-            List<String> src = spannerRow.getStringList(i);
+            List<String> src = value.getStringArray();
             List<UTF8String> dest = new ArrayList<UTF8String>(src.size());
             src.forEach((s) -> dest.add(UTF8String.fromString(s)));
             sparkRow.update(i, new GenericArrayData(dest.toArray(new UTF8String[0])));
-          } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP") == 0) {
+          } else if (fieldTypeName.indexOf("ARRAY<TIMESTAMP>") == 0) {
             List<Long> endTsL = new ArrayList<>();
-            spannerRow.getTimestampList(i).forEach((ts) -> endTsL.add(toSparkTimestamp(ts)));
+            value.getTimestampArray().forEach((ts) -> endTsL.add(toSparkTimestamp(ts)));
             sparkRow.update(i, new GenericArrayData(endTsL.toArray(new Long[0])));
           } else if (fieldTypeName.indexOf("ARRAY<DATE>") == 0) {
             List<Integer> endDL = new ArrayList<>();
-            spannerRow.getDateList(i).forEach((ts) -> endDL.add(toSparkDate(ts)));
+            value.getDateArray().forEach((ts) -> endDL.add(toSparkDate(ts)));
             sparkRow.update(i, new GenericArrayData(endDL.toArray(new Integer[0])));
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
-            List<Struct> src = spannerRow.getStructList(i);
-            List<InternalRow> dest = new ArrayList<>(src.size());
-            src.forEach((st) -> dest.add(spannerStructToInternalRow(st)));
+            List<InternalRow> dest = new ArrayList<>();
+            value.getStructArray().forEach((st) -> dest.add(spannerStructToInternalRow(st)));
             sparkRow.update(i, new GenericArrayData(dest));
           } else {
             sparkRow.update(i, null);

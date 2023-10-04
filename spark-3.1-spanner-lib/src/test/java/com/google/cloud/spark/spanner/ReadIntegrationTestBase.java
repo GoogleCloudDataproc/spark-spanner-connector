@@ -38,6 +38,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
@@ -418,9 +420,55 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     Collections.sort(wantIs, cmp);
     Collections.sort(gotIsObj, cmp);
     assertThat(gotIsObj).isEqualTo(wantIs);
+
+    // ARRAY<Bytes>: NULL.
+    List<Row> allMs = df.select("M").collectAsList();
+    assertEquals(allMs.size(), 4);
+
+    nullArrayCounts = 0;
+    for (int i = 0; i < allMs.size(); i++) {
+      Row row = allMs.get(i);
+
+      for (int j = 0; j < row.size(); j++) {
+        Object obj = row.get(j);
+        if (obj == null) {
+          nullArrayCounts++;
+          continue;
+        }
+
+        List<Byte> expectedBytes = Arrays.asList((byte) -66, (byte) -17, (byte) -34, (byte) -83);
+
+        assertThat(row.getList(j)).containsExactly(null, toSeq(expectedBytes));
+      }
+    }
+    assertEquals(3, nullArrayCounts);
+
+    // ARRAY<JSON>: NULL.
+    List<Row> allNs = df.select("N").collectAsList();
+    assertEquals(allNs.size(), 4);
+
+    nullArrayCounts = 0;
+    for (int i = 0; i < allNs.size(); i++) {
+      Row row = allNs.get(i);
+
+      for (int j = 0; j < row.size(); j++) {
+        Object obj = row.get(j);
+        if (obj == null) {
+          nullArrayCounts++;
+          continue;
+        }
+
+        assertThat(row.getList(j)).containsExactly(null, "{\"a\":1}");
+      }
+    }
+    assertEquals(3, nullArrayCounts);
   }
 
   BigDecimal asSparkBigDecimal(String v) {
     return (new BigDecimal(v, new MathContext(38))).setScale(9);
+  }
+
+  private static <T> Seq<T> toSeq(List<T> list) {
+    return JavaConverters.asScalaIteratorConverter(list.iterator()).asScala().toSeq();
   }
 }

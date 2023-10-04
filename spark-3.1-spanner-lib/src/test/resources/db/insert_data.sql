@@ -60,9 +60,9 @@ VALUES
 
 DELETE FROM nullsTable WHERE 1=1;
 INSERT INTO
-    nullsTable(id, A, B, C, D, E, F, G, H, I) 
+    nullsTable(id, A, B, C, D, E, F, G, H, I, M, N) 
 VALUES
-    (1, NULL, NULL, NULL, NULL, NULL, NULL, true, [NULL, DATE("2023-09-23T00:00:00Z")], NULL),
-    (2, [1, 2, NULL], NULL, NULL, 99.37171, NULL, NULL, NULL, [DATE("2022-10-02T00:00:00Z"), NULL], NULL),
-    (3, [2, 3, NULL], ["a", "b", "FF", NULL], "😎🚨", NULL, NULL, TIMESTAMP("2023-09-23T12:11:09Z"), false, NULL, NULL),
-    (4, [NULL, 4, 57, 10], ["💡🚨", NULL, "b", "fg"], "🚨", 55.7, DATE("2023-12-31T00:00:00Z"), NULL, false, NULL, [NULL, TIMESTAMP("2023-09-23T12:11:09Z")]);
+    (1, NULL, NULL, NULL, NULL, NULL, NULL, true, [NULL, DATE("2023-09-23T00:00:00Z")], NULL, NULL, NULL),
+    (2, [1, 2, NULL], NULL, NULL, 99.37171, NULL, NULL, NULL, [DATE("2022-10-02T00:00:00Z"), NULL], NULL, NULL, NULL),
+    (3, [2, 3, NULL], ["a", "b", "FF", NULL], "😎🚨", NULL, NULL, TIMESTAMP("2023-09-23T12:11:09Z"), false, NULL, NULL, NULL, NULL),
+    (4, [NULL, 4, 57, 10], ["💡🚨", NULL, "b", "fg"], "🚨", 55.7, DATE("2023-12-31T00:00:00Z"), NULL, false, NULL, [NULL, TIMESTAMP("2023-09-23T12:11:09Z")], [NULL, FROM_HEX("beefdead")], [NULL, JSON'{"a":1}']);

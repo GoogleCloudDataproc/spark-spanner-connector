@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.StatusCode.Code;
+import com.google.cloud.ByteArray;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
@@ -328,6 +329,16 @@ public class SpannerUtils {
             List<Integer> endDL = new ArrayList<>();
             value.getDateArray().forEach((ts) -> endDL.add(toSparkDate(ts)));
             sparkRow.update(i, new GenericArrayData(endDL.toArray(new Integer[0])));
+          } else if (fieldTypeName.indexOf("ARRAY<JSON") == 0) {
+            List<String> src = value.getJsonArray();
+            List<UTF8String> dest = new ArrayList<UTF8String>(src.size());
+            src.forEach((s) -> dest.add(UTF8String.fromString(s)));
+            sparkRow.update(i, new GenericArrayData(dest.toArray(new UTF8String[0])));
+          } else if (fieldTypeName.indexOf("ARRAY<BYTES") == 0) {
+            List<ByteArray> src = value.getBytesArray();
+            List<GenericArrayData> dest = new ArrayList<GenericArrayData>(src.size());
+            src.forEach((s) -> dest.add(s == null ? null : new GenericArrayData(s.toByteArray())));
+            sparkRow.update(i, new GenericArrayData(dest.toArray(new GenericArrayData[0])));
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
             List<InternalRow> dest = new ArrayList<>();
             value.getStructArray().forEach((st) -> dest.add(spannerStructToInternalRow(st)));

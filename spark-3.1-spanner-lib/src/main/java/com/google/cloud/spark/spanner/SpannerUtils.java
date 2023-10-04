@@ -147,11 +147,19 @@ public class SpannerUtils {
   }
 
   public static void toSparkDecimal(GenericInternalRow dest, java.math.BigDecimal v, int at) {
+    Decimal dec = asSparkDecimal(v);
+    dest.setDecimal(at, dec, dec.precision());
+  }
+
+  private static Decimal asSparkDecimal(java.math.BigDecimal v) {
+    if (v == null) {
+      return null;
+    }
     // TODO: Deal with the precision truncation since Cloud Spanner's precision
     // has (precision=38, scale=9) while Apache Spark has (precision=N, scale=M)
     Decimal dec = new Decimal();
     dec.set(new scala.math.BigDecimal(v), 38, 9);
-    dest.setDecimal(at, dec, dec.precision());
+    return dec;
   }
 
   private static void spannerNumericToSpark(Struct src, GenericInternalRow dest, int at) {
@@ -342,7 +350,11 @@ public class SpannerUtils {
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
             List<InternalRow> dest = new ArrayList<>();
             value.getStructArray().forEach((st) -> dest.add(spannerStructToInternalRow(st)));
-            sparkRow.update(i, new GenericArrayData(dest));
+            sparkRow.update(i, new GenericArrayData(dest.toArray(new InternalRow[0])));
+          } else if (fieldTypeName.indexOf("ARRAY<NUMERIC>") == 0) {
+            List<Decimal> dest = new ArrayList<>();
+            value.getNumericArray().forEach((v) -> dest.add(asSparkDecimal(v)));
+            sparkRow.update(i, new GenericArrayData(dest.toArray(new Decimal[0])));
           } else {
             sparkRow.update(i, null);
           }

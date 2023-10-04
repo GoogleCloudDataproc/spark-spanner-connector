@@ -462,6 +462,44 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
       }
     }
     assertEquals(3, nullArrayCounts);
+
+    // ARRAY<NUMERIC>: with NULLs.
+    List<Row> allOs = df.select("O").collectAsList();
+    assertEquals(allOs.size(), 4);
+    List<BigDecimal> gotOs = new ArrayList();
+
+    nullArrayCounts = 0;
+    for (int i = 0; i < allOs.size(); i++) {
+      Row row = allOs.get(i);
+
+      for (int j = 0; j < row.size(); j++) {
+        Object obj = row.get(j);
+        if (obj == null) {
+          nullArrayCounts++;
+          continue;
+        }
+
+        System.out.println("Got results:: " + row.getList(j));
+        List<BigDecimal> ai = row.getList(j);
+        gotOs.addAll(ai);
+      }
+    }
+    assertEquals(1, nullArrayCounts);
+
+    List<Object> wantOs =
+        Arrays.asList(
+            null,
+            null,
+            null,
+            asSparkBigDecimal("-55.7"),
+            asSparkBigDecimal("-99.37171"),
+            asSparkBigDecimal("12"),
+            asSparkBigDecimal("9.3"));
+    List<Object> gotOsAsObj = new ArrayList();
+    gotOs.forEach(v -> gotOsAsObj.add(v));
+    Collections.sort(wantOs, cmp);
+    Collections.sort(gotOsAsObj, cmp);
+    assertThat(gotOsAsObj).isEqualTo(wantOs);
   }
 
   BigDecimal asSparkBigDecimal(String v) {

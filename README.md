@@ -109,4 +109,4 @@ filters to the column `word`  and pushed down the predicate filter `word = 'haml
 
 ### PostgreSQL
 
-The connector doesn't support Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support)https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support.
+The connector doesn't support Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support)https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support yet. It's in progress.

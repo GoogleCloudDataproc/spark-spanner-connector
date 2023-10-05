@@ -26,14 +26,14 @@ steps:
   # TODO: Make the acceptance test run in parallel with integration-real-spanner.
   - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
     id: 'acceptance-test'
-    waitFor: ['integration-real-spanner']
+    waitFor: ['init']
     entrypoint: 'bash'
     args: ['/workspace/cloudbuild/presubmit.sh', 'acceptance-test']
     env:
       - 'SPANNER_PROJECT_ID=$PROJECT_ID'
       - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
-      - 'SPANNER_INSTANCE_ID=acceptance-test-instance'
-      - 'SPANNER_DATABASE_ID=acceptance-test-database'
+      - 'SPANNER_INSTANCE_ID=accept-testins'
+      - 'SPANNER_DATABASE_ID=accept-testdb'
       - 'ACCEPTANCE_TEST_BUCKET=spark-spanner-connector-acceptance-test'
 
 

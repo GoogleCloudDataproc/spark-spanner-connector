@@ -56,8 +56,10 @@ public class DataprocAcceptanceTestBase {
           "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
   private static final String DATABASE_ID =
       Preconditions.checkNotNull(
-          System.getenv("SPANNER_DATABASE_ID"),
-          "Please set the 'SPANNER_DATABASE_ID' environment variable");
+              System.getenv("SPANNER_DATABASE_ID"),
+              "Please set the 'SPANNER_DATABASE_ID' environment variable")
+          + "-"
+          + System.nanoTime();
   private static final String INSTANCE_ID =
       Preconditions.checkNotNull(
           System.getenv("SPANNER_INSTANCE_ID"),

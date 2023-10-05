@@ -292,7 +292,7 @@ public class SpannerUtils {
           break;
 
         case BYTES:
-          sparkRow.update(i, new GenericArrayData(spannerRow.getBytes(i).toByteArray()));
+          sparkRow.update(i, spannerRow.getBytes(i).toByteArray());
           break;
 
         case STRUCT:
@@ -344,9 +344,13 @@ public class SpannerUtils {
             sparkRow.update(i, new GenericArrayData(dest.toArray(new UTF8String[0])));
           } else if (fieldTypeName.indexOf("ARRAY<BYTES") == 0) {
             List<ByteArray> src = value.getBytesArray();
-            List<GenericArrayData> dest = new ArrayList<GenericArrayData>(src.size());
-            src.forEach((s) -> dest.add(s == null ? null : new GenericArrayData(s.toByteArray())));
-            sparkRow.update(i, new GenericArrayData(dest.toArray(new GenericArrayData[0])));
+            byte[][] byteArray = new byte[src.size()][];
+            List<byte[]> dest = new ArrayList<byte[]>(src.size());
+            int it = 0;
+            for (ByteArray bytes : src) {
+              byteArray[it++] = bytes == null ? null : bytes.toByteArray();
+            }
+            sparkRow.update(i, new GenericArrayData(byteArray));
           } else if (fieldTypeName.indexOf("ARRAY<STRUCT<") == 0) {
             List<InternalRow> dest = new ArrayList<>();
             value.getStructArray().forEach((st) -> dest.add(spannerStructToInternalRow(st)));

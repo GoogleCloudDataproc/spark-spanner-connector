@@ -229,8 +229,9 @@ class SpannerTestBase {
       ZonedDateTime F,
       boolean G,
       ZonedDateTime[] H,
-      ZonedDateTime[] I) {
-    GenericInternalRow row = new GenericInternalRow(10);
+      ZonedDateTime[] I,
+      String J) {
+    GenericInternalRow row = new GenericInternalRow(11);
     row.update(0, UTF8String.fromString(id));
     row.update(1, new GenericArrayData(A));
     row.update(2, new GenericArrayData(toSparkStrList(B)));
@@ -241,6 +242,8 @@ class SpannerTestBase {
     row.setBoolean(7, G);
     row.update(8, SpannerUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
     row.update(9, SpannerUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
+    row.update(10, stringToBytes(J));
+
     return row;
   }
 
@@ -250,5 +253,15 @@ class SpannerTestBase {
       dest.add(UTF8String.fromString(s));
     }
     return dest.toArray(new UTF8String[0]);
+  }
+
+  private static byte[] stringToBytes(String str) {
+    byte[] val = new byte[str.length() / 2];
+    for (int i = 0; i < val.length; i++) {
+      int index = i * 2;
+      int j = Integer.parseInt(str.substring(index, index + 2), 16);
+      val[i] = (byte) j;
+    }
+    return val;
   }
 }

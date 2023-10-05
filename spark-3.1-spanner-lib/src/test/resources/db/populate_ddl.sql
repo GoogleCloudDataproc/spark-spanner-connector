@@ -58,6 +58,7 @@ CREATE TABLE compositeTable (
   G BOOL,
   H ARRAY<DATE>,
   I ARRAY<TIMESTAMP>,
+  J BYTES(20),
 ) PRIMARY KEY(id);
 
 CREATE TABLE nullsTable (

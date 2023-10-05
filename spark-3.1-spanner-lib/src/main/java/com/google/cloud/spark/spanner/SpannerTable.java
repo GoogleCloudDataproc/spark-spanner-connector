@@ -99,7 +99,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
         return DataTypes.BooleanType;
 
       case "BYTES":
-        return DataTypes.createArrayType(DataTypes.ByteType);
+        return DataTypes.BinaryType;
 
       case "DATE":
         return DataTypes.DateType;
@@ -131,7 +131,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
       return DataTypes.StringType;
     }
     if (spannerStrType.indexOf("BYTES") == 0) {
-      return DataTypes.createArrayType(DataTypes.ByteType);
+      return DataTypes.BinaryType;
     }
 
     if (spannerStrType.indexOf("ARRAY") == 0) {

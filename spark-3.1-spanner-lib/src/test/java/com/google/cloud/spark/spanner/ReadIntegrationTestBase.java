@@ -103,6 +103,14 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     Collections.sort(gotDs);
     Collections.sort(expectDs);
     assertThat(gotDs).containsExactlyElementsIn(expectDs);
+
+    List<byte[]> gotJs = df.select("J").as(Encoders.BINARY()).collectAsList();
+    List<byte[]> expectJs = Arrays.asList(stringToBytes("deadbeef"), stringToBytes("beefdead"));
+    List<String> actualStringJs =
+        gotJs.stream().map(b -> bytesToString(b)).collect(Collectors.toList());
+    List<String> expectedStringJs =
+        expectJs.stream().map(b -> bytesToString(b)).collect(Collectors.toList());
+    assertThat(actualStringJs).containsExactlyElementsIn(expectedStringJs);
   }
 
   Timestamp asSparkTimestamp(String s) {
@@ -129,7 +137,8 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
                     new StructField(
                         "H", DataTypes.createArrayType(DataTypes.DateType, true), true, null),
                     new StructField(
-                        "I", DataTypes.createArrayType(DataTypes.TimestampType, true), true, null))
+                        "I", DataTypes.createArrayType(DataTypes.TimestampType, true), true, null),
+                    new StructField("J", DataTypes.BinaryType, true, null))
                 .toArray(new StructField[0]));
 
     // For easy debugging, let's firstly compare the .treeString() values.
@@ -435,10 +444,8 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
           nullArrayCounts++;
           continue;
         }
-
-        List<Byte> expectedBytes = Arrays.asList((byte) -66, (byte) -17, (byte) -34, (byte) -83);
-
-        assertThat(row.getList(j)).containsExactly(null, toSeq(expectedBytes));
+        byte[] expectedBytes = stringToBytes("beefdead");
+        assertArrayEquals(row.getList(j), Arrays.asList(null, expectedBytes));
       }
     }
     assertEquals(3, nullArrayCounts);
@@ -508,5 +515,29 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
   private static <T> Seq<T> toSeq(List<T> list) {
     return JavaConverters.asScalaIteratorConverter(list.iterator()).asScala().toSeq();
+  }
+
+  private static byte[] stringToBytes(String str) {
+    byte[] val = new byte[str.length() / 2];
+    for (int i = 0; i < val.length; i++) {
+      int index = i * 2;
+      int j = Integer.parseInt(str.substring(index, index + 2), 16);
+      val[i] = (byte) j;
+    }
+    return val;
+  }
+
+  private static String bytesToString(byte[] bytes) {
+    return bytes == null ? "" : new String(bytes);
+  }
+
+  private void assertArrayEquals(List<byte[]> bytesList1, List<byte[]> bytesList2) {
+    assertThat(bytesList1.size()).isEqualTo(bytesList2.size());
+
+    for (int i = 0; i < bytesList1.size(); i++) {
+      byte[] bytes1 = bytesList1.get(i);
+      byte[] bytes2 = bytesList2.get(i);
+      assertThat(bytesToString(bytes1)).isEqualTo(bytesToString(bytes2));
+    }
   }
 }

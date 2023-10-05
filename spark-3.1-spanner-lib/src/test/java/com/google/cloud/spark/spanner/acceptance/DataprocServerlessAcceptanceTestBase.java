@@ -62,10 +62,17 @@ public class DataprocServerlessAcceptanceTestBase {
       Preconditions.checkNotNull(
           System.getenv("GOOGLE_CLOUD_PROJECT"),
           "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
+
+  // It is imperative that we generate a unique databaseId since in
+  // the teardown we delete the Cloud Spanner database, hence use
+  // system time.Nanos to avoid any cross-pollution between concurrently
+  // running tests.
   private static final String DATABASE_ID =
       Preconditions.checkNotNull(
-          System.getenv("SPANNER_DATABASE_ID"),
-          "Please set the 'SPANNER_DATABASE_ID' environment variable");
+              System.getenv("SPANNER_DATABASE_ID"),
+              "Please set the 'SPANNER_DATABASE_ID' environment variable")
+          + "-"
+          + System.nanoTime();
   private static final String INSTANCE_ID =
       Preconditions.checkNotNull(
           System.getenv("SPANNER_INSTANCE_ID"),

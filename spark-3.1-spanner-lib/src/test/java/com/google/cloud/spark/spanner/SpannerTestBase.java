@@ -41,20 +41,19 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.unsafe.types.UTF8String;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 class SpannerTestBase {
   // It is imperative that we generate a unique databaseId since in
-  // the teardown we delete the Cloud Spanner Instance, hence use system time.Nanos.
-  // This ensures that the tests can run so much faster.
+  // the teardown we delete the Cloud Spanner database, hence use
+  // system time.Nanos to avoid any cross-pollution between concurrently
+  // running tests.
   private static String databaseId = System.getenv("SPANNER_DATABASE_ID") + "-" + System.nanoTime();
-
   private static String instanceId = System.getenv("SPANNER_INSTANCE_ID");
   private static String projectId = System.getenv("SPANNER_PROJECT_ID");
   private static String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
   private static String table = "ATable";
-  private static Spanner spanner = createSpanner();
+  private static Spanner spanner;
 
   private static SpannerOptions createSpannerOptions() {
     return emulatorHost != null
@@ -62,9 +61,29 @@ class SpannerTestBase {
         : SpannerOptions.newBuilder().setProjectId(projectId).build();
   }
 
-  private static Spanner createSpanner() {
-    System.out.println("\033[33mInstanceId: " + instanceId + "\033[00m");
-    return createSpannerOptions().getService();
+  private static Thread mainThread = Thread.currentThread();
+
+  private static synchronized boolean createSpanner() {
+    if (spanner != null) {
+      return false;
+    }
+
+    spanner = createSpannerOptions().getService();
+
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread() {
+              @Override
+              public void run() {
+                teardown();
+                try {
+                  mainThread.join();
+                } catch (Exception e) {
+                  System.out.println("mainThread::join exception: " + e);
+                }
+              }
+            });
+    return true;
   }
 
   protected BatchClient createBatchClient() {
@@ -72,7 +91,13 @@ class SpannerTestBase {
   }
 
   private static void initDatabase() throws Exception {
-    // 1. Create the Spanner instance.
+    // 1. Create the Spanner handle.
+    if (!createSpanner()) {
+      return;
+    }
+
+    System.out.println("\033[34minitDatabase invoked!\033[00m");
+    // 2. Now create the instance.
     InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
     InstanceConfig config =
         instanceAdminClient.listInstanceConfigs().iterateAll().iterator().next();
@@ -136,8 +161,8 @@ class SpannerTestBase {
     databaseAdminClient.dropDatabase(instanceId, databaseId);
   }
 
-  @AfterClass
   public static void teardown() {
+    System.out.println("\033[33mShutting down now!\033[00m");
     cleanupDatabase();
     spanner.close();
   }

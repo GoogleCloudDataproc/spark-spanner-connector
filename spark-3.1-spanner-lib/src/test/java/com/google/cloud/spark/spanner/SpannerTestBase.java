@@ -30,7 +30,6 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
-import com.google.spanner.admin.instance.v1.InstanceName;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,8 +45,11 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 class SpannerTestBase {
-  // TODO: Generate dynamic database name to avoid conflicts.
-  private static String databaseId = System.getenv("SPANNER_DATABASE_ID");
+  // It is imperative that we generate a unique databaseId since in
+  // the teardown we delete the Cloud Spanner Instance, hence use system time.Nanos.
+  // This ensures that the tests can run so much faster.
+  private static String databaseId = System.getenv("SPANNER_DATABASE_ID") + "-" + System.nanoTime();
+
   private static String instanceId = System.getenv("SPANNER_INSTANCE_ID");
   private static String projectId = System.getenv("SPANNER_PROJECT_ID");
   private static String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
@@ -61,6 +63,7 @@ class SpannerTestBase {
   }
 
   private static Spanner createSpanner() {
+    System.out.println("\033[33mInstanceId: " + instanceId + "\033[00m");
     return createSpannerOptions().getService();
   }
 
@@ -128,15 +131,14 @@ class SpannerTestBase {
     initDatabase();
   }
 
-  private static void cleanupInstance() {
-    InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
-    InstanceName name = InstanceName.of(projectId, instanceId);
-    instanceAdminClient.deleteInstance(name.getInstance());
+  private static void cleanupDatabase() {
+    DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
+    databaseAdminClient.dropDatabase(instanceId, databaseId);
   }
 
   @AfterClass
   public static void teardown() {
-    cleanupInstance();
+    cleanupDatabase();
     spanner.close();
   }
 

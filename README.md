@@ -84,10 +84,10 @@ Here are the mappings for supported Spanner data types.
 
 Spanner Data Type|Spark Data Type|Notes
 ---|---|---
-ARRAY    |ArrayType    |
+ARRAY    |ArrayType    | Nested ARRAY is not supported, e.g. ARRAY<ARRAY<BOOL>>. 
 BOOL     |BooleanType  |
 BYTES    |BinaryType   |
-DATE     |DateType     | The date range is [1699-12-31, 9999-12-31].
+DATE     |DateType     | The date range is [1700-01-01, 9999-12-31].
 FLOAT64  |DoubleType   |
 INT64    |LongType     | The supported integer range is [-9,223,372,036,854,775,808, 9,223,372,036,854,775,807]
 JSON     |StringType   | Spark has no JSON type. The values are read as String.
@@ -106,3 +106,7 @@ df.select("word")
 ```
 
 filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`.
+
+### PostgreSQL 
+
+The connector doesn't support Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support)https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support. 

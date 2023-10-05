@@ -107,6 +107,6 @@ df.select("word")
 
 filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`.
 
-### PostgreSQL 
+### PostgreSQL
 
-The connector doesn't support Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support)https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support. 
+The connector doesn't support Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support)https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support.

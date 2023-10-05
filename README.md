@@ -20,7 +20,7 @@ gcloud dataproc clusters create "$MY_CLUSTER" --scopes https://www.googleapis.co
 
 ## Downloading and Using the Connector
 
-You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version.
+You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-0.0.1-BETA.jar` directly.
 
 ### Connector to Spark Compatibility Matrix
 | Connector \ Spark                     | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     |
@@ -42,7 +42,7 @@ You can use the standard `--jars` or `--packages` (or alternatively, the `spark.
 
 ```shell
 gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
-    --jars=./path/to/spark-3.1-spanner-x.x.x.jar \
+    --jars=gs://spark-lib/spanner/spark-3.1-spanner-0.0.1-BETA.jar \
     --region us-central1 examples/SpannerSpark.py
 ```
 ## Usage
@@ -109,4 +109,4 @@ filters to the column `word`  and pushed down the predicate filter `word = 'haml
 
 ### PostgreSQL
 
-The connector doesn't support Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support)https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support yet. It's in progress.
+The connector doesn't support Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support) yet. It's in progress.

@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.spanner.BatchClient;
@@ -219,7 +220,8 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                 new ZonedDateTime[] {
                   ZonedDateTime.parse("2023-08-26T12:11:10Z"),
                   ZonedDateTime.parse("2023-08-27T12:11:09Z"),
-                }),
+                },
+                "deadbeef"),
             makeCompositeTableRow(
                 "id2",
                 new long[] {20, 200, 2991, 888885},
@@ -236,13 +238,42 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                 new ZonedDateTime[] {
                   ZonedDateTime.parse("2023-09-22T12:11:10Z"),
                   ZonedDateTime.parse("2023-09-23T12:11:09Z"),
-                }));
+                },
+                "beefdead"));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();
     Collections.sort(expectRows, cmp);
     Collections.sort(gotRows, cmp);
 
     assertEquals(expectRows.size(), gotRows.size());
-    assertEquals(expectRows, gotRows);
+    assertInternalRow(gotRows, expectRows);
+  }
+
+  private static void assertInternalRow(
+      List<InternalRow> actualRows, List<InternalRow> expectedRows) {
+    assertEquals(expectedRows.size(), actualRows.size());
+    for (int i = 0; i < actualRows.size(); i++) {
+      // We cannot use assertEqual for the whole List, since the byte[] will be
+      // compared with the object's address.
+      GenericInternalRow actualRow = (GenericInternalRow) actualRows.get(i);
+      GenericInternalRow expectedRow = (GenericInternalRow) expectedRows.get(i);
+
+      assertThat(actualRow.getUTF8String(0)).isEqualTo(expectedRow.getUTF8String(0));
+      assertThat(actualRow.getArray(1)).isEqualTo(expectedRow.getArray(1));
+      assertThat(actualRow.getArray(2)).isEqualTo(expectedRow.getArray(2));
+      assertThat(actualRow.getUTF8String(3)).isEqualTo(expectedRow.getUTF8String(3));
+      assertThat(actualRow.getDecimal(4, 38, 9)).isEqualTo(expectedRow.getDecimal(4, 38, 9));
+      assertThat(actualRow.getInt(5)).isEqualTo(expectedRow.getInt(5));
+      assertThat(actualRow.getLong(6)).isEqualTo(expectedRow.getLong(6));
+      assertThat(actualRow.getBoolean(7)).isEqualTo(expectedRow.getBoolean(7));
+      assertThat(actualRow.getArray(8)).isEqualTo(expectedRow.getArray(8));
+      assertThat(actualRow.getArray(9)).isEqualTo(expectedRow.getArray(9));
+      assertThat(bytesToString(actualRow.getBinary(10)))
+          .isEqualTo(bytesToString(expectedRow.getBinary(10)));
+    }
+  }
+
+  private static String bytesToString(byte[] bytes) {
+    return bytes == null ? "" : new String(bytes);
   }
 }

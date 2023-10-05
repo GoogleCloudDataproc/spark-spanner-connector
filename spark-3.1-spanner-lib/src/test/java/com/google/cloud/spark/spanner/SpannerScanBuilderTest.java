@@ -52,8 +52,7 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
             Arrays.asList(
                     new StructField("A", DataTypes.LongType, false, null),
                     new StructField("B", DataTypes.StringType, true, null),
-                    new StructField(
-                        "C", DataTypes.createArrayType(DataTypes.ByteType, true), true, null),
+                    new StructField("C", DataTypes.BinaryType, true, null),
                     new StructField("D", DataTypes.TimestampType, true, null),
                     new StructField("E", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField(

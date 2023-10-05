@@ -84,7 +84,7 @@ Here are the mappings for supported Spanner data types.
 
 Spanner Data Type|Spark Data Type|Notes
 ---|---|---
-ARRAY    |ArrayType    | Nested ARRAY is not supported, e.g. ARRAY<ARRAY<BOOL>>. 
+ARRAY    |ArrayType    | Nested ARRAY is not supported, e.g. ARRAY<ARRAY<BOOL>>.
 BOOL     |BooleanType  |
 BYTES    |BinaryType   |
 DATE     |DateType     | The date range is [1700-01-01, 9999-12-31].

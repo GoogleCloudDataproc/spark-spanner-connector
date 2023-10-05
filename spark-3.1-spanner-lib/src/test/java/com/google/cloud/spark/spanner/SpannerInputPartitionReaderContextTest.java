@@ -148,6 +148,16 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
           InternalRow row = ir.get();
           gotRows.add(row);
         }
+        SpannerPartitionReader sr = ((SpannerPartitionReader) ir);
+        sr.close();
+      } catch (IOException e) {
+      }
+    }
+
+    if (prf instanceof SpannerInputPartitionReaderContext) {
+      try {
+        SpannerInputPartitionReaderContext spc = ((SpannerInputPartitionReaderContext) prf);
+        spc.close();
       } catch (IOException e) {
       }
     }

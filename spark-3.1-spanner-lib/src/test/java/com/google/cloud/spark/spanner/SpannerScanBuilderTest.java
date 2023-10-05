@@ -83,6 +83,16 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
         while (ir.next()) {
           al.add(ir.get());
         }
+        SpannerPartitionReader sr = ((SpannerPartitionReader) ir);
+        sr.close();
+      } catch (IOException e) {
+      }
+    }
+
+    if (prf instanceof SpannerInputPartitionReaderContext) {
+      try {
+        SpannerInputPartitionReaderContext spc = ((SpannerInputPartitionReaderContext) prf);
+        spc.close();
       } catch (IOException e) {
       }
     }

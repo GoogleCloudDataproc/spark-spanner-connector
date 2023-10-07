@@ -45,7 +45,7 @@ public class SpannerScanner implements Batch, Scan {
   private String[] requiredColumns;
   private Map<String, String> opts;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
-  private static final Timestamp INIT_TIME = Timestamp.now();
+  private final Timestamp INIT_TIME = Timestamp.now();
 
   public SpannerScanner(Map<String, String> opts) {
     this.opts = opts;

@@ -59,6 +59,7 @@ CREATE TABLE compositeTable (
   H ARRAY<DATE>,
   I ARRAY<TIMESTAMP>,
   J BYTES(20),
+  K JSON,
 ) PRIMARY KEY(id);
 
 CREATE TABLE nullsTable (

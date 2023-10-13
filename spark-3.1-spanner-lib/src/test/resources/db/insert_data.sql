@@ -46,16 +46,20 @@ VALUES
 
 DELETE FROM compositeTable WHERE 1=1;
 INSERT INTO
-    compositeTable(id, A, B, C, D, E, F, G, H, I, J)
+    compositeTable(id, A, B, C, D, E, F, G, H, I, J, K)
 VALUES
     (
         "id1", [10, 100, 991, 567282], ["a", "b", "c"], "foobar", 2934, DATE(2023, 1, 1),
         TIMESTAMP("2023-08-26T12:22:05Z"), true, [DATE(2023, 1, 2), DATE(2023, 12, 31)],
-        [TIMESTAMP("2023-08-26T12:11:10Z"), TIMESTAMP("2023-08-27T12:11:09Z")], FROM_HEX("beefdead")),
+        [TIMESTAMP("2023-08-26T12:11:10Z"), TIMESTAMP("2023-08-27T12:11:09Z")], FROM_HEX("beefdead"),
+        JSON'{"a":1, "b":2}'
+    ),
     (
         "id2", [20, 200, 2991, 888885], ["A", "B", "C"], "this one", 93411, DATE(2023, 9, 23),
         TIMESTAMP("2023-09-22T12:22:05Z"), false, [DATE(2023, 9, 2), DATE(2023, 12, 31)],
-        [TIMESTAMP("2023-09-22T12:11:10Z"), TIMESTAMP("2023-09-23T12:11:09Z")], FROM_HEX("deadbeef"));
+        [TIMESTAMP("2023-09-22T12:11:10Z"), TIMESTAMP("2023-09-23T12:11:09Z")], FROM_HEX("deadbeef"),
+        JSON'{}'
+    );
 
 DELETE FROM nullsTable WHERE 1=1;
 INSERT INTO

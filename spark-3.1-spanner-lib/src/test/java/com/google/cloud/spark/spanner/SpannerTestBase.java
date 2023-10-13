@@ -230,8 +230,9 @@ class SpannerTestBase {
       boolean G,
       ZonedDateTime[] H,
       ZonedDateTime[] I,
-      String J) {
-    GenericInternalRow row = new GenericInternalRow(11);
+      String J,
+      String K) {
+    GenericInternalRow row = new GenericInternalRow(12);
     row.update(0, UTF8String.fromString(id));
     row.update(1, new GenericArrayData(A));
     row.update(2, new GenericArrayData(toSparkStrList(B)));
@@ -243,6 +244,7 @@ class SpannerTestBase {
     row.update(8, SpannerUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
     row.update(9, SpannerUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
     row.update(10, stringToBytes(J));
+    row.update(11, UTF8String.fromString(K));
 
     return row;
   }

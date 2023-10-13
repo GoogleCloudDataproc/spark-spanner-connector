@@ -231,7 +231,8 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                   ZonedDateTime.parse("2023-08-26T12:11:10Z"),
                   ZonedDateTime.parse("2023-08-27T12:11:09Z"),
                 },
-                "beefdead"),
+                "beefdead",
+                "{\"a\":1, \"b\":2}"),
             makeCompositeTableRow(
                 "id2",
                 new long[] {20, 200, 2991, 888885},
@@ -249,7 +250,8 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                   ZonedDateTime.parse("2023-09-22T12:11:10Z"),
                   ZonedDateTime.parse("2023-09-23T12:11:09Z"),
                 },
-                "deadbeef"));
+                "deadbeef",
+                "{}"));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();
     Collections.sort(expectRows, cmp);

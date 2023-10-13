@@ -49,12 +49,12 @@ INSERT INTO
     compositeTable(id, A, B, C, D, E, F, G, H, I, J)
 VALUES
     (
-        "id1", [10, 100, 991, 567282], ["a", "b", "c"], "foobar", 2934, DATE("2023-01-01T00:00:00Z"),
-        TIMESTAMP("2023-08-26T12:22:05Z"), true, [DATE("2023-01-02T00:00:00Z"), DATE("2023-12-31T00:00:00Z")],
+        "id1", [10, 100, 991, 567282], ["a", "b", "c"], "foobar", 2934, DATE(2023, 1, 1),
+        TIMESTAMP("2023-08-26T12:22:05Z"), true, [DATE(2023, 1, 2), DATE(2023, 12, 31)],
         [TIMESTAMP("2023-08-26T12:11:10Z"), TIMESTAMP("2023-08-27T12:11:09Z")], FROM_HEX("beefdead")),
     (
-        "id2", [20, 200, 2991, 888885], ["A", "B", "C"], "this one", 93411, DATE("2023-09-23T00:00:00Z"),
-        TIMESTAMP("2023-09-22T12:22:05Z"), false, [DATE("2023-09-02T00:00:00Z"), DATE("2023-12-31T00:00:00Z")],
+        "id2", [20, 200, 2991, 888885], ["A", "B", "C"], "this one", 93411, DATE(2023, 9, 23),
+        TIMESTAMP("2023-09-22T12:22:05Z"), false, [DATE(2023, 9, 2), DATE(2023, 12, 31)],
         [TIMESTAMP("2023-09-22T12:11:10Z"), TIMESTAMP("2023-09-23T12:11:09Z")], FROM_HEX("deadbeef"));
 
 DELETE FROM nullsTable WHERE 1=1;

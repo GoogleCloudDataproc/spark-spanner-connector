@@ -124,7 +124,7 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
     // 6. Validate E field date values.
     List<Date> gotEs = df.select("E").as(Encoders.DATE()).collectAsList();
-    List<Date> expectEs = Arrays.asList(Date.valueOf("2022-12-31"), Date.valueOf("2023-09-22"));
+    List<Date> expectEs = Arrays.asList(Date.valueOf("2023-01-01"), Date.valueOf("2023-09-23"));
     assertThat(gotEs).containsExactlyElementsIn(expectEs);
 
     // 7. Validate F field timestamp values.
@@ -151,17 +151,7 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     gotHs.addAll(row2H.getList(0));
     Collections.sort(gotHs);
 
-    List<Date> wantHs = new ArrayList();
-    Arrays.asList(
-            ZonedDateTime.parse("2023-01-01T00:00:00Z"),
-            ZonedDateTime.parse("2023-12-31T00:00:00Z"),
-            ZonedDateTime.parse("2023-09-02T00:00:00Z"),
-            ZonedDateTime.parse("2023-12-30T00:00:00Z"))
-        .forEach(
-            zd -> {
-              wantHs.add(new Date(zd.toInstant().toEpochMilli()));
-            });
-    Collections.sort(wantHs);
+    List<String> expectedHs = Arrays.asList("2023-01-02", "2023-12-31", "2023-09-02", "2023-12-31");
 
     // It is complicated to compare java.sql.Date values
     // due to timezoning losses after conversion to java.sql.Date
@@ -177,10 +167,7 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     List<String> gotHSStr = new ArrayList();
     gotHs.forEach(ts -> gotHSStr.add(ts.toString()));
     Collections.sort(gotHs);
-    List<String> wantHSStr = new ArrayList();
-    wantHs.forEach(ts -> wantHSStr.add(ts.toString()));
-    Collections.sort(wantHs);
-    assertThat(gotHSStr).containsExactlyElementsIn(wantHSStr);
+    assertThat(gotHSStr).containsExactlyElementsIn(expectedHs);
 
     // 10. Validate I field ARRAY<TIMESTAMP> values.
     List<Row> allIs = df.select("I").collectAsList();

@@ -512,7 +512,7 @@
                     <relocations>
                         <relocation>
                             <pattern>android</pattern>
-                            <shadedPattern>com.google.cloud.spark-spanner.repackaged.android</shadedPattern>
+                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.android</shadedPattern>
                         </relocation>
                         <relocation>
                             <pattern>autovalue</pattern>
@@ -528,7 +528,7 @@
                         </relocation>
                         <relocation>
                             <pattern>com.github</pattern>
-                            <shadedPattern>com.google.cloud.spark-spanner.repackaged.com.github</shadedPattern>
+                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.github</shadedPattern>
                             <!-- Need to exclude the zstd library from being repackaged because of https://github.com/luben/zstd-jni#limitations -->
                             <excludes>
                                 <exclude>com.github.luben.zstd.**</exclude>
@@ -536,7 +536,7 @@
                         </relocation>
                         <relocation>
                             <pattern>com.google</pattern>
-                            <shadedPattern>com.google.cloud.spark-spanner.repackaged.com.google</shadedPattern>
+                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.google</shadedPattern>
                             <excludes>
                                 <exclude>com.google.cloud.bigquery.connector.common.**</exclude>
                                 <exclude>com.google.cloud.spark.spanner.**</exclude>
@@ -609,13 +609,13 @@
                             <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.xerial.snappy</shadedPattern>
                         </relocation>
                         <relocation>
-                            <pattern>META-INF/native/libnetty</pattern>
-                            <shadedPattern>META-INF/native/libcom_google_cloud_spark.spanner_repackaged_netty
+                            <pattern>META-INF/native/libio_grpc_netty_shaded_netty</pattern>
+                            <shadedPattern>META-INF/native/libcom_google_cloud_spark_spanner_repackaged_io_grpc_netty_shaded_io_grpc_netty
                             </shadedPattern>
                         </relocation>
                         <relocation>
-                            <pattern>META-INF/native/netty</pattern>
-                            <shadedPattern>META-INF/native/com_google_cloud_spark.spanner_repackaged_netty
+                            <pattern>META-INF/native/io_grpc_netty_shaded_netty</pattern>
+                            <shadedPattern>META-INF/native/com_google_cloud_spark_spanner_repackaged_io_grpc_netty_shaded_io_grpc_netty
                             </shadedPattern>
                         </relocation>
                     </relocations>

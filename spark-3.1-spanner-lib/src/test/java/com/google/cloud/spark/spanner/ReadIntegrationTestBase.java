@@ -225,7 +225,8 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
                         "H", DataTypes.createArrayType(DataTypes.DateType, true), true, null),
                     new StructField(
                         "I", DataTypes.createArrayType(DataTypes.TimestampType, true), true, null),
-                    new StructField("J", DataTypes.BinaryType, true, null))
+                    new StructField("J", DataTypes.BinaryType, true, null),
+                    new StructField("K", DataTypes.StringType, true, null))
                 .toArray(new StructField[0]));
 
     // For easy debugging, let's firstly compare the .treeString() values.

@@ -16,13 +16,54 @@ package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
 public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase {
+
+  private static final Map<String, Collection<String>> FILTER_DATA =
+      ImmutableMap.<String, Collection<String>>builder()
+          .put("word_count == 4", ImmutableList.of("'A", "'But", "'Faith"))
+          .put("word_count > 3", ImmutableList.of("'", "''Tis", "'A"))
+          .put("word_count >= 2", ImmutableList.of("'", "''Lo", "''O"))
+          .put("word_count < 3", ImmutableList.of("''All", "''Among", "''And"))
+          .put("word_count <= 5", ImmutableList.of("'", "''All", "''Among"))
+          .put("word_count in(8, 9)", ImmutableList.of("'", "'Faith", "'Tis"))
+          .put("word_count is null", ImmutableList.of())
+          .put("word_count is not null", ImmutableList.of("'", "''All", "''Among"))
+          .put(
+              "word_count == 4 and corpus == 'twelfthnight'",
+              ImmutableList.of("'Thou", "'em", "Art"))
+          .put(
+              "word_count == 4 or corpus > 'twelfthnight'",
+              ImmutableList.of("'", "''Tis", "''twas"))
+          .put("not word_count in(8, 9)", ImmutableList.of("'", "''All", "''Among"))
+          .put("corpus like 'king%'", ImmutableList.of("'", "'A", "'Affectionate"))
+          .put("corpus like '%kinghenryiv'", ImmutableList.of("'", "'And", "'Anon"))
+          .put("corpus like '%king%'", ImmutableList.of("'", "'A", "'Affectionate"))
+          .build();
+  private static final StructType SHAKESPEARE_TABLE_SCHEMA =
+      new StructType(
+          Arrays.asList(
+                  new StructField("id", DataTypes.LongType, true, null),
+                  new StructField("word", DataTypes.StringType, true, null),
+                  new StructField("word_count", DataTypes.LongType, true, null),
+                  new StructField("corpus", DataTypes.StringType, true, null),
+                  new StructField("corpus_date", DataTypes.LongType, true, null))
+              .toArray(new StructField[0]));
+
+  static final long SHAKESPEARE_TABLE_NUM_ROWS = 164656L;
 
   public Dataset<Row> readFromTable(String table) {
     Map<String, String> props = this.connectionProperties();
@@ -36,6 +77,25 @@ public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase
         .option("emulatorHost", props.get("emulatorHost"))
         .option("table", table)
         .load();
+  }
+
+  @Test
+  public void testFilters() {
+    Dataset<Row> df = readFromTable("Shakespeare");
+    assertThat(df.count()).isEqualTo(SHAKESPEARE_TABLE_NUM_ROWS);
+    FILTER_DATA.forEach(
+        (condition, expectedElements) -> {
+          List<String> firstWords =
+              Arrays.asList(
+                  (String[])
+                      df.select("word")
+                          .where(condition)
+                          .distinct()
+                          .as(Encoders.STRING())
+                          .sort("word")
+                          .take(3));
+          assertThat(firstWords).containsExactlyElementsIn(expectedElements);
+        });
   }
 
   @Test

@@ -176,7 +176,7 @@ public class DataprocAcceptanceTestBase {
     String testId =
         String.format(
             "%s-%s%s%s",
-            System.currentTimeMillis(),
+            System.nanoTime(),
             dataprocImageVersion.charAt(0),
             dataprocImageVersion.charAt(2),
             clusterPropertiesMarkers);

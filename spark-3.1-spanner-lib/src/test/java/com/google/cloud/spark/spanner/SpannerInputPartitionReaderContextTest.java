@@ -220,36 +220,38 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                 new String[] {"a", "b", "c"},
                 "foobar",
                 new java.math.BigDecimal(2934),
-                ZonedDateTime.parse("2022-12-31T23:59:59Z"),
+                ZonedDateTime.parse("2023-01-01T00:00:00Z"),
                 ZonedDateTime.parse("2023-08-26T12:22:05Z"),
                 true,
                 new ZonedDateTime[] {
-                  ZonedDateTime.parse("2023-01-01T23:59:59Z"),
-                  ZonedDateTime.parse("2023-12-30T23:59:59Z"),
+                  ZonedDateTime.parse("2023-01-02T00:00:00Z"),
+                  ZonedDateTime.parse("2023-12-31T00:00:00Z"),
                 },
                 new ZonedDateTime[] {
                   ZonedDateTime.parse("2023-08-26T12:11:10Z"),
                   ZonedDateTime.parse("2023-08-27T12:11:09Z"),
                 },
-                "beefdead"),
+                "beefdead",
+                "{\"a\":1, \"b\":2}"),
             makeCompositeTableRow(
                 "id2",
                 new long[] {20, 200, 2991, 888885},
                 new String[] {"A", "B", "C"},
                 "this one",
                 new java.math.BigDecimal(93411),
-                ZonedDateTime.parse("2023-09-22T23:59:59Z"),
+                ZonedDateTime.parse("2023-09-23T00:00:00Z"),
                 ZonedDateTime.parse("2023-09-22T12:22:05Z"),
                 false,
                 new ZonedDateTime[] {
-                  ZonedDateTime.parse("2023-09-01T23:59:59Z"),
-                  ZonedDateTime.parse("2023-12-30T23:59:59Z"),
+                  ZonedDateTime.parse("2023-09-02T00:00:00Z"),
+                  ZonedDateTime.parse("2023-12-31T00:00:00Z"),
                 },
                 new ZonedDateTime[] {
                   ZonedDateTime.parse("2023-09-22T12:11:10Z"),
                   ZonedDateTime.parse("2023-09-23T12:11:09Z"),
                 },
-                "deadbeef"));
+                "deadbeef",
+                "{}"));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();
     Collections.sort(expectRows, cmp);

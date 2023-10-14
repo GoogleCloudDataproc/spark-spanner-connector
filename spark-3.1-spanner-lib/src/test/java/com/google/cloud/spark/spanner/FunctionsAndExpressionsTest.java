@@ -17,15 +17,26 @@ package com.google.cloud.spark.spanner;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.junit.Test;
 
-/*
- * Adapted from the BigQuery-Spark connector tests:
- * spark-bigquery-connector/*src/test/*bigquery/integration/QueryPushdownIntegrationTestBase.java
- */
-public class FunctionsAndExpressionsTest extends ReadIntegrationTestBase {
+public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase {
+
+  public Dataset<Row> readFromTable(String table) {
+    Map<String, String> props = this.connectionProperties();
+    return spark
+        .read()
+        .format("cloud-spanner")
+        .option("viewsEnabled", true)
+        .option("projectId", props.get("projectId"))
+        .option("instanceId", props.get("instanceId"))
+        .option("databaseId", props.get("databaseId"))
+        .option("emulatorHost", props.get("emulatorHost"))
+        .option("table", table)
+        .load();
+  }
 
   @Test
   public void testStringFunctionExpressions() {

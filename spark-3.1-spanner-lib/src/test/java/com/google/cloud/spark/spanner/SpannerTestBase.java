@@ -25,9 +25,11 @@ import com.google.cloud.spanner.InstanceAdminClient;
 import com.google.cloud.spanner.InstanceConfig;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
+import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
+import com.google.common.collect.Lists;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
 import java.time.ZonedDateTime;
@@ -151,44 +153,12 @@ class SpannerTestBase {
             });
 
     // 3.2. Insert the Shakespeare data.
-    // Using a smaller value of 8_000 statements per transaction
-    // given that presubmit tests timeout when we use a large value of 35K.
-    int maxValuesPerTxn = 8_000;
-    int MAX_BYTE_SIZE_PER_TXN = 1_048_576 / 2;
-
-    List<String> shakespearValues = TestData.shakespearValues;
-    for (int start = 0; start < shakespearValues.size(); ) {
-      int end = start + maxValuesPerTxn;
-      if (end > shakespearValues.size()) {
-        end = shakespearValues.size();
-      }
-
-      String sqlPrefix =
-          "INSERT INTO Shakespeare(id, word, word_count, corpus, corpus_date) VALUES";
-      int i = start;
-      int byteSize = sqlPrefix.length();
-      for (i = start; i < end && (i - start) < maxValuesPerTxn; i++) {
-        String currentValue = shakespearValues.get(i);
-        if (currentValue.length() + 1 + byteSize >= MAX_BYTE_SIZE_PER_TXN) {
-          break;
-        } else {
-          byteSize += currentValue.length() + 1;
-        }
-      }
-
-      end = i;
-      List<String> values = shakespearValues.subList(start, end);
-      start = end;
-
-      databaseClient
-          .readWriteTransaction()
-          .run(
-              txn -> {
-                String sql = sqlPrefix + String.join(",", values) + ";";
-                txn.executeUpdate(Statement.of(sql));
-
-                return null;
-              });
+    // Using a smaller value of 1000 statements
+    int maxValuesPerTxn = 1000;
+    List<List<Mutation>> partitionedMutations =
+        Lists.partition(TestData.shakespearMutations, maxValuesPerTxn);
+    for (List<Mutation> mutations : partitionedMutations) {
+      databaseClient.write(mutations);
     }
   }
 

@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spanner.Mutation;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,7 +26,7 @@ import java.util.Objects;
 public final class TestData {
   public static List<String> initialDDL = createInitialDDL();
   public static List<String> initialDML = createInitialDML();
-  public static List<String> shakespearValues = createShakespeareTableValues();
+  public static List<Mutation> shakespearMutations = createShakespeareTableMutations();
 
   private TestData() {}
 
@@ -62,11 +63,11 @@ public final class TestData {
     }
   }
 
-  private static List<String> createShakespeareTableValues() {
+  private static List<Mutation> createShakespeareTableMutations() {
     String csv = mustReadResource("/db/shakespeare_bq.csv");
     String[] csvLines = csv.trim().split("\n");
-    List<String> valueLines = new ArrayList<>();
     Long id = 1L;
+    List<Mutation> mutations = new ArrayList<>();
     for (String csvLine : csvLines) {
       csvLine = csvLine.trim();
       if (csvLine == "" || csvLine == "\n") {
@@ -75,14 +76,21 @@ public final class TestData {
 
       String[] splits = csvLine.split(",");
 
-      // Now create the lines that'll be inserted per entry.
-      // The format is: <id:STRING>, <word:STRING>, <word_count:INT64>, <corpus:STRING>,
-      // <corpus_date:INT64>
-      valueLines.add(
-          String.format(
-              "(%d,\"%s\",%s,\"%s\",%s)", id, splits[0], splits[1], splits[2], splits[3]));
+      mutations.add(
+          Mutation.newInsertBuilder("Shakespeare")
+              .set("id")
+              .to(id)
+              .set("word")
+              .to(splits[0])
+              .set("word_count")
+              .to(splits[1])
+              .set("corpus")
+              .to(splits[2])
+              .set("corpus_date")
+              .to(splits[3])
+              .build());
       id++;
     }
-    return valueLines;
+    return mutations;
   }
 }

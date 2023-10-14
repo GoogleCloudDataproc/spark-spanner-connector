@@ -54,7 +54,7 @@ public class DataprocAcceptanceTestBase {
       Preconditions.checkNotNull(
           System.getenv("GOOGLE_CLOUD_PROJECT"),
           "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
-  private final String DATABASE_ID =
+  private static final String DATABASE_ID =
       Preconditions.checkNotNull(
               System.getenv("SPANNER_DATABASE_ID"),
               "Please set the 'SPANNER_DATABASE_ID' environment variable")
@@ -162,7 +162,7 @@ public class DataprocAcceptanceTestBase {
     }
   }
 
-  protected AcceptanceTestContext setup(
+  protected static AcceptanceTestContext setup(
       String dataprocImageVersion,
       String connectorJarPrefix,
       List<ClusterProperty> clusterProperties)
@@ -196,7 +196,7 @@ public class DataprocAcceptanceTestBase {
     return acceptanceTestContext;
   }
 
-  protected void tearDown(AcceptanceTestContext context) throws Exception {
+  protected static void tearDown(AcceptanceTestContext context) throws Exception {
     if (context != null) {
       terminateCluster(context.clusterId);
       AcceptanceTestUtils.deleteGcsDir(context.testBaseGcsDir);
@@ -204,7 +204,7 @@ public class DataprocAcceptanceTestBase {
     }
   }
 
-  protected void createSpannerDataset() throws Exception {
+  protected static void createSpannerDataset() throws Exception {
     // 1. Create the Spanner instance.
     InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
     InstanceConfig config =
@@ -258,7 +258,7 @@ public class DataprocAcceptanceTestBase {
             });
   }
 
-  protected void deleteSpannerDatasetAndTables() {
+  protected static void deleteSpannerDatasetAndTables() {
     DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
     databaseAdminClient.dropDatabase(INSTANCE_ID, DATABASE_ID);
   }

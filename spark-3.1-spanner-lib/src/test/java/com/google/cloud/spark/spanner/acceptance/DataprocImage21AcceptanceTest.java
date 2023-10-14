@@ -30,12 +30,13 @@ public final class DataprocImage21AcceptanceTest extends DataprocAcceptanceTestB
   }
 
   @BeforeClass
-  public void setup() throws Exception {
-    context = this.setup("2.1-debian11", "spark-3.1-spanner", ImmutableList.of());
+  public static void setup() throws Exception {
+    context =
+        DataprocAcceptanceTestBase.setup("2.1-debian11", "spark-3.1-spanner", ImmutableList.of());
   }
 
   @AfterClass
-  public void tearDown() throws Exception {
-    this.tearDown(context);
+  public static void tearDown() throws Exception {
+    DataprocAcceptanceTestBase.tearDown(context);
   }
 }

@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
@@ -22,6 +23,9 @@ import java.math.MathContext;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.Collator;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,6 +34,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
@@ -722,14 +727,6 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
   @Test
   public void testTimestampLimits() {
-    if (true) {
-      // TIMESTAMP extreme limit tests require lots of mucking around
-      // and have held up code releases, so this code is commented out
-      // until we have more time to focus on them: @odeke-em
-      // A follow-up PR will be sent later.
-      return;
-    }
-
     Dataset<Row> df = readFromTable("valueLimitsTable");
     assertThat(df.count()).isEqualTo(4);
 
@@ -737,18 +734,28 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     List<Timestamp> gotEs = df.select("E").as(Encoders.TIMESTAMP()).collectAsList();
     Collections.sort(gotEs);
 
-    List<Timestamp> expectEs =
+    List<String> actualEStrs =
+        gotEs.stream().map(timestamp -> timestamp.toString()).collect(toList());
+
+    List<String> expectEs =
         Arrays.asList(
-            zdtToTs("0001-01-01T00:00:01Z"),
-            zdtToTs("2023-09-28T21:59:59Z"),
-            zdtToTs("2222-02-22T22:22:22Z"),
-            zdtToTs("9999-12-30T23:59:59.00Z"));
-    Collections.sort(expectEs);
-    assertThat(gotEs).containsExactlyElementsIn(expectEs);
+            "0001-01-03 00:00:01.0",
+            "2023-09-29 04:59:59.0",
+            "2222-02-22 22:22:22.999999",
+            "9999-12-30 23:59:59.0");
+    assertThat(actualEStrs).containsExactlyElementsIn(expectEs);
   }
 
-  Timestamp zdtToTs(String s) {
-    return new Timestamp(ZonedDateTime.parse(s).toInstant().toEpochMilli());
+  Timestamp zdtToTs(String s, Optional<ZoneId> zoneId) {
+    Instant dateTimeInstant = ZonedDateTime.parse(s).toInstant();
+    ZonedDateTime dateTime;
+    if (zoneId.isPresent()) {
+      dateTime = dateTimeInstant.atZone(zoneId.get());
+    } else {
+      dateTime = dateTimeInstant.atZone(ZoneOffset.UTC);
+    }
+
+    return new Timestamp(dateTime.toInstant().toEpochMilli());
   }
 
   BigDecimal asSparkBigDecimal(String v) {

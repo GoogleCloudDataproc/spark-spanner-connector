@@ -25,9 +25,11 @@ import com.google.cloud.spanner.InstanceAdminClient;
 import com.google.cloud.spanner.InstanceConfig;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
+import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
+import com.google.common.collect.Lists;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
 import java.time.ZonedDateTime;
@@ -132,7 +134,7 @@ class SpannerTestBase {
       }
     }
 
-    // 3. Insert data into the databse.
+    // 3.1. Insert data into the databse.
     DatabaseClient databaseClient =
         spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
     databaseClient
@@ -149,6 +151,15 @@ class SpannerTestBase {
 
               return null;
             });
+
+    // 3.2. Insert the Shakespeare data.
+    // Using a smaller value of 1000 statements
+    int maxValuesPerTxn = 1000;
+    List<List<Mutation>> partitionedMutations =
+        Lists.partition(TestData.shakespearMutations, maxValuesPerTxn);
+    for (List<Mutation> mutations : partitionedMutations) {
+      databaseClient.write(mutations);
+    }
   }
 
   @BeforeClass

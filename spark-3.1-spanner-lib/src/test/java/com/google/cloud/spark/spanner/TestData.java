@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spanner.Mutation;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,6 +26,7 @@ import java.util.Objects;
 public final class TestData {
   public static List<String> initialDDL = createInitialDDL();
   public static List<String> initialDML = createInitialDML();
+  public static List<Mutation> shakespearMutations = createShakespeareTableMutations();
 
   private TestData() {}
 
@@ -59,5 +61,36 @@ public final class TestData {
     } catch (IOException e) {
       throw new RuntimeException("failed to read resource " + path, e);
     }
+  }
+
+  private static List<Mutation> createShakespeareTableMutations() {
+    String csv = mustReadResource("/db/shakespeare_bq.csv");
+    String[] csvLines = csv.trim().split("\n");
+    Long id = 1L;
+    List<Mutation> mutations = new ArrayList<>();
+    for (String csvLine : csvLines) {
+      csvLine = csvLine.trim();
+      if (csvLine == "" || csvLine == "\n") {
+        continue;
+      }
+
+      String[] splits = csvLine.split(",");
+
+      mutations.add(
+          Mutation.newInsertBuilder("Shakespeare")
+              .set("id")
+              .to(id)
+              .set("word")
+              .to(splits[0])
+              .set("word_count")
+              .to(splits[1])
+              .set("corpus")
+              .to(splits[2])
+              .set("corpus_date")
+              .to(splits[3])
+              .build());
+      id++;
+    }
+    return mutations;
   }
 }

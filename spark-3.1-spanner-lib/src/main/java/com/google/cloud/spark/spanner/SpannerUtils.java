@@ -183,9 +183,9 @@ public class SpannerUtils {
     if (ts == null) {
       return null;
     }
-    // ts.getTime() returns time in milliseconds, so *1000 -> microseconds
-    // ts.getNanos() returns time in nanoseconds, so /1000 -> microseconds
-    return (ts.getTime() * 1000) + (ts.getNanos() / 1000);
+    // ts.getTime() returns time in milliseconds, so * 1000 -> microseconds
+    // ts.getNanos() returns time in nanoseconds, (so / 1000) % 1000 -> microseconds
+    return (ts.getTime() * 1000) + ((ts.getNanos() / 1000) % 1000);
   }
 
   public static Long zonedDateTimeToSparkTimestamp(ZonedDateTime zdt) {

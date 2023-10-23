@@ -24,8 +24,10 @@ import java.util.List;
 import java.util.Objects;
 
 public final class TestData {
-  public static List<String> initialDDL = createInitialDDL();
-  public static List<String> initialDML = createInitialDML();
+  public static List<String> initialDDL = createInitialDDL("/db/populate_ddl.sql");
+  public static List<String> initialDDLPg = createInitialDDL("/db/populate_ddl_pg.sql");
+  public static List<String> initialDML = createInitialDML("/db/insert_data.sql");
+  public static List<String> initialDMLPg = createInitialDML("/db/insert_data_pg.sql");
   public static List<Mutation> shakespearMutations = createShakespeareTableMutations();
 
   private TestData() {}
@@ -43,12 +45,12 @@ public final class TestData {
     return stmts;
   }
 
-  private static List<String> createInitialDDL() {
-    return readAndParseSQL("/db/populate_ddl.sql");
+  private static List<String> createInitialDDL(String filePath) {
+    return readAndParseSQL(filePath);
   }
 
-  private static List<String> createInitialDML() {
-    return readAndParseSQL("/db/insert_data.sql");
+  private static List<String> createInitialDML(String filePath) {
+    return readAndParseSQL(filePath);
   }
 
   private static String mustReadResource(String path) {

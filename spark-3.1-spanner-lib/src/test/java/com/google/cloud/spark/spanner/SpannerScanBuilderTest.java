@@ -68,6 +68,15 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
 
   @Test
   public void readSchemaShouldWorkInSpannerScanBuilderForPg() throws Exception {
+    if (SpannerScanBuilderTest.emulatorHost != null
+        && !SpannerScanBuilderTest.emulatorHost.isEmpty()) {
+      // Spanner emulator doesn't support the PostgreSql dialect interface.
+      // If the emulator is set. We return immediately here.
+      // TODO: Use logger instead of System out once logger configuration is set.
+      System.out.println(
+          "readSchemaShouldWorkInSpannerScanBuilderForPg is skipped since pg is not supported in Spanner emulator");
+      return;
+    }
     Map<String, String> opts = this.connectionProperties(/* usePostgreSql= */ true);
     CaseInsensitiveStringMap copts = new CaseInsensitiveStringMap(opts);
     Scan scan = new SpannerScanBuilder(copts).build();

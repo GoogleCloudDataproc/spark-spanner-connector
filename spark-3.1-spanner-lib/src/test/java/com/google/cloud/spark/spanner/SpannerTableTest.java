@@ -54,6 +54,14 @@ public class SpannerTableTest extends SpannerTestBase {
 
   @Test
   public void queryPgSchemaShouldSuccessInSpannerTable() {
+    if (SpannerTableTest.emulatorHost != null && !SpannerTableTest.emulatorHost.isEmpty()) {
+      // Spanner emulator doesn't support the PostgreSql dialect interface.
+      // If the emulator is set. We return immediately here.
+      // TODO: Use logger instead of System out once logger configuration is set.
+      System.out.println(
+          "queryPgSchemaShouldSuccessInSpannerTable is skipped since pg is not supported in Spanner emulator");
+      return;
+    }
     Map<String, String> props = this.connectionProperties(/* usePostgreSql= */ true);
     SpannerTable spannerTable = new SpannerTable(props);
     StructType actualSchema = spannerTable.schema();

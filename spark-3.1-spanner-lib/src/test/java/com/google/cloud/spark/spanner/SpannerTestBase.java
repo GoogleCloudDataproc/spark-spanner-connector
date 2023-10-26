@@ -57,10 +57,10 @@ class SpannerTestBase {
   private static String databaseIdPg = databaseId + "-pg";
   private static String instanceId = System.getenv("SPANNER_INSTANCE_ID");
   private static String projectId = System.getenv("SPANNER_PROJECT_ID");
-  private static String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
   private static String table = "ATable";
   private static String tablePg = "composite_table";
   private static Spanner spanner;
+  protected static String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
 
   private static SpannerOptions createSpannerOptions() {
     return emulatorHost != null
@@ -139,6 +139,42 @@ class SpannerTestBase {
       }
     }
 
+    // 3.1. Insert data into the databse.
+    DatabaseClient databaseClient =
+        spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
+    databaseClient
+        .readWriteTransaction()
+        .run(
+            txn -> {
+              try {
+                TestData.initialDML.forEach(sql -> txn.executeUpdate(Statement.of(sql)));
+              } catch (Exception e) {
+                if (!e.toString().contains("ALREADY_EXISTS")) {
+                  throw e;
+                }
+              }
+
+              return null;
+            });
+
+    // 3.2. Insert the Shakespeare data.
+    // Using a smaller value of 1000 statements
+    int maxValuesPerTxn = 1000;
+    List<List<Mutation>> partitionedMutations =
+        Lists.partition(TestData.shakespearMutations, maxValuesPerTxn);
+    for (List<Mutation> mutations : partitionedMutations) {
+      databaseClient.write(mutations);
+    }
+
+    populatePgDatabase(databaseAdminClient);
+  }
+
+  private static void populatePgDatabase(DatabaseAdminClient databaseAdminClient) throws Exception {
+    if (emulatorHost != null && !emulatorHost.isEmpty()) {
+      // Spanner emulator doesn't support the PostgreSql dialect interface.
+      // If the emulator is set. We return immediately here.
+      return;
+    }
     String createDatabasePg = "CREATE DATABASE \"" + databaseIdPg + "\"";
     OperationFuture<Database, CreateDatabaseMetadata> createDatabaseOperationPg =
         databaseAdminClient.createDatabase(
@@ -164,24 +200,6 @@ class SpannerTestBase {
       }
     }
 
-    // 3.1. Insert data into the databse.
-    DatabaseClient databaseClient =
-        spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
-    databaseClient
-        .readWriteTransaction()
-        .run(
-            txn -> {
-              try {
-                TestData.initialDML.forEach(sql -> txn.executeUpdate(Statement.of(sql)));
-              } catch (Exception e) {
-                if (!e.toString().contains("ALREADY_EXISTS")) {
-                  throw e;
-                }
-              }
-
-              return null;
-            });
-
     DatabaseClient databaseClientPg =
         spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseIdPg));
     databaseClientPg
@@ -198,15 +216,6 @@ class SpannerTestBase {
 
               return null;
             });
-
-    // 3.2. Insert the Shakespeare data.
-    // Using a smaller value of 1000 statements
-    int maxValuesPerTxn = 1000;
-    List<List<Mutation>> partitionedMutations =
-        Lists.partition(TestData.shakespearMutations, maxValuesPerTxn);
-    for (List<Mutation> mutations : partitionedMutations) {
-      databaseClient.write(mutations);
-    }
   }
 
   @BeforeClass

@@ -178,10 +178,7 @@ class SpannerTestBase {
     String createDatabasePg = "CREATE DATABASE \"" + databaseIdPg + "\"";
     OperationFuture<Database, CreateDatabaseMetadata> createDatabaseOperationPg =
         databaseAdminClient.createDatabase(
-            instanceId,
-            createDatabasePg,
-            Dialect.POSTGRESQL,
-            Collections.emptyList());
+            instanceId, createDatabasePg, Dialect.POSTGRESQL, Collections.emptyList());
     try {
       createDatabaseOperationPg.get();
     } catch (Exception e) {

@@ -53,7 +53,7 @@ public class SpannerTableTest extends SpannerTestBase {
   }
 
   @Test
-  public void queryPgSchemaShouldSuccessInSpannerTable() {
+  public void queryPgSchemaShouldSucceedInSpannerTable() {
     if (SpannerTableTest.emulatorHost != null && !SpannerTableTest.emulatorHost.isEmpty()) {
       // Spanner emulator doesn't support the PostgreSql dialect interface.
       // If the emulator is set. We return immediately here.

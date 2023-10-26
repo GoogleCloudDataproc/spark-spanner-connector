@@ -181,7 +181,7 @@ class SpannerTestBase {
             instanceId,
             createDatabasePg,
             Dialect.POSTGRESQL,
-            Collections.emptyList()); // TestData.initialDDLPg);
+            Collections.emptyList());
     try {
       createDatabaseOperationPg.get();
     } catch (Exception e) {

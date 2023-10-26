@@ -51,4 +51,46 @@ public class SpannerTableTest extends SpannerTestBase {
     assertEquals(expectSchema.fieldNames(), actualSchema.fieldNames());
     assertEquals(expectSchema.simpleString(), actualSchema.simpleString());
   }
+
+  @Test
+  public void queryPgSchemaShouldSucceedInSpannerTable() {
+    if (SpannerTableTest.emulatorHost != null && !SpannerTableTest.emulatorHost.isEmpty()) {
+      // Spanner emulator doesn't support the PostgreSql dialect interface.
+      // If the emulator is set. We return immediately here.
+      // TODO: Use logger instead of System out once logger configuration is set.
+      System.out.println(
+          "queryPgSchemaShouldSuccessInSpannerTable is skipped since pg is not supported in Spanner emulator");
+      return;
+    }
+    Map<String, String> props = this.connectionProperties(/* usePostgreSql= */ true);
+    SpannerTable spannerTable = new SpannerTable(props);
+    StructType actualSchema = spannerTable.schema();
+    StructType expectSchema =
+        new StructType(
+            Arrays.asList(
+                    new StructField("id", DataTypes.LongType, false, null),
+                    new StructField("charvcol", DataTypes.StringType, true, null),
+                    new StructField("textcol", DataTypes.StringType, true, null),
+                    new StructField("varcharcol", DataTypes.StringType, true, null),
+                    new StructField("boolcol", DataTypes.BooleanType, true, null),
+                    new StructField("booleancol", DataTypes.BooleanType, true, null),
+                    new StructField("bigintcol", DataTypes.LongType, true, null),
+                    new StructField("int8col", DataTypes.LongType, true, null),
+                    new StructField("intcol", DataTypes.LongType, true, null),
+                    new StructField("doublecol", DataTypes.DoubleType, true, null),
+                    new StructField("floatcol", DataTypes.DoubleType, true, null),
+                    new StructField("bytecol", DataTypes.BinaryType, true, null),
+                    new StructField("datecol", DataTypes.DateType, true, null),
+                    new StructField("numericcol", DataTypes.createDecimalType(38, 9), true, null),
+                    new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
+                    new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
+                    new StructField("timestampcol", DataTypes.TimestampType, true, null))
+                .toArray(new StructField[0]));
+
+    // Object.equals fails for StructType with fields so we'll
+    // firstly compare lengths, then fieldNames then the simpleString.
+    assertEquals(expectSchema.length(), actualSchema.length());
+    assertEquals(expectSchema.fieldNames(), actualSchema.fieldNames());
+    assertEquals(expectSchema.simpleString(), actualSchema.simpleString());
+  }
 }

@@ -20,6 +20,7 @@ import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Instance;
 import com.google.cloud.spanner.InstanceAdminClient;
 import com.google.cloud.spanner.InstanceConfig;
@@ -31,10 +32,12 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.common.collect.Lists;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
+import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -51,11 +54,13 @@ class SpannerTestBase {
   // system time.Nanos to avoid any cross-pollution between concurrently
   // running tests.
   private static String databaseId = System.getenv("SPANNER_DATABASE_ID") + "-" + System.nanoTime();
+  private static String databaseIdPg = databaseId + "-pg";
   private static String instanceId = System.getenv("SPANNER_INSTANCE_ID");
   private static String projectId = System.getenv("SPANNER_PROJECT_ID");
-  private static String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
   private static String table = "ATable";
+  private static String tablePg = "composite_table";
   private static Spanner spanner;
+  protected static String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
 
   private static SpannerOptions createSpannerOptions() {
     return emulatorHost != null
@@ -160,6 +165,54 @@ class SpannerTestBase {
     for (List<Mutation> mutations : partitionedMutations) {
       databaseClient.write(mutations);
     }
+
+    populatePgDatabase(databaseAdminClient);
+  }
+
+  private static void populatePgDatabase(DatabaseAdminClient databaseAdminClient) throws Exception {
+    if (emulatorHost != null && !emulatorHost.isEmpty()) {
+      // Spanner emulator doesn't support the PostgreSql dialect interface.
+      // If the emulator is set. We return immediately here.
+      return;
+    }
+    String createDatabasePg = "CREATE DATABASE \"" + databaseIdPg + "\"";
+    OperationFuture<Database, CreateDatabaseMetadata> createDatabaseOperationPg =
+        databaseAdminClient.createDatabase(
+            instanceId, createDatabasePg, Dialect.POSTGRESQL, Collections.emptyList());
+    try {
+      createDatabaseOperationPg.get();
+    } catch (Exception e) {
+      if (!e.toString().contains("ALREADY_EXISTS")) {
+        throw e;
+      }
+    }
+    OperationFuture<Void, UpdateDatabaseDdlMetadata> updateDatabaseDdlPg =
+        databaseAdminClient.updateDatabaseDdl(
+            instanceId, databaseIdPg, TestData.initialDDLPg, null);
+    try {
+      updateDatabaseDdlPg.get();
+    } catch (Exception e) {
+      if (!e.toString().contains("ALREADY_EXISTS")) {
+        throw e;
+      }
+    }
+
+    DatabaseClient databaseClientPg =
+        spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseIdPg));
+    databaseClientPg
+        .readWriteTransaction()
+        .run(
+            txn -> {
+              try {
+                TestData.initialDMLPg.forEach(sql -> txn.executeUpdate(Statement.of(sql)));
+              } catch (Exception e) {
+                if (!e.toString().contains("ALREADY_EXISTS")) {
+                  throw e;
+                }
+              }
+
+              return null;
+            });
   }
 
   @BeforeClass
@@ -170,6 +223,7 @@ class SpannerTestBase {
   private static void cleanupDatabase() {
     DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
     databaseAdminClient.dropDatabase(instanceId, databaseId);
+    databaseAdminClient.dropDatabase(instanceId, databaseIdPg);
   }
 
   public static void teardown() {
@@ -178,16 +232,25 @@ class SpannerTestBase {
     spanner.close();
   }
 
-  protected static Map<String, String> connectionProperties() {
+  protected static Map<String, String> connectionProperties(boolean usePostgreSql) {
     Map<String, String> props = new HashMap<>();
-    props.put("databaseId", databaseId);
+    if (usePostgreSql) {
+      props.put("databaseId", databaseIdPg);
+      props.put("table", tablePg);
+    } else {
+      props.put("databaseId", databaseId);
+      props.put("table", table);
+    }
     props.put("instanceId", instanceId);
     props.put("projectId", projectId);
     if (emulatorHost != null) {
       props.put("emulatorHost", emulatorHost);
     }
-    props.put("table", table);
     return props;
+  }
+
+  protected static Map<String, String> connectionProperties() {
+    return connectionProperties(false);
   }
 
   InternalRow makeInternalRow(int A, String B, double C) {

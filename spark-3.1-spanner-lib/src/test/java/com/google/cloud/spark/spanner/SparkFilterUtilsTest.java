@@ -32,8 +32,7 @@ import org.apache.spark.sql.sources.*;
 import org.junit.Test;
 
 public class SparkFilterUtilsTest {
-
-  private boolean pushAllFilters;
+  private boolean pushAllFilters = true;
 
   @Test
   public void testValidFilters() {
@@ -54,6 +53,7 @@ public class SparkFilterUtilsTest {
                 StringStartsWith.apply("foo", "abc"),
                 StringEndsWith.apply("foo", "def"),
                 StringContains.apply("foo", "abcdef")));
+    validFilters.add(Or.apply(IsNull.apply("foo"), IsNotNull.apply("foo")));
     validFilters.forEach(
         f -> assertThat(SparkFilterUtils.unhandledFilters(pushAllFilters, f)).isEmpty());
   }
@@ -67,23 +67,13 @@ public class SparkFilterUtilsTest {
 
   @Test
   public void testInvalidFilters() {
-    if (true) {
-      // TODO: Some of these code paths are unused but for the sake of
-      // reducing between code differences, we aren't letting them run.
-      return;
-    }
-
     Filter valid1 = EqualTo.apply("foo", "bar");
     Filter valid2 = EqualTo.apply("bar", 1);
     Filter valid3 = EqualNullSafe.apply("foo", "bar");
-    Filter orApplied = Or.apply(IsNull.apply("foo"), IsNotNull.apply("foo"));
-
+    Filter valid4 = Or.apply(IsNull.apply("foo"), IsNotNull.apply("foo"));
     Iterable<Filter> unhandled =
-        SparkFilterUtils.unhandledFilters(true, valid1, valid2, valid3, orApplied);
+        SparkFilterUtils.unhandledFilters(pushAllFilters, valid1, valid2, valid3, valid4);
     assertThat(unhandled).isEmpty();
-
-    unhandled = SparkFilterUtils.unhandledFilters(false, valid1, valid2, valid3, orApplied);
-    assertThat(unhandled).containsExactly(orApplied);
   }
 
   @Test

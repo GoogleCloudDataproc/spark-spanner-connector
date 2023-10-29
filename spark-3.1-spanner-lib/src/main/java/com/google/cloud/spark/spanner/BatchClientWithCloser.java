@@ -15,15 +15,19 @@
 package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spanner.BatchClient;
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Spanner;
 
 public class BatchClientWithCloser implements AutoCloseable {
   public BatchClient batchClient;
+  public DatabaseClient databaseClient;
   private Spanner spanner;
 
-  public BatchClientWithCloser(Spanner spanner, BatchClient batchClient) {
+  public BatchClientWithCloser(
+      Spanner spanner, BatchClient batchClient, DatabaseClient databaseClient) {
     this.spanner = spanner;
     this.batchClient = batchClient;
+    this.databaseClient = databaseClient;
   }
 
   /*

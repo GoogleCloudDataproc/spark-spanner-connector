@@ -122,13 +122,11 @@ public class SpannerUtils {
 
     SpannerOptions options = builder.build();
     Spanner spanner = options.getService();
+    DatabaseId databaseId =
+        DatabaseId.of(
+            options.getProjectId(), properties.get("instanceId"), properties.get("databaseId"));
     return new BatchClientWithCloser(
-        spanner,
-        spanner.getBatchClient(
-            DatabaseId.of(
-                options.getProjectId(),
-                properties.get("instanceId"),
-                properties.get("databaseId"))));
+        spanner, spanner.getBatchClient(databaseId), spanner.getDatabaseClient(databaseId));
   }
 
   public static List<InternalRow> resultSetToSparkRow(ResultSet rs) {
@@ -164,6 +162,10 @@ public class SpannerUtils {
 
   private static void spannerNumericToSpark(Struct src, GenericInternalRow dest, int at) {
     toSparkDecimal(dest, src.getBigDecimal(at), at);
+  }
+
+  private static void spannerNumericToSparkPg(Struct src, GenericInternalRow dest, int at) {
+    toSparkDecimal(dest, src.getValue(at).getNumeric(), at);
   }
 
   public static Long toSparkTimestamp(com.google.cloud.Timestamp ts) {
@@ -279,7 +281,7 @@ public class SpannerUtils {
           break;
 
         case PG_NUMERIC:
-          spannerNumericToSpark(spannerRow, sparkRow, i);
+          spannerNumericToSparkPg(spannerRow, sparkRow, i);
           break;
 
         case TIMESTAMP:

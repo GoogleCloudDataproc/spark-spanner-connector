@@ -102,7 +102,8 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
                     new StructField("numericcol", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
-                    new StructField("timestampcol", DataTypes.TimestampType, true, null))
+                    new StructField("timestampcol", DataTypes.TimestampType, true, null),
+                    new StructField("jsoncol", DataTypes.StringType, true, null))
                 .toArray(new StructField[0]));
 
     // Object.equals fails for StructType with fields so we'll
@@ -227,7 +228,7 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
             Arrays.asList(
                 makeCompositeTableRowPg(
                     1, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null),
+                    null, null, null, null),
                 makeCompositeTableRowPg(
                     2,
                     "charvcol",
@@ -245,7 +246,8 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
                     new java.math.BigDecimal("123456"),
                     new java.math.BigDecimal("9e23"),
                     "2003-04-12T11:05:06Z",
-                    "2003-04-12T12:05:06Z")));
+                    "2003-04-12T12:05:06Z",
+                    "{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}")));
     Collections.sort(expectRows, cmp);
 
     assertEquals(expectRows.size(), gotRows.size());
@@ -283,6 +285,7 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
       assertThat(actualRow.getDecimal(14, 38, 9)).isEqualTo(expectedRow.getDecimal(14, 38, 9));
       assertThat(actualRow.getLong(15)).isEqualTo(expectedRow.getLong(15));
       assertThat(actualRow.getLong(16)).isEqualTo(expectedRow.getLong(16));
+      assertThat(actualRow.getUTF8String(17)).isEqualTo(expectedRow.getUTF8String(17));
     }
   }
 

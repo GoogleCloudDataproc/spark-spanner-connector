@@ -347,8 +347,9 @@ class SpannerTestBase {
       java.math.BigDecimal numericCol,
       java.math.BigDecimal decimalCol,
       String timewithzoneCol,
-      String timestampCol) {
-    GenericInternalRow row = new GenericInternalRow(17);
+      String timestampCol,
+      String jsonCol) {
+    GenericInternalRow row = new GenericInternalRow(18);
     row.setLong(0, id);
     row.update(1, charvCol == null ? null : UTF8String.fromString(charvCol));
     row.update(2, textCol == null ? null : UTF8String.fromString(textCol));
@@ -414,6 +415,7 @@ class SpannerTestBase {
         timestampCol == null
             ? null
             : SpannerUtils.zonedDateTimeToSparkTimestamp(ZonedDateTime.parse(timestampCol)));
+    row.update(17, jsonCol == null ? null : UTF8String.fromString(jsonCol));
     return row;
   }
 

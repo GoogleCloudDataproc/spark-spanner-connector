@@ -29,7 +29,10 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase {
 
   private static final Map<String, Collection<String>> FILTER_DATA =
@@ -65,8 +68,24 @@ public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase
 
   static final long SHAKESPEARE_TABLE_NUM_ROWS = 164656L;
 
+  @Parameterized.Parameters(name = "{index}: isPostgreSql={0}")
+  public static Iterable<Object[]> data() {
+    if (SpannerTableTest.emulatorHost != null && !SpannerTableTest.emulatorHost.isEmpty()) {
+      System.out.println(
+          "FunctionsAndExpressionsTest is skipped since pg is not supported in Spanner emulator");
+      return ImmutableList.of(new Object[] {false});
+    }
+    return ImmutableList.of(new Object[] {false}, new Object[] {true});
+  }
+
+  private boolean isPostgreSql;
+
+  public FunctionsAndExpressionsTest(boolean isPostgreSql) {
+    this.isPostgreSql = isPostgreSql;
+  }
+
   public Dataset<Row> readFromTable(String table) {
-    Map<String, String> props = this.connectionProperties();
+    Map<String, String> props = this.connectionProperties(isPostgreSql);
     return spark
         .read()
         .format("cloud-spanner")
@@ -75,7 +94,7 @@ public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase
         .option("instanceId", props.get("instanceId"))
         .option("databaseId", props.get("databaseId"))
         .option("emulatorHost", props.get("emulatorHost"))
-        .option("table", table)
+        .option("table", isPostgreSql ? table.toLowerCase() : table)
         .load();
   }
 

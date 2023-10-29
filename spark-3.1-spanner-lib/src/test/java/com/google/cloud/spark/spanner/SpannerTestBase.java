@@ -213,6 +213,13 @@ class SpannerTestBase {
 
               return null;
             });
+
+    int maxValuesPerTxn = 1000;
+    List<List<Mutation>> partitionedMutations =
+        Lists.partition(TestData.shakespearMutations, maxValuesPerTxn);
+    for (List<Mutation> mutations : partitionedMutations) {
+      databaseClientPg.write(mutations);
+    }
   }
 
   @BeforeClass
@@ -320,6 +327,93 @@ class SpannerTestBase {
     row.update(10, stringToBytes(J));
     row.update(11, UTF8String.fromString(K));
 
+    return row;
+  }
+
+  public InternalRow makeCompositeTableRowPg(
+      long id,
+      String charvCol,
+      String textCol,
+      String varcharCol,
+      Boolean boolCol,
+      Boolean booleanCol,
+      Long bigintCol,
+      Long int8Col,
+      Long intCol,
+      Double doubleCol,
+      Double float8Col,
+      String byteCol,
+      String dateCol,
+      java.math.BigDecimal numericCol,
+      java.math.BigDecimal decimalCol,
+      String timewithzoneCol,
+      String timestampCol) {
+    GenericInternalRow row = new GenericInternalRow(17);
+    row.setLong(0, id);
+    row.update(1, charvCol == null ? null : UTF8String.fromString(charvCol));
+    row.update(2, textCol == null ? null : UTF8String.fromString(textCol));
+    row.update(3, varcharCol == null ? null : UTF8String.fromString(varcharCol));
+    if (boolCol == null) {
+      row.update(4, null);
+    } else {
+      row.setBoolean(4, boolCol);
+    }
+    if (booleanCol == null) {
+      row.update(5, null);
+    } else {
+      row.setBoolean(5, booleanCol);
+    }
+    if (bigintCol == null) {
+      row.update(6, null);
+    } else {
+      row.setLong(6, bigintCol);
+    }
+    if (int8Col == null) {
+      row.update(7, null);
+    } else {
+      row.setLong(7, int8Col);
+    }
+    if (intCol == null) {
+      row.update(8, null);
+    } else {
+      row.setLong(8, intCol);
+    }
+    if (doubleCol == null) {
+      row.update(9, null);
+    } else {
+      row.setDouble(9, doubleCol);
+    }
+    if (float8Col == null) {
+      row.update(10, null);
+    } else {
+      row.setDouble(10, float8Col);
+    }
+    row.update(11, charvCol == null ? null : UTF8String.fromString(byteCol));
+    row.update(
+        12,
+        dateCol == null
+            ? null
+            : SpannerUtils.zonedDateTimeToSparkDate(ZonedDateTime.parse(dateCol)));
+    if (numericCol == null) {
+      row.update(13, null);
+    } else {
+      SpannerUtils.toSparkDecimal(row, numericCol, 13);
+    }
+    if (decimalCol == null) {
+      row.update(14, null);
+    } else {
+      SpannerUtils.toSparkDecimal(row, decimalCol, 14);
+    }
+    row.update(
+        15,
+        timewithzoneCol == null
+            ? null
+            : SpannerUtils.zonedDateTimeToSparkTimestamp(ZonedDateTime.parse(timewithzoneCol)));
+    row.update(
+        16,
+        timestampCol == null
+            ? null
+            : SpannerUtils.zonedDateTimeToSparkTimestamp(ZonedDateTime.parse(timestampCol)));
     return row;
   }
 

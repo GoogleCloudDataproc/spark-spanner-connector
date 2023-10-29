@@ -20,6 +20,17 @@ CREATE TABLE composite_table (
 );
 
 
+CREATE TABLE Shakespeare (
+  id int,
+  word character varying(1024),
+  word_count int,
+  corpus character varying(1024),
+  corpus_date int,
+  PRIMARY KEY(id)
+);
+
+
+
 CREATE TABLE string_table (
   id bigint NOT NULL,
   charvCol character varying(1024),

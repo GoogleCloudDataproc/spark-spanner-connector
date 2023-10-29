@@ -290,7 +290,6 @@ public class SparkFilterUtils {
   public static String compileFilters(Iterable<Filter> filters, boolean isPostgreSql) {
     return StreamSupport.stream(filters.spliterator(), false)
         .map(filter -> SparkFilterUtils.compileFilter(filter, isPostgreSql))
-        .sorted()
         .collect(Collectors.joining(" AND "));
   }
 

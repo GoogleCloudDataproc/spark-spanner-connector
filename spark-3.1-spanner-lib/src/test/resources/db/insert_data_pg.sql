@@ -7,7 +7,8 @@ VALUES (1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NUL
 DELETE FROM array_table WHERE 1=1;
 
 INSERT INTO array_table (id, charvarray, boolarray, bigintarray, doublearray, bytearray, datearray, numericarray, timestamparray, jsonarray)
-VALUES (1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+VALUES (1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, '{NULL, "charvarray"}', '{NULL, true}', '{NULL, 1024}', '{NULL, 0.00000001}', '{NULL, "beefdead"}', '{NULL, "1999-01-08"}', '{NULL, "1.2345e05"}', '{NULL, "2003-04-12 04:05:06 America/Los_Angeles"}', ARRAY[NULL, CAST('{"tags": ["multi-cuisine", "open-seating"], "rating": 4.5}' as JSONB)]);
 
 DELETE FROM integration_composite_table WHERE 1=1;
 

@@ -45,7 +45,7 @@ CREATE TABLE integration_composite_table (
 CREATE TABLE array_table (
   id int NOT NULL,
   charvArray character varying(1024)[],
-  boolArray bool[],
+  boolArray bool[3],
   bigintArray bigint[],
   doubleArray double precision[],
   byteArray bytea[],

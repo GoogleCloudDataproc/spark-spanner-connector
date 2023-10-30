@@ -35,8 +35,7 @@ case $STEP in
     ;;
 
   acceptance-test)
-    $MVN test -T 1C -Dtest=DataprocImage20AcceptanceTest
-    $MVN test -T 1C -Dtest=DataprocImage21AcceptanceTest
+    $MVN test -T 2C -Dtest=DataprocImage20AcceptanceTest,DataprocImage21AcceptanceTest
     ;;
 
   *)

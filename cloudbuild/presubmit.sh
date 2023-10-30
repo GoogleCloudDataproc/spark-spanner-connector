@@ -31,7 +31,7 @@ case $STEP in
   integrationtest-real-spanner)
     # Starts the Spanner emulator and setup the gcloud command.
     # Sets the env used in the integration test.
-    $MVN test -T 1C "-Dtest=SpannerTableTest,SpannerScanBuilderTest,SpannerInputPartitionReaderContextTest,SparkFilterUtilsTest,ReadIntegrationTestBase,WriteIntegrationTestBase,FunctionsAndExpressionsTest"
+    $MVN test -T 1C "-Dtest=SpannerTableTest,SpannerScanBuilderTest,SpannerInputPartitionReaderContextTest,SparkFilterUtilsTest,ReadIntegrationTestBase,WriteIntegrationTestBase,FunctionsAndExpressionsTest,ReadIntegrationTestPg"
     ;;
 
   acceptance-test)

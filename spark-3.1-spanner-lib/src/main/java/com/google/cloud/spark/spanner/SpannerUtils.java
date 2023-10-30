@@ -54,10 +54,14 @@ import org.threeten.bp.Duration;
 public class SpannerUtils {
   private static final RetrySettings RETRY_SETTING =
       RetrySettings.newBuilder()
-          .setInitialRetryDelay(Duration.ofMillis(500))
-          .setMaxRetryDelay(Duration.ofSeconds(16))
+          .setInitialRpcTimeout(Duration.ofHours(2))
+          .setMaxRpcTimeout(Duration.ofHours(2))
+          .setTotalTimeout(Duration.ofHours(2))
+          .setRpcTimeoutMultiplier(1.0)
+          .setInitialRetryDelay(Duration.ofSeconds(2))
+          .setMaxRetryDelay(Duration.ofSeconds(60))
           .setRetryDelayMultiplier(1.5)
-          .setMaxAttempts(5)
+          .setMaxAttempts(100)
           .build();
   private static final ObjectMapper jsonMapper = new ObjectMapper();
 
@@ -96,7 +100,7 @@ public class SpannerUtils {
             .setHeaderProvider(FixedHeaderProvider.create("user-agent", USER_AGENT));
     builder
         .getSpannerStubSettingsBuilder()
-        .executeSqlSettings()
+        .executeStreamingSqlSettings()
         .setRetryableCodes(
             Code.UNAVAILABLE, Code.RESOURCE_EXHAUSTED, Code.INTERNAL, Code.DEADLINE_EXCEEDED)
         .setRetrySettings(RETRY_SETTING);
@@ -119,6 +123,7 @@ public class SpannerUtils {
     if (emulatorHost != null) {
       builder = builder.setEmulatorHost(emulatorHost);
     }
+    System.setProperty("com.google.cloud.spanner.watchdogTimeoutSeconds", "7200");
 
     SpannerOptions options = builder.build();
     Spanner spanner = options.getService();

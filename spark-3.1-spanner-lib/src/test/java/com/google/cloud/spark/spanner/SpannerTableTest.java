@@ -84,7 +84,8 @@ public class SpannerTableTest extends SpannerTestBase {
                     new StructField("numericcol", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
-                    new StructField("timestampcol", DataTypes.TimestampType, true, null))
+                    new StructField("timestampcol", DataTypes.TimestampType, true, null),
+                    new StructField("jsoncol", DataTypes.StringType, true, null))
                 .toArray(new StructField[0]));
 
     // Object.equals fails for StructType with fields so we'll

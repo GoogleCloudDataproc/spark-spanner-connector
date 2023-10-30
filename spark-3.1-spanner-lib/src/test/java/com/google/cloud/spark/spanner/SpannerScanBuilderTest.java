@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
@@ -100,7 +102,8 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
                     new StructField("numericcol", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
-                    new StructField("timestampcol", DataTypes.TimestampType, true, null))
+                    new StructField("timestampcol", DataTypes.TimestampType, true, null),
+                    new StructField("jsoncol", DataTypes.StringType, true, null))
                 .toArray(new StructField[0]));
 
     // Object.equals fails for StructType with fields so we'll
@@ -174,5 +177,119 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
 
     assertEquals(expectRows.size(), gotRows.size());
     assertEquals(expectRows, gotRows);
+  }
+
+  @Test
+  public void planInputPartitionsShouldSucceedInSpannerScanBuilderPg() throws Exception {
+    if (SpannerTableTest.emulatorHost != null && !SpannerTableTest.emulatorHost.isEmpty()) {
+      // Spanner emulator doesn't support the PostgreSql dialect interface.
+      // If the emulator is set. We return immediately here.
+      // TODO: Use logger instead of System out once logger configuration is set.
+      System.out.println(
+          "planInputPartitionsShouldSucceedInSpannerScanBuilderPg is skipped since pg is not supported in Spanner emulator");
+      return;
+    }
+    Map<String, String> opts = this.connectionProperties(true);
+    opts.put("table", "composite_table");
+    CaseInsensitiveStringMap optionMap = new CaseInsensitiveStringMap(opts);
+    SpannerScanBuilder spannerScanBuilder = new SpannerScanBuilder(optionMap);
+    SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
+    InputPartition[] partitions = ss.planInputPartitions();
+    PartitionReaderFactory prf = ss.createReaderFactory();
+    CopyOnWriteArrayList<InternalRow> al = new CopyOnWriteArrayList<>();
+    for (InputPartition partition : partitions) {
+      PartitionReader<InternalRow> ir = prf.createReader(partition);
+      try {
+        while (ir.next()) {
+          al.add(ir.get());
+        }
+        SpannerPartitionReader sr = ((SpannerPartitionReader) ir);
+        sr.close();
+      } catch (IOException e) {
+      }
+    }
+
+    if (prf instanceof SpannerInputPartitionReaderContext) {
+      try {
+        SpannerInputPartitionReaderContext spc = ((SpannerInputPartitionReaderContext) prf);
+        spc.close();
+      } catch (IOException e) {
+      }
+    }
+
+    List<InternalRow> gotRows = new ArrayList<>();
+    al.forEach(gotRows::add);
+
+    Comparator<InternalRow> cmp = new InternalRowComparator();
+    Collections.sort(gotRows, cmp);
+
+    List<InternalRow> expectRows =
+        new ArrayList<>(
+            Arrays.asList(
+                makeCompositeTableRowPg(
+                    1, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                    null, null, null, null),
+                makeCompositeTableRowPg(
+                    2,
+                    "charvcol",
+                    "textcol",
+                    "varcharcol",
+                    true,
+                    false,
+                    1L,
+                    -1L,
+                    0L,
+                    0.00000001,
+                    0.00000001,
+                    "beefdead",
+                    "1999-01-08T04:24:00Z",
+                    new java.math.BigDecimal("123456"),
+                    new java.math.BigDecimal("9e23"),
+                    "2003-04-12T11:05:06Z",
+                    "2003-04-12T12:05:06Z",
+                    "{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}")));
+    Collections.sort(expectRows, cmp);
+
+    assertEquals(expectRows.size(), gotRows.size());
+    assertInternalRowPg(gotRows, expectRows);
+  }
+
+  private static void assertInternalRowPg(
+      List<InternalRow> actualRows, List<InternalRow> expectedRows) {
+    assertEquals(expectedRows.size(), actualRows.size());
+    for (int i = 0; i < actualRows.size(); i++) {
+      // We cannot use assertEqual for the whole List, since the byte[] will be
+      // compared with the object's address.
+      GenericInternalRow actualRow = (GenericInternalRow) actualRows.get(i);
+      GenericInternalRow expectedRow = (GenericInternalRow) expectedRows.get(i);
+
+      assertThat(actualRow.getLong(0)).isEqualTo(expectedRow.getLong(0));
+      assertThat(actualRow.getUTF8String(1)).isEqualTo(expectedRow.getUTF8String(1));
+      assertThat(actualRow.getUTF8String(2)).isEqualTo(expectedRow.getUTF8String(2));
+      assertThat(actualRow.getUTF8String(3)).isEqualTo(expectedRow.getUTF8String(3));
+      assertThat(actualRow.getBoolean(4)).isEqualTo(expectedRow.getBoolean(4));
+      assertThat(actualRow.getBoolean(5)).isEqualTo(expectedRow.getBoolean(5));
+      assertThat(actualRow.getLong(6)).isEqualTo(expectedRow.getLong(6));
+      assertThat(actualRow.getLong(7)).isEqualTo(expectedRow.getLong(7));
+      assertThat(actualRow.getLong(8)).isEqualTo(expectedRow.getLong(8));
+      assertThat(actualRow.getDouble(9)).isEqualTo(expectedRow.getDouble(9));
+      assertThat(actualRow.getDouble(10)).isEqualTo(expectedRow.getDouble(10));
+      assertThat(bytesToString(actualRow.getBinary(11)))
+          .isEqualTo(
+              bytesToString(
+                  expectedRow.getUTF8String(11) == null
+                      ? null
+                      : expectedRow.getUTF8String(11).getBytes()));
+      assertThat(actualRow.getInt(12)).isEqualTo(expectedRow.getInt(12));
+      assertThat(actualRow.getDecimal(13, 38, 9)).isEqualTo(expectedRow.getDecimal(13, 38, 9));
+      assertThat(actualRow.getDecimal(14, 38, 9)).isEqualTo(expectedRow.getDecimal(14, 38, 9));
+      assertThat(actualRow.getLong(15)).isEqualTo(expectedRow.getLong(15));
+      assertThat(actualRow.getLong(16)).isEqualTo(expectedRow.getLong(16));
+      assertThat(actualRow.getUTF8String(17)).isEqualTo(expectedRow.getUTF8String(17));
+    }
+  }
+
+  private static String bytesToString(byte[] bytes) {
+    return bytes == null ? "" : new String(bytes);
   }
 }

@@ -22,6 +22,8 @@ import com.google.cloud.spanner.connection.Connection;
 import com.google.common.collect.ImmutableSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
 import org.apache.spark.sql.connector.catalog.SupportsWrite;
 import org.apache.spark.sql.connector.catalog.Table;
@@ -221,6 +223,17 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
         return DataTypes.IntegerType;
     }
 
+    Pattern pattern = Pattern.compile("\\[.*\\]");
+    Matcher matcher = pattern.matcher(spannerStrType);
+    if (matcher.find()) {
+      // Sample argument: character varying[]
+      int se = matcher.start();
+      String str = spannerStrType.substring(0, se);
+
+      DataType innerDataType = SpannerTable.ofSpannerStrTypePg(str, isNullable);
+      return DataTypes.createArrayType(innerDataType, isNullable);
+    }
+
     // character varying(MAX), character varying(10) are the correct type
     // definitions for STRING in Cloud Spanner.
     // Non-composite types like "character varying(N)" and "bytea(N)"
@@ -232,17 +245,6 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     }
     if (spannerStrType.indexOf("bytea") == 0) {
       return DataTypes.BinaryType;
-    }
-
-    if (spannerStrType.indexOf("array") == 0) {
-      // Sample argument: array<character varying(MAX)>
-      int si = spannerStrType.indexOf("<");
-      int se = spannerStrType.lastIndexOf(">");
-      String str = spannerStrType.substring(si + 1, se);
-      // At this point, str=character varying(MAX) or str=array<array<T>>
-      // array<T>
-      DataType innerDataType = SpannerTable.ofSpannerStrTypePg(str, isNullable);
-      return DataTypes.createArrayType(innerDataType, isNullable);
     }
 
     // Return NullType for non-supported fields.

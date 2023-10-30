@@ -17,6 +17,7 @@ package com.google.cloud.spark.spanner;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Statement;
@@ -91,7 +92,13 @@ public class SpannerScanner implements Batch, Scan {
     String sqlStmt = selectPrefix + " FROM " + this.spannerTable.name();
     Filter[] filters = this.getFilters();
     if (filters.length > 0) {
-      sqlStmt += " WHERE " + SparkFilterUtils.getCompiledFilter(true, Optional.empty(), filters);
+      sqlStmt +=
+          " WHERE "
+              + SparkFilterUtils.getCompiledFilter(
+                  true,
+                  Optional.empty(),
+                  batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL),
+                  filters);
     }
 
     Boolean enableDataboost = false;

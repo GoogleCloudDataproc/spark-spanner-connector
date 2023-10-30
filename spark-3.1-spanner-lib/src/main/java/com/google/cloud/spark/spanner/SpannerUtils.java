@@ -127,13 +127,11 @@ public class SpannerUtils {
 
     SpannerOptions options = builder.build();
     Spanner spanner = options.getService();
+    DatabaseId databaseId =
+        DatabaseId.of(
+            options.getProjectId(), properties.get("instanceId"), properties.get("databaseId"));
     return new BatchClientWithCloser(
-        spanner,
-        spanner.getBatchClient(
-            DatabaseId.of(
-                options.getProjectId(),
-                properties.get("instanceId"),
-                properties.get("databaseId"))));
+        spanner, spanner.getBatchClient(databaseId), spanner.getDatabaseClient(databaseId));
   }
 
   public static List<InternalRow> resultSetToSparkRow(ResultSet rs) {
@@ -152,6 +150,10 @@ public class SpannerUtils {
   }
 
   public static void toSparkDecimal(GenericInternalRow dest, java.math.BigDecimal v, int at) {
+    if (v == null) {
+      dest.update(at, null);
+      return;
+    }
     Decimal dec = asSparkDecimal(v);
     dest.setDecimal(at, dec, dec.precision());
   }
@@ -169,6 +171,13 @@ public class SpannerUtils {
 
   private static void spannerNumericToSpark(Struct src, GenericInternalRow dest, int at) {
     toSparkDecimal(dest, src.getBigDecimal(at), at);
+  }
+
+  private static void spannerNumericToSparkPg(Struct src, GenericInternalRow dest, int at) {
+    toSparkDecimal(
+        dest,
+        Double.isNaN(src.getValue(at).getFloat64()) ? null : src.getValue(at).getNumeric(),
+        at);
   }
 
   public static Long toSparkTimestamp(com.google.cloud.Timestamp ts) {
@@ -284,7 +293,7 @@ public class SpannerUtils {
           break;
 
         case PG_NUMERIC:
-          spannerNumericToSpark(spannerRow, sparkRow, i);
+          spannerNumericToSparkPg(spannerRow, sparkRow, i);
           break;
 
         case TIMESTAMP:
@@ -342,6 +351,11 @@ public class SpannerUtils {
             List<Integer> endDL = new ArrayList<>();
             value.getDateArray().forEach((ts) -> endDL.add(toSparkDate(ts)));
             sparkRow.update(i, new GenericArrayData(endDL.toArray(new Integer[0])));
+          } else if (fieldTypeName.indexOf("ARRAY<JSON<PG_JSONB") == 0) {
+            List<String> src = value.getPgJsonbArray();
+            List<UTF8String> dest = new ArrayList<UTF8String>(src.size());
+            src.forEach((s) -> dest.add(UTF8String.fromString(s)));
+            sparkRow.update(i, new GenericArrayData(dest.toArray(new UTF8String[0])));
           } else if (fieldTypeName.indexOf("ARRAY<JSON") == 0) {
             List<String> src = value.getJsonArray();
             List<UTF8String> dest = new ArrayList<UTF8String>(src.size());
@@ -360,7 +374,8 @@ public class SpannerUtils {
             List<InternalRow> dest = new ArrayList<>();
             value.getStructArray().forEach((st) -> dest.add(spannerStructToInternalRow(st)));
             sparkRow.update(i, new GenericArrayData(dest.toArray(new InternalRow[0])));
-          } else if (fieldTypeName.indexOf("ARRAY<NUMERIC>") == 0) {
+          } else if (fieldTypeName.indexOf("ARRAY<NUMERIC>") == 0
+              || fieldTypeName.indexOf("ARRAY<NUMERIC<PG_NUMERIC>>") == 0) {
             List<Decimal> dest = new ArrayList<>();
             value.getNumericArray().forEach((v) -> dest.add(asSparkDecimal(v)));
             sparkRow.update(i, new GenericArrayData(dest.toArray(new Decimal[0])));

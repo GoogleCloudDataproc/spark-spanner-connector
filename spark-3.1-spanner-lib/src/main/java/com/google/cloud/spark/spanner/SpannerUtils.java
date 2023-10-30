@@ -145,6 +145,10 @@ public class SpannerUtils {
   }
 
   public static void toSparkDecimal(GenericInternalRow dest, java.math.BigDecimal v, int at) {
+    if (v == null) {
+      dest.update(at, null);
+      return;
+    }
     Decimal dec = asSparkDecimal(v);
     dest.setDecimal(at, dec, dec.precision());
   }
@@ -165,7 +169,10 @@ public class SpannerUtils {
   }
 
   private static void spannerNumericToSparkPg(Struct src, GenericInternalRow dest, int at) {
-    toSparkDecimal(dest, src.getValue(at).getNumeric(), at);
+    toSparkDecimal(
+        dest,
+        Double.isNaN(src.getValue(at).getFloat64()) ? null : src.getValue(at).getNumeric(),
+        at);
   }
 
   public static Long toSparkTimestamp(com.google.cloud.Timestamp ts) {

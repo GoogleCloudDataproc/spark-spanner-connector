@@ -19,6 +19,9 @@ package com.google.cloud.spark.spanner;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.MessageFormat;
@@ -29,11 +32,15 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import org.apache.spark.sql.sources.*;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.collection.mutable.WrappedArray;
 
 @RunWith(Parameterized.class)
 public class SparkFilterUtilsTest {
@@ -151,6 +158,21 @@ public class SparkFilterUtilsTest {
   }
 
   @Test
+  public void testArrayFilters() {
+    List<String> testString = ImmutableList.of("test");
+
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false,
+                EqualTo.apply("array", WrappedArray.make(testString.toArray(new String[0]))),
+                ImmutableMap.of(
+                    "array",
+                    new StructField(
+                        "array", DataTypes.createArrayType(DataTypes.StringType), true, null))))
+        .isEqualTo(false);
+  }
+
+  @Test
   public void testNumericAndNullFilters() {
 
     assertThat(SparkFilterUtils.compileFilter(EqualTo.apply("foo", 1), isPostgreSql))
@@ -196,6 +218,31 @@ public class SparkFilterUtilsTest {
                 isPostgreSql))
         .isEqualTo(
             parseQuotedSplitter("{0}datefield{0} IN (DATE ''2020-09-01'', DATE ''2020-11-03'')"));
+  }
+
+  @Test
+  public void testBytesFilters() throws ParseException {
+    if (isPostgreSql) {
+      assertThat(
+              SparkFilterUtils.compileFilter(
+                  In.apply("datefield", new Object[] {"beefdead".getBytes(StandardCharsets.UTF_8)}),
+                  isPostgreSql))
+          .isEqualTo(parseQuotedSplitter("{0}datefield{0} IN (''beefdead'')"));
+    } else {
+      assertThat(
+              SparkFilterUtils.compileFilter(
+                  In.apply("datefield", new Object[] {"beefdead".getBytes(StandardCharsets.UTF_8)}),
+                  isPostgreSql))
+          .isEqualTo(parseQuotedSplitter("{0}datefield{0} IN (b''beefdead'')"));
+    }
+  }
+
+  @Test
+  public void testDecimalFilters() throws ParseException {
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                In.apply("datefield", new Object[] {new BigDecimal("1e20")}), isPostgreSql))
+        .isEqualTo(parseQuotedSplitter("{0}datefield{0} IN (NUMERIC ''1E+20'')"));
   }
 
   @Test

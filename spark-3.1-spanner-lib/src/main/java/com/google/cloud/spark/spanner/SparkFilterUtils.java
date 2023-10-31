@@ -17,6 +17,8 @@ package com.google.cloud.spark.spanner;
 import static java.lang.String.format;
 
 import com.google.common.collect.ImmutableList;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -200,12 +202,13 @@ public class SparkFilterUtils {
     if (filter instanceof EqualTo) {
       EqualTo equalTo = (EqualTo) filter;
       return format(
-          "%s = %s", quote(equalTo.attribute(), isPostgreSql), compileValue(equalTo.value()));
+          "%s = %s",
+          quote(equalTo.attribute(), isPostgreSql), compileValue(equalTo.value(), isPostgreSql));
     }
     if (filter instanceof EqualNullSafe) {
       EqualNullSafe equalNullSafe = (EqualNullSafe) filter;
       String left = quote(equalNullSafe.attribute(), isPostgreSql);
-      String right = compileValue(equalNullSafe.value());
+      String right = compileValue(equalNullSafe.value(), isPostgreSql);
       return format(
           "%1$s IS NULL AND %2$s IS NULL OR %1$s IS NOT NULL AND %2$s IS NOT NULL AND %1$s = %2$s",
           left, right);
@@ -214,32 +217,35 @@ public class SparkFilterUtils {
       GreaterThan greaterThan = (GreaterThan) filter;
       return format(
           "%s > %s",
-          quote(greaterThan.attribute(), isPostgreSql), compileValue(greaterThan.value()));
+          quote(greaterThan.attribute(), isPostgreSql),
+          compileValue(greaterThan.value(), isPostgreSql));
     }
     if (filter instanceof GreaterThanOrEqual) {
       GreaterThanOrEqual greaterThanOrEqual = (GreaterThanOrEqual) filter;
       return format(
           "%s >= %s",
           quote(greaterThanOrEqual.attribute(), isPostgreSql),
-          compileValue(greaterThanOrEqual.value()));
+          compileValue(greaterThanOrEqual.value(), isPostgreSql));
     }
     if (filter instanceof LessThan) {
       LessThan lessThan = (LessThan) filter;
       return format(
-          "%s < %s", quote(lessThan.attribute(), isPostgreSql), compileValue(lessThan.value()));
+          "%s < %s",
+          quote(lessThan.attribute(), isPostgreSql), compileValue(lessThan.value(), isPostgreSql));
     }
     if (filter instanceof LessThanOrEqual) {
       LessThanOrEqual lessThanOrEqual = (LessThanOrEqual) filter;
       return format(
           "%s <= %s",
-          quote(lessThanOrEqual.attribute(), isPostgreSql), compileValue(lessThanOrEqual.value()));
+          quote(lessThanOrEqual.attribute(), isPostgreSql),
+          compileValue(lessThanOrEqual.value(), isPostgreSql));
     }
     if (filter instanceof In) {
       In in = (In) filter;
       return format(
           "%s IN %s",
           quote(in.attribute(), isPostgreSql),
-          compileValue(in.values(), /*arrayStart=*/ '(', /*arrayEnd=*/ ')'));
+          compileValue(in.values(), /*arrayStart=*/ '(', /*arrayEnd=*/ ')', isPostgreSql));
     }
     if (filter instanceof IsNull) {
       IsNull isNull = (IsNull) filter;
@@ -294,12 +300,12 @@ public class SparkFilterUtils {
   }
 
   /** Converts value to SQL expression. */
-  static String compileValue(Object value) {
-    return compileValue(value, /*arrayStart=*/ '[', /*arrayEnd=*/ ']');
+  static String compileValue(Object value, boolean isPostgreSql) {
+    return compileValue(value, /*arrayStart=*/ '[', /*arrayEnd=*/ ']', isPostgreSql);
   }
 
   /** Converts value to SQL expression customizing array start/end values. */
-  static String compileValue(Object value, char arrayStart, char arrayEnd) {
+  static String compileValue(Object value, char arrayStart, char arrayEnd, boolean isPostgreSql) {
     if (value == null) {
       return null;
     }
@@ -312,9 +318,17 @@ public class SparkFilterUtils {
     if (value instanceof Timestamp || value instanceof Instant) {
       return "TIMESTAMP '" + value + "'";
     }
+    if (value instanceof byte[] || value instanceof Byte[]) {
+      return isPostgreSql
+          ? "'" + escape(new String((byte[]) value, StandardCharsets.UTF_8)) + "'"
+          : "b'" + escape(new String((byte[]) value, StandardCharsets.UTF_8)) + "'";
+    }
+    if (value instanceof BigDecimal) {
+      return "NUMERIC '" + value + "'";
+    }
     if (value instanceof Object[]) {
       return Arrays.stream((Object[]) value)
-          .map(SparkFilterUtils::compileValue)
+          .map(v -> SparkFilterUtils.compileValue(v, isPostgreSql))
           .collect(
               Collectors.joining(
                   ", ", Character.toString(arrayStart), Character.toString(arrayEnd)));

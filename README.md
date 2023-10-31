@@ -82,7 +82,7 @@ enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner
 
 Here are the mappings for supported Spanner data types.
 
-Spanner Data Type|Spark Data Type|Notes
+Spanner GoogleSql Type|Spark Data Type|Notes
 ---|---|---
 ARRAY    |ArrayType    | Nested ARRAY is not supported, e.g. ARRAY<ARRAY<BOOL>>.
 BOOL     |BooleanType  |
@@ -105,8 +105,28 @@ df.select("word")
   .collect()
 ```
 
-filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`.
+filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`. Note filters containing ArrayType column is not pushed down. 
 
 ### PostgreSQL
 
-The connector doesn't support Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-dialect-support) yet. It's in progress.
+The connector supports the Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-components). 
+
+#### Data types
+
+Spanner PostgreSql Type|Spark Data Type|Notes
+---|---|---
+array                                |ArrayType    | Nested array is not supported.
+bool / boolean                       |BooleanType  |
+bytea                                |BinaryType   |
+date                                 |DateType     | The date range is [1700-01-01, 9999-12-31].
+double precision / float8            |DoubleType   |
+int8 / bigint                        |LongType     | The supported integer range is [-9,223,372,036,854,775,808, 9,223,372,036,854,775,807]
+jsonb                                |StringType   | Spark has no JSON type. The values are read as String.
+numeric / decimal                    |DecimalType  | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.
+varchar / text / character varying   |StringType   |
+timestamptz/timestamp with time zone |TimestampType| Only microseconds will be converted to Spark timestamp type. The range of timestamp is  [0001-01-01 00:00:00, 9999-12-31 23:59:59.999999]
+
+#### Filter Pushdown
+
+Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. Filters containing array column will not be pushed down. 
+

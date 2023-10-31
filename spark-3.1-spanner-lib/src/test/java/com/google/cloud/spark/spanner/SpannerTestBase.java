@@ -269,8 +269,8 @@ class SpannerTestBase {
   }
 
   InternalRow makeATableInternalRow(
-      long A, String B, byte[] C, ZonedDateTime D, double E, String[] F) {
-    GenericInternalRow row = new GenericInternalRow(6);
+      long A, String B, byte[] C, ZonedDateTime D, double E, String[] F, String G) {
+    GenericInternalRow row = new GenericInternalRow(7);
     row.setLong(0, ((Long) A));
     row.update(1, UTF8String.fromString(B));
     if (C == null) {
@@ -290,6 +290,7 @@ class SpannerTestBase {
       }
       row.update(5, fDest);
     }
+    row.update(6, G == null ? null : UTF8String.fromString(G));
     return row;
   }
 

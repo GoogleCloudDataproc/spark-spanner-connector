@@ -372,12 +372,13 @@ public class SparkFilterUtils {
     return isJson(fields, fieldName, "jsonb");
   }
 
-  static boolean isJson(Map<String, StructField> fields, String fieldName, String jsonString) {
+  static boolean isJson(
+      Map<String, StructField> fields, String fieldName, String fieldLikeMetadataType) {
     if (fields.containsKey(fieldName)) {
       StructField field = fields.get(fieldName);
       return field.dataType() == DataTypes.StringType
           && field.metadata() != null
-          && jsonString.equals(field.metadata().getString(SpannerUtils.COLUMN_TYPE));
+          && fieldLikeMetadataType.equals(field.metadata().getString(SpannerUtils.COLUMN_TYPE));
     }
     return false;
   }

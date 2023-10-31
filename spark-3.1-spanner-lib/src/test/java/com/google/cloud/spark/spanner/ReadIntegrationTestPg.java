@@ -50,6 +50,40 @@ public class ReadIntegrationTestPg extends SparkSpannerIntegrationTestBase {
   }
 
   @Test
+  public void testJsonFilter() {
+    Dataset<Row> df = readFromTable("integration_composite_table");
+    Row row = df.filter("jsoncol like '%tags%'").first();
+    String results = toStringFromCompositeTable(row);
+
+    assertThat(results)
+        .isEqualTo(
+            "2 charvcol textcol varcharcol true false 1 -1 0 1.0E-8 1.0E-8 beefdead 1999-01-08 123456.000000000 900000000000000000000000.000000000 2003-04-12 11:05:06.0 2003-04-12 12:05:06.0 {\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}");
+
+    row = df.filter("jsoncol is not null").first();
+    results = toStringFromCompositeTable(row);
+    assertThat(results)
+        .isEqualTo(
+            "2 charvcol textcol varcharcol true false 1 -1 0 1.0E-8 1.0E-8 beefdead 1999-01-08 123456.000000000 900000000000000000000000.000000000 2003-04-12 11:05:06.0 2003-04-12 12:05:06.0 {\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}");
+
+    row =
+        df.filter("jsoncol = '{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}'")
+            .first();
+    results = toStringFromCompositeTable(row);
+    assertThat(results)
+        .isEqualTo(
+            "2 charvcol textcol varcharcol true false 1 -1 0 1.0E-8 1.0E-8 beefdead 1999-01-08 123456.000000000 900000000000000000000000.000000000 2003-04-12 11:05:06.0 2003-04-12 12:05:06.0 {\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}");
+
+    row =
+        df.filter(
+                "jsoncol in ('{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}')")
+            .first();
+    results = toStringFromCompositeTable(row);
+    assertThat(results)
+        .isEqualTo(
+            "2 charvcol textcol varcharcol true false 1 -1 0 1.0E-8 1.0E-8 beefdead 1999-01-08 123456.000000000 900000000000000000000000.000000000 2003-04-12 11:05:06.0 2003-04-12 12:05:06.0 {\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}");
+  }
+
+  @Test
   public void testReadNullFromCompositeTable() {
     Dataset<Row> df = readFromTable("integration_composite_table");
     Row row = df.filter("id = 1").first();

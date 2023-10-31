@@ -56,7 +56,8 @@ public class SpannerScanBuilder
 
   @Override
   public Scan build() {
-    this.scanner = new SpannerScanner(this.opts.asCaseSensitiveMap(), this.spannerTable);
+    this.scanner =
+        new SpannerScanner(this.opts.asCaseSensitiveMap(), this.spannerTable, this.fields);
     this.scanner.setFilters(this.pushedFilters());
     return this.scanner;
   }

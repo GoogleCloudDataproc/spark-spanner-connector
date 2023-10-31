@@ -64,6 +64,7 @@ public class SpannerUtils {
           .setMaxAttempts(100)
           .build();
   private static final ObjectMapper jsonMapper = new ObjectMapper();
+  public static final String COLUMN_TYPE = "col_type";
 
   public static Long SECOND_TO_DAYS = 60 * 60 * 24L;
 

@@ -33,9 +33,11 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,6 +48,7 @@ import scala.collection.mutable.WrappedArray;
 public class SparkFilterUtilsTest {
   private boolean pushAllFilters = true;
   private boolean isPostgreSql;
+  private static final Map<String, StructField> EMPTY_FIELDS = ImmutableMap.of();
 
   private String getQuotedSplitter() {
     return isPostgreSql ? "\"" : "`";
@@ -133,27 +136,42 @@ public class SparkFilterUtilsTest {
       String resultWithFilters,
       Optional<String> configFilter,
       Filter... filters) {
-    String result1 = SparkFilterUtils.getCompiledFilter(pushAllFilters, configFilter, isPostgreSql);
+    String result1 =
+        SparkFilterUtils.getCompiledFilter(
+            pushAllFilters, configFilter, isPostgreSql, EMPTY_FIELDS);
     assertThat(result1).isEqualTo(resultWithoutFilters);
     String result2 =
-        SparkFilterUtils.getCompiledFilter(pushAllFilters, configFilter, isPostgreSql, filters);
+        SparkFilterUtils.getCompiledFilter(
+            pushAllFilters, configFilter, isPostgreSql, EMPTY_FIELDS, filters);
     assertThat(result2).isEqualTo(resultWithFilters);
   }
 
   @Test
   public void testStringFilters() {
-    assertThat(SparkFilterUtils.compileFilter(StringStartsWith.apply("foo", "bar"), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                StringStartsWith.apply("foo", "bar"), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} LIKE ''bar%''"));
-    assertThat(SparkFilterUtils.compileFilter(StringEndsWith.apply("foo", "bar"), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                StringEndsWith.apply("foo", "bar"), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} LIKE ''%bar''"));
-    assertThat(SparkFilterUtils.compileFilter(StringContains.apply("foo", "bar"), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                StringContains.apply("foo", "bar"), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} LIKE ''%bar%''"));
 
-    assertThat(SparkFilterUtils.compileFilter(StringStartsWith.apply("foo", "b'ar"), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                StringStartsWith.apply("foo", "b'ar"), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} LIKE ''b\\''ar%''"));
-    assertThat(SparkFilterUtils.compileFilter(StringEndsWith.apply("foo", "b'ar"), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                StringEndsWith.apply("foo", "b'ar"), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} LIKE ''%b\\''ar''"));
-    assertThat(SparkFilterUtils.compileFilter(StringContains.apply("foo", "b'ar"), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                StringContains.apply("foo", "b'ar"), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} LIKE ''%b\\''ar%''"));
   }
 
@@ -175,36 +193,46 @@ public class SparkFilterUtilsTest {
   @Test
   public void testNumericAndNullFilters() {
 
-    assertThat(SparkFilterUtils.compileFilter(EqualTo.apply("foo", 1), isPostgreSql))
+    assertThat(SparkFilterUtils.compileFilter(EqualTo.apply("foo", 1), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} = 1"));
-    assertThat(SparkFilterUtils.compileFilter(EqualNullSafe.apply("foo", 1), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                EqualNullSafe.apply("foo", 1), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(
             parseQuotedSplitter(
                 "{0}foo{0} IS NULL AND 1 IS NULL OR {0}foo{0} IS NOT NULL AND 1 IS NOT NULL AND {0}foo{0} = 1"));
-    assertThat(SparkFilterUtils.compileFilter(GreaterThan.apply("foo", 2), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(GreaterThan.apply("foo", 2), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} > 2"));
-    assertThat(SparkFilterUtils.compileFilter(GreaterThanOrEqual.apply("foo", 3), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                GreaterThanOrEqual.apply("foo", 3), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} >= 3"));
-    assertThat(SparkFilterUtils.compileFilter(LessThan.apply("foo", 4), isPostgreSql))
+    assertThat(SparkFilterUtils.compileFilter(LessThan.apply("foo", 4), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} < 4"));
-    assertThat(SparkFilterUtils.compileFilter(LessThanOrEqual.apply("foo", 5), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                LessThanOrEqual.apply("foo", 5), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} <= 5"));
     assertThat(
-            SparkFilterUtils.compileFilter(In.apply("foo", new Object[] {6, 7, 8}), isPostgreSql))
+            SparkFilterUtils.compileFilter(
+                In.apply("foo", new Object[] {6, 7, 8}), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} IN (6, 7, 8)"));
-    assertThat(SparkFilterUtils.compileFilter(IsNull.apply("foo"), isPostgreSql))
+    assertThat(SparkFilterUtils.compileFilter(IsNull.apply("foo"), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} IS NULL"));
-    assertThat(SparkFilterUtils.compileFilter(IsNotNull.apply("foo"), isPostgreSql))
+    assertThat(SparkFilterUtils.compileFilter(IsNotNull.apply("foo"), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}foo{0} IS NOT NULL"));
     assertThat(
             SparkFilterUtils.compileFilter(
-                And.apply(IsNull.apply("foo"), IsNotNull.apply("bar")), isPostgreSql))
+                And.apply(IsNull.apply("foo"), IsNotNull.apply("bar")), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("(({0}foo{0} IS NULL) AND ({0}bar{0} IS NOT NULL))"));
     assertThat(
             SparkFilterUtils.compileFilter(
-                Or.apply(IsNull.apply("foo"), IsNotNull.apply("bar")), isPostgreSql))
+                Or.apply(IsNull.apply("foo"), IsNotNull.apply("bar")), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("(({0}foo{0} IS NULL) OR ({0}bar{0} IS NOT NULL))"));
-    assertThat(SparkFilterUtils.compileFilter(Not.apply(IsNull.apply("foo")), isPostgreSql))
+    assertThat(
+            SparkFilterUtils.compileFilter(
+                Not.apply(IsNull.apply("foo")), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("(NOT ({0}foo{0} IS NULL))"));
   }
 
@@ -215,7 +243,8 @@ public class SparkFilterUtilsTest {
                 In.apply(
                     "datefield",
                     new Object[] {Date.valueOf("2020-09-01"), Date.valueOf("2020-11-03")}),
-                isPostgreSql))
+                isPostgreSql,
+                EMPTY_FIELDS))
         .isEqualTo(
             parseQuotedSplitter("{0}datefield{0} IN (DATE ''2020-09-01'', DATE ''2020-11-03'')"));
   }
@@ -226,22 +255,61 @@ public class SparkFilterUtilsTest {
       assertThat(
               SparkFilterUtils.compileFilter(
                   In.apply("datefield", new Object[] {"beefdead".getBytes(StandardCharsets.UTF_8)}),
-                  isPostgreSql))
+                  isPostgreSql,
+                  EMPTY_FIELDS))
           .isEqualTo(parseQuotedSplitter("{0}datefield{0} IN (''beefdead'')"));
     } else {
       assertThat(
               SparkFilterUtils.compileFilter(
                   In.apply("datefield", new Object[] {"beefdead".getBytes(StandardCharsets.UTF_8)}),
-                  isPostgreSql))
+                  isPostgreSql,
+                  EMPTY_FIELDS))
           .isEqualTo(parseQuotedSplitter("{0}datefield{0} IN (b''beefdead'')"));
     }
+  }
+
+  @Test
+  public void testJsonFilters() {
+    if (isPostgreSql) {
+      assertThat(
+              SparkFilterUtils.compileFilter(
+                  In.apply(
+                      "field",
+                      new Object[] {
+                        "{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}"
+                      }),
+                  isPostgreSql,
+                  ImmutableMap.of("field", structFieldWithJson())))
+          .isEqualTo(
+              "CAST(\"field\" AS VARCHAR) IN ('{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}')");
+    } else {
+      assertThat(
+              SparkFilterUtils.compileFilter(
+                  In.apply(
+                      "field",
+                      new Object[] {
+                        "{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}"
+                      }),
+                  isPostgreSql,
+                  ImmutableMap.of("field", structFieldWithJson())))
+          .isEqualTo(
+              "TO_JSON_STRING(`field`) IN ('{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}')");
+    }
+  }
+
+  private StructField structFieldWithJson() {
+    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
+    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, isPostgreSql ? "jsonb" : "json");
+    return new StructField("field", DataTypes.StringType, true, jsonMetaBuilder.build());
   }
 
   @Test
   public void testDecimalFilters() throws ParseException {
     assertThat(
             SparkFilterUtils.compileFilter(
-                In.apply("datefield", new Object[] {new BigDecimal("1e20")}), isPostgreSql))
+                In.apply("datefield", new Object[] {new BigDecimal("1e20")}),
+                isPostgreSql,
+                EMPTY_FIELDS))
         .isEqualTo(parseQuotedSplitter("{0}datefield{0} IN (NUMERIC ''1E+20'')"));
   }
 
@@ -252,7 +320,8 @@ public class SparkFilterUtilsTest {
                 In.apply(
                     "datefield",
                     new Object[] {LocalDate.of(2020, 9, 1), LocalDate.of(2020, 11, 3)}),
-                isPostgreSql))
+                isPostgreSql,
+                EMPTY_FIELDS))
         .isEqualTo(
             parseQuotedSplitter("{0}datefield{0} IN (DATE ''2020-09-01'', DATE ''2020-11-03'')"));
   }
@@ -263,7 +332,7 @@ public class SparkFilterUtilsTest {
     Timestamp ts2 = Timestamp.valueOf("2020-01-25 02:10:10");
     assertThat(
             SparkFilterUtils.compileFilter(
-                In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql))
+                In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(
             parseQuotedSplitter(
                 "{0}tsfield{0} IN (TIMESTAMP ''2008-12-25 15:30:00.0'', TIMESTAMP ''2020-01-25 02:10:10.0'')"));
@@ -275,7 +344,7 @@ public class SparkFilterUtilsTest {
     Instant ts2 = LocalDateTime.of(2020, 1, 25, 2, 10, 10).toInstant(ZoneOffset.UTC);
     assertThat(
             SparkFilterUtils.compileFilter(
-                In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql))
+                In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
         .isEqualTo(
             parseQuotedSplitter(
                 "{0}tsfield{0} IN (TIMESTAMP ''2008-12-25T15:30:00Z'', TIMESTAMP ''2020-01-25T02:10:10Z'')"));

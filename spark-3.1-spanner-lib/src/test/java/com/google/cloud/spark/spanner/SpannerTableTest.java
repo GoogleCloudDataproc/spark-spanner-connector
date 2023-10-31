@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.Map;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
@@ -33,6 +34,8 @@ public class SpannerTableTest extends SpannerTestBase {
     Map<String, String> props = this.connectionProperties();
     SpannerTable spannerTable = new SpannerTable(props);
     StructType actualSchema = spannerTable.schema();
+    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
+    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
     StructType expectSchema =
         new StructType(
             Arrays.asList(
@@ -42,7 +45,8 @@ public class SpannerTableTest extends SpannerTestBase {
                     new StructField("D", DataTypes.TimestampType, true, null),
                     new StructField("E", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField(
-                        "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null))
+                        "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
+                    new StructField("G", DataTypes.StringType, true, jsonMetaBuilder.build()))
                 .toArray(new StructField[0]));
 
     // Object.equals fails for StructType with fields so we'll
@@ -65,6 +69,8 @@ public class SpannerTableTest extends SpannerTestBase {
     Map<String, String> props = this.connectionProperties(/* usePostgreSql= */ true);
     SpannerTable spannerTable = new SpannerTable(props);
     StructType actualSchema = spannerTable.schema();
+    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
+    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
     StructType expectSchema =
         new StructType(
             Arrays.asList(
@@ -85,7 +91,7 @@ public class SpannerTableTest extends SpannerTestBase {
                     new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
                     new StructField("timestampcol", DataTypes.TimestampType, true, null),
-                    new StructField("jsoncol", DataTypes.StringType, true, null))
+                    new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()))
                 .toArray(new StructField[0]));
 
     // Object.equals fails for StructType with fields so we'll

@@ -33,6 +33,7 @@ import org.apache.spark.sql.connector.write.LogicalWriteInfo;
 import org.apache.spark.sql.connector.write.WriteBuilder;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
@@ -99,14 +100,32 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
       String columnName = row.getString(0);
       // Integer ordinalPosition = column.getInt(1);
       boolean isNullable = row.getBoolean(2);
+      String colType = row.getString(3);
       DataType catalogType =
           isPostgreSql
-              ? SpannerTable.ofSpannerStrTypePg(row.getString(3), isNullable)
-              : SpannerTable.ofSpannerStrType(row.getString(3), isNullable);
-      schema = schema.add(columnName, catalogType, isNullable, "" /* No comments for the text */);
+              ? SpannerTable.ofSpannerStrTypePg(colType, isNullable)
+              : SpannerTable.ofSpannerStrType(colType, isNullable);
+      MetadataBuilder metadataBuilder = new MetadataBuilder();
+      if (isJson(colType)) {
+        metadataBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
+        schema = schema.add(columnName, catalogType, isNullable, metadataBuilder.build());
+      } else if (isJsonb(colType)) {
+        metadataBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
+        schema = schema.add(columnName, catalogType, isNullable, metadataBuilder.build());
+      } else {
+        schema = schema.add(columnName, catalogType, isNullable, "" /* No comments for the text */);
+      }
     }
     this.tableSchema = schema;
     return schema;
+  }
+
+  public static boolean isJson(String spannerStrType) {
+    return "JSON".equals(spannerStrType.trim().toUpperCase());
+  }
+
+  public static boolean isJsonb(String spannerStrType) {
+    return "jsonb".equals(spannerStrType.trim().toLowerCase());
   }
 
   public static DataType ofSpannerStrType(String spannerStrType, boolean isNullable) {

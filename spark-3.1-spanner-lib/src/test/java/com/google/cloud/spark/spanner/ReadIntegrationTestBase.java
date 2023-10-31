@@ -69,6 +69,32 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
   }
 
   @Test
+  public void testReadFromCompositeTableJsonFilter() {
+    Dataset<Row> df = readFromTable("compositeTable");
+    assertThat(df.select("K").filter("K = '{\"a\":1,\"b\":2}'").count()).isEqualTo(1);
+    Row row = df.select("K").filter("K = '{\"a\":1,\"b\":2}'").first();
+    String result = String.valueOf(row.getString(0));
+    assertThat(result).isEqualTo("{\"a\":1,\"b\":2}");
+
+    assertThat(df.select("K").filter("K like '{\"a\":1,\"b\":2}'").count()).isEqualTo(1);
+    row = df.select("K").filter("K = '{\"a\":1,\"b\":2}'").first();
+    result = String.valueOf(row.getString(0));
+    assertThat(result).isEqualTo("{\"a\":1,\"b\":2}");
+
+    assertThat(df.select("K").filter("K is not null").count()).isEqualTo(2);
+
+    assertThat(df.select("K").filter("K like '%a%'").count()).isEqualTo(1);
+    row = df.select("K").filter("K = '{\"a\":1,\"b\":2}'").first();
+    result = String.valueOf(row.getString(0));
+    assertThat(result).isEqualTo("{\"a\":1,\"b\":2}");
+
+    assertThat(df.select("K").filter("K in ('{\"a\":1,\"b\":2}')").count()).isEqualTo(1);
+    row = df.select("K").filter("K = '{\"a\":1,\"b\":2}'").first();
+    result = String.valueOf(row.getString(0));
+    assertThat(result).isEqualTo("{\"a\":1,\"b\":2}");
+  }
+
+  @Test
   public void testReadFromCompositeTable() {
     Dataset<Row> df = readFromTable("compositeTable");
     long totalRows = df.count();

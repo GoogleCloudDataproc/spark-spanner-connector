@@ -48,9 +48,9 @@ public class SpannerScanner implements Batch, Scan {
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
   private final Timestamp INIT_TIME = Timestamp.now();
 
-  public SpannerScanner(Map<String, String> opts) {
+  public SpannerScanner(Map<String, String> opts, SpannerTable spannerTable) {
     this.opts = opts;
-    this.spannerTable = new SpannerTable(opts);
+    this.spannerTable = spannerTable;
   }
 
   @Override

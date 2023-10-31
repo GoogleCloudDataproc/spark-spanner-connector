@@ -378,6 +378,7 @@ public class SparkFilterUtils {
       StructField field = fields.get(fieldName);
       return field.dataType() == DataTypes.StringType
           && field.metadata() != null
+          && field.metadata().contains(SpannerUtils.COLUMN_TYPE)
           && fieldLikeMetadataType.equals(field.metadata().getString(SpannerUtils.COLUMN_TYPE));
     }
     return false;

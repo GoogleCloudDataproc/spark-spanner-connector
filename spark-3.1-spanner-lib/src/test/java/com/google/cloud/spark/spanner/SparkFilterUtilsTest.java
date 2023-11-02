@@ -328,26 +328,48 @@ public class SparkFilterUtilsTest {
 
   @Test
   public void testTimestampFilters() throws ParseException {
-    Timestamp ts1 = Timestamp.valueOf("2008-12-25 15:30:00");
-    Timestamp ts2 = Timestamp.valueOf("2020-01-25 02:10:10");
-    assertThat(
-            SparkFilterUtils.compileFilter(
-                In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
-        .isEqualTo(
-            parseQuotedSplitter(
-                "{0}tsfield{0} IN (TIMESTAMP ''2008-12-25 15:30:00.0'', TIMESTAMP ''2020-01-25 02:10:10.0'')"));
+    if (isPostgreSql) {
+      Timestamp ts1 = Timestamp.valueOf("2008-12-25 15:30:00");
+      Timestamp ts2 = Timestamp.valueOf("2020-01-25 02:10:10");
+      assertThat(
+              SparkFilterUtils.compileFilter(
+                  In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
+          .isEqualTo(
+              parseQuotedSplitter(
+                  "{0}tsfield{0} IN (''2008-12-25 15:30:00.0-0'', ''2020-01-25 02:10:10.0-0'')"));
+    } else {
+      Timestamp ts1 = Timestamp.valueOf("2008-12-25 15:30:00");
+      Timestamp ts2 = Timestamp.valueOf("2020-01-25 02:10:10");
+      assertThat(
+              SparkFilterUtils.compileFilter(
+                  In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
+          .isEqualTo(
+              parseQuotedSplitter(
+                  "{0}tsfield{0} IN (TIMESTAMP ''2008-12-25 15:30:00.0'', TIMESTAMP ''2020-01-25 02:10:10.0'')"));
+    }
   }
 
   @Test
   public void testTimestampFilters_java8Time() {
-    Instant ts1 = LocalDateTime.of(2008, 12, 25, 15, 30, 0).toInstant(ZoneOffset.UTC);
-    Instant ts2 = LocalDateTime.of(2020, 1, 25, 2, 10, 10).toInstant(ZoneOffset.UTC);
-    assertThat(
-            SparkFilterUtils.compileFilter(
-                In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
-        .isEqualTo(
-            parseQuotedSplitter(
-                "{0}tsfield{0} IN (TIMESTAMP ''2008-12-25T15:30:00Z'', TIMESTAMP ''2020-01-25T02:10:10Z'')"));
+    if (isPostgreSql) {
+      Instant ts1 = LocalDateTime.of(2008, 12, 25, 15, 30, 0).toInstant(ZoneOffset.UTC);
+      Instant ts2 = LocalDateTime.of(2020, 1, 25, 2, 10, 10).toInstant(ZoneOffset.UTC);
+      assertThat(
+              SparkFilterUtils.compileFilter(
+                  In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
+          .isEqualTo(
+              parseQuotedSplitter(
+                  "{0}tsfield{0} IN (''2008-12-25T15:30:00Z'', ''2020-01-25T02:10:10Z'')"));
+    } else {
+      Instant ts1 = LocalDateTime.of(2008, 12, 25, 15, 30, 0).toInstant(ZoneOffset.UTC);
+      Instant ts2 = LocalDateTime.of(2020, 1, 25, 2, 10, 10).toInstant(ZoneOffset.UTC);
+      assertThat(
+              SparkFilterUtils.compileFilter(
+                  In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
+          .isEqualTo(
+              parseQuotedSplitter(
+                  "{0}tsfield{0} IN (TIMESTAMP ''2008-12-25T15:30:00Z'', TIMESTAMP ''2020-01-25T02:10:10Z'')"));
+    }
   }
 
   @Test

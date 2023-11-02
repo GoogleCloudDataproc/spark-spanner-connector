@@ -166,7 +166,16 @@ public class SpannerUtils {
     // TODO: Deal with the precision truncation since Cloud Spanner's precision
     // has (precision=38, scale=9) while Apache Spark has (precision=N, scale=M)
     Decimal dec = new Decimal();
-    dec.set(new scala.math.BigDecimal(v), 38, 9);
+    try {
+      dec.set(new scala.math.BigDecimal(v), 38, 9);
+    } catch (ArithmeticException e) {
+      if (e.getMessage().contains("exceeds max precision")) {
+        throw new SpannerConnectorException(
+            SpannerErrorCode.DECIMAL_OUT_OF_RANGE,
+            "The spannner DB may contain Decimal type that is out of scope:" + e.getMessage());
+      }
+      throw e;
+    }
     return dec;
   }
 

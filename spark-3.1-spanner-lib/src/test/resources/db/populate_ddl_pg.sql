@@ -42,6 +42,12 @@ CREATE TABLE integration_composite_table (
   PRIMARY KEY(id)
 );
 
+CREATE TABLE numeric_table (
+  id int NOT NULL,
+  numericCol numeric,
+  PRIMARY KEY(id)
+);
+
 CREATE TABLE array_table (
   id int NOT NULL,
   charvArray character varying(1024)[],

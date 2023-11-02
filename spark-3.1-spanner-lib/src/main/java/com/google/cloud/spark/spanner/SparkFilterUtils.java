@@ -326,7 +326,11 @@ public class SparkFilterUtils {
     if (value instanceof Date || value instanceof LocalDate) {
       return "DATE '" + value + "'";
     }
-    if (value instanceof Timestamp || value instanceof Instant) {
+    if (isPostgreSql && value instanceof Timestamp) {
+      return "'" + value + "-0'";
+    } else if (isPostgreSql && value instanceof Instant) {
+      return "'" + value + "'";
+    } else if (value instanceof Timestamp || value instanceof Instant) {
       return "TIMESTAMP '" + value + "'";
     }
     if (value instanceof byte[] || value instanceof Byte[]) {
@@ -336,6 +340,9 @@ public class SparkFilterUtils {
     }
     if (value instanceof BigDecimal) {
       return "NUMERIC '" + value + "'";
+    }
+    if (isPostgreSql && value instanceof Double) {
+      return "'" + value + "'";
     }
     if (value instanceof Object[]) {
       return Arrays.stream((Object[]) value)

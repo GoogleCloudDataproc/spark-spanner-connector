@@ -191,6 +191,26 @@ public class SparkFilterUtilsTest {
   }
 
   @Test
+  public void postgresqlShouldSkipJsonbForInFilter() {
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false,
+                In.apply("field", new Object[] {"Json", "test"}),
+                ImmutableMap.of("field", structFieldWithJson())))
+        .isEqualTo(isPostgreSql ? false : true);
+  }
+
+  @Test
+  public void postgresqlShouldNotSkipJsonbForOtherFilters() {
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false,
+                EqualTo.apply("field", new Object[] {"Json", "test"}),
+                ImmutableMap.of("field", structFieldWithJson())))
+        .isEqualTo(true);
+  }
+
+  @Test
   public void testNumericAndNullFilters() {
 
     assertThat(SparkFilterUtils.compileFilter(EqualTo.apply("foo", 1), isPostgreSql, EMPTY_FIELDS))

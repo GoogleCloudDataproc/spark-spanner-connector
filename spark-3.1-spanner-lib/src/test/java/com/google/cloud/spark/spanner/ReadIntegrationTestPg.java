@@ -77,7 +77,7 @@ public class ReadIntegrationTestPg extends SparkSpannerIntegrationTestBase {
 
     row =
         df.filter(
-                "jsoncol in('{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}')")
+                "jsoncol in('{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}', 'tags')")
             .first();
     results = toStringFromCompositeTable(row);
     assertThat(results)

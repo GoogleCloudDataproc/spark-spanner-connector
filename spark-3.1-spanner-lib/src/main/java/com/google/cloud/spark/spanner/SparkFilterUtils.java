@@ -118,11 +118,15 @@ public class SparkFilterUtils {
 
   static boolean isFilterWithNamedFieldHandled(
       boolean pushAllFilters, Filter filter, Map<String, StructField> fields, String fieldName) {
+    // For the Jsonb type in PostgreSql, the in filter will be translated to the
+    // format CAST("jsoncol" AS VARCHAR) in ('', 'tags'), which is not allowed in
+    // the Spanner.
     return Optional.ofNullable(fields.get(fieldName))
         .filter(
             field ->
                 ((field.dataType() instanceof StructType)
-                    || (field.dataType() instanceof ArrayType)))
+                    || (field.dataType() instanceof ArrayType)
+                    || ((filter instanceof In) && isJsonb(field))))
         .map(field -> false)
         .orElse(isHandled(pushAllFilters, filter));
   }
@@ -379,15 +383,22 @@ public class SparkFilterUtils {
     return isJson(fields, fieldName, "jsonb");
   }
 
+  static boolean isJsonb(StructField field) {
+    return isJson(field, "jsonb");
+  }
+
   static boolean isJson(
       Map<String, StructField> fields, String fieldName, String fieldLikeMetadataType) {
     if (fields.containsKey(fieldName)) {
-      StructField field = fields.get(fieldName);
-      return field.dataType() == DataTypes.StringType
-          && field.metadata() != null
-          && field.metadata().contains(SpannerUtils.COLUMN_TYPE)
-          && fieldLikeMetadataType.equals(field.metadata().getString(SpannerUtils.COLUMN_TYPE));
+      return isJson(fields.get(fieldName), fieldLikeMetadataType);
     }
     return false;
+  }
+
+  static boolean isJson(StructField field, String fieldLikeMetadataType) {
+    return field.dataType() == DataTypes.StringType
+        && field.metadata() != null
+        && field.metadata().contains(SpannerUtils.COLUMN_TYPE)
+        && fieldLikeMetadataType.equals(field.metadata().getString(SpannerUtils.COLUMN_TYPE));
   }
 }

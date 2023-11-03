@@ -15,9 +15,10 @@
 package com.google.cloud.spark.spanner;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
@@ -36,36 +37,53 @@ import org.slf4j.LoggerFactory;
 public class SpannerScanBuilder
     implements ScanBuilder, SupportsPushDownFilters, SupportsPushDownRequiredColumns {
   private CaseInsensitiveStringMap opts;
-  private Set<Filter> filters;
+  private Set<Filter> pushedFilters;
   private List<String> requiredColumns;
   private SpannerScanner scanner;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanBuilder.class);
+  private SpannerTable spannerTable;
+  private Map<String, StructField> fields;
 
   public SpannerScanBuilder(CaseInsensitiveStringMap options) {
     this.opts = options;
-    this.filters = new HashSet<Filter>();
+    this.pushedFilters = new HashSet<Filter>();
+    this.spannerTable = new SpannerTable(options);
+    this.fields = new LinkedHashMap<>();
+    for (StructField field : spannerTable.schema().fields()) {
+      fields.put(field.name(), field);
+    }
   }
 
   @Override
   public Scan build() {
-    this.scanner = new SpannerScanner(this.opts.asCaseSensitiveMap());
+    this.scanner =
+        new SpannerScanner(this.opts.asCaseSensitiveMap(), this.spannerTable, this.fields);
     this.scanner.setFilters(this.pushedFilters());
     return this.scanner;
   }
 
   @Override
   public Filter[] pushedFilters() {
-    return this.filters.toArray(new Filter[this.filters.size()]);
+    return this.pushedFilters.toArray(new Filter[this.pushedFilters.size()]);
   }
 
   @Override
   public Filter[] pushFilters(Filter[] filters) {
-    this.filters.addAll(Arrays.asList(filters));
-    Filter[] allSetFilters = this.filters.toArray(new Filter[this.filters.size()]);
-    if (this.scanner != null) {
-      this.scanner.setFilters(allSetFilters);
+    List<Filter> handledFilters = new ArrayList<>();
+    List<Filter> unhandledFilters = new ArrayList<>();
+    for (Filter filter : filters) {
+      if (SparkFilterUtils.isTopLevelFieldHandled(false, filter, fields)) {
+        handledFilters.add(filter);
+      } else {
+        unhandledFilters.add(filter);
+      }
     }
-    return allSetFilters;
+
+    this.pushedFilters.addAll(handledFilters);
+    if (this.scanner != null) {
+      this.scanner.setFilters(this.pushedFilters.toArray(new Filter[this.pushedFilters.size()]));
+    }
+    return unhandledFilters.stream().toArray(Filter[]::new);
   }
 
   public StructType readSchema() {

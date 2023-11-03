@@ -33,6 +33,7 @@ import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -48,6 +49,8 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
     Map<String, String> opts = this.connectionProperties();
     CaseInsensitiveStringMap copts = new CaseInsensitiveStringMap(opts);
     Scan scan = new SpannerScanBuilder(copts).build();
+    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
+    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
     StructType actualSchema = scan.readSchema();
     StructType expectSchema =
         new StructType(
@@ -58,7 +61,8 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
                     new StructField("D", DataTypes.TimestampType, true, null),
                     new StructField("E", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField(
-                        "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null))
+                        "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
+                    new StructField("G", DataTypes.StringType, true, jsonMetaBuilder.build()))
                 .toArray(new StructField[0]));
 
     // Object.equals fails for StructType with fields so we'll
@@ -83,6 +87,8 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
     CaseInsensitiveStringMap copts = new CaseInsensitiveStringMap(opts);
     Scan scan = new SpannerScanBuilder(copts).build();
     StructType actualSchema = scan.readSchema();
+    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
+    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
     StructType expectSchema =
         new StructType(
             Arrays.asList(
@@ -103,7 +109,7 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
                     new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
                     new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
                     new StructField("timestampcol", DataTypes.TimestampType, true, null),
-                    new StructField("jsoncol", DataTypes.StringType, true, null))
+                    new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()))
                 .toArray(new StructField[0]));
 
     // Object.equals fails for StructType with fields so we'll
@@ -158,6 +164,7 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
                     null,
                     ZonedDateTime.parse("2023-08-22T12:22:00Z"),
                     1000.282111401,
+                    null,
                     null),
                 makeATableInternalRow(
                     10,
@@ -165,6 +172,7 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
                     null,
                     ZonedDateTime.parse("2023-08-22T12:23:00Z"),
                     10000.282111603,
+                    null,
                     null),
                 makeATableInternalRow(
                     30,
@@ -172,6 +180,7 @@ public class SpannerScanBuilderTest extends SpannerTestBase {
                     null,
                     ZonedDateTime.parse("2023-08-22T12:24:00Z"),
                     30000.282111805,
+                    null,
                     null)));
     Collections.sort(expectRows, cmp);
 

@@ -33,6 +33,7 @@ import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,10 +48,13 @@ public class SpannerScanner implements Batch, Scan {
   private Map<String, String> opts;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
   private final Timestamp INIT_TIME = Timestamp.now();
+  private Map<String, StructField> fields;
 
-  public SpannerScanner(Map<String, String> opts) {
+  public SpannerScanner(
+      Map<String, String> opts, SpannerTable spannerTable, Map<String, StructField> fields) {
     this.opts = opts;
-    this.spannerTable = new SpannerTable(opts);
+    this.spannerTable = spannerTable;
+    this.fields = fields;
   }
 
   @Override
@@ -98,6 +102,7 @@ public class SpannerScanner implements Batch, Scan {
                   true,
                   Optional.empty(),
                   batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL),
+                  fields,
                   filters);
     }
 

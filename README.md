@@ -105,11 +105,11 @@ df.select("word")
   .collect()
 ```
 
-filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`. Note filters containing ArrayType column is not pushed down. 
+filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`. Note filters containing ArrayType column is not pushed down.
 
 ### PostgreSQL
 
-The connector supports the Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-components). 
+The connector supports the Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-components).
 
 #### Data types
 
@@ -128,5 +128,4 @@ timestamptz/timestamp with time zone |TimestampType| Only microseconds will be c
 
 #### Filter Pushdown
 
-Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. Filters containing array column will not be pushed down. 
-
+Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. Filters containing array column will not be pushed down.

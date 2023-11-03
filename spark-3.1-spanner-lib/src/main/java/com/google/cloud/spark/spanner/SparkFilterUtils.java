@@ -17,6 +17,8 @@ package com.google.cloud.spark.spanner;
 import static java.lang.String.format;
 
 import com.google.common.collect.ImmutableList;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -29,6 +31,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.ArrayType;
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
@@ -115,11 +118,15 @@ public class SparkFilterUtils {
 
   static boolean isFilterWithNamedFieldHandled(
       boolean pushAllFilters, Filter filter, Map<String, StructField> fields, String fieldName) {
+    // For the Jsonb type in PostgreSql, the in filter will be translated to the
+    // format CAST("jsoncol" AS VARCHAR) in ('', 'tags'), which is not allowed in
+    // the Spanner.
     return Optional.ofNullable(fields.get(fieldName))
         .filter(
             field ->
                 ((field.dataType() instanceof StructType)
-                    || (field.dataType() instanceof ArrayType)))
+                    || (field.dataType() instanceof ArrayType)
+                    || ((filter instanceof In) && isJsonb(field))))
         .map(field -> false)
         .orElse(isHandled(pushAllFilters, filter));
   }
@@ -181,10 +188,13 @@ public class SparkFilterUtils {
       boolean pushAllFilters,
       Optional<String> configFilter,
       boolean isPostgreSql,
+      Map<String, StructField> fields,
       Filter... pushedFilters) {
     String compiledPushedFilter =
         compileFilters(
-            handledFilters(pushAllFilters, ImmutableList.copyOf(pushedFilters)), isPostgreSql);
+            handledFilters(pushAllFilters, ImmutableList.copyOf(pushedFilters)),
+            isPostgreSql,
+            fields);
     return Stream.of(
             configFilter,
             compiledPushedFilter.length() == 0
@@ -196,16 +206,19 @@ public class SparkFilterUtils {
   }
 
   // Mostly copied from JDBCRDD.scala
-  public static String compileFilter(Filter filter, boolean isPostgreSql) {
+  public static String compileFilter(
+      Filter filter, boolean isPostgreSql, Map<String, StructField> fields) {
     if (filter instanceof EqualTo) {
       EqualTo equalTo = (EqualTo) filter;
       return format(
-          "%s = %s", quote(equalTo.attribute(), isPostgreSql), compileValue(equalTo.value()));
+          "%s = %s",
+          quote(equalTo.attribute(), isPostgreSql, fields),
+          compileValue(equalTo.value(), isPostgreSql));
     }
     if (filter instanceof EqualNullSafe) {
       EqualNullSafe equalNullSafe = (EqualNullSafe) filter;
-      String left = quote(equalNullSafe.attribute(), isPostgreSql);
-      String right = compileValue(equalNullSafe.value());
+      String left = quote(equalNullSafe.attribute(), isPostgreSql, fields);
+      String right = compileValue(equalNullSafe.value(), isPostgreSql);
       return format(
           "%1$s IS NULL AND %2$s IS NULL OR %1$s IS NOT NULL AND %2$s IS NOT NULL AND %1$s = %2$s",
           left, right);
@@ -214,92 +227,100 @@ public class SparkFilterUtils {
       GreaterThan greaterThan = (GreaterThan) filter;
       return format(
           "%s > %s",
-          quote(greaterThan.attribute(), isPostgreSql), compileValue(greaterThan.value()));
+          quote(greaterThan.attribute(), isPostgreSql, fields),
+          compileValue(greaterThan.value(), isPostgreSql));
     }
     if (filter instanceof GreaterThanOrEqual) {
       GreaterThanOrEqual greaterThanOrEqual = (GreaterThanOrEqual) filter;
       return format(
           "%s >= %s",
-          quote(greaterThanOrEqual.attribute(), isPostgreSql),
-          compileValue(greaterThanOrEqual.value()));
+          quote(greaterThanOrEqual.attribute(), isPostgreSql, fields),
+          compileValue(greaterThanOrEqual.value(), isPostgreSql));
     }
     if (filter instanceof LessThan) {
       LessThan lessThan = (LessThan) filter;
       return format(
-          "%s < %s", quote(lessThan.attribute(), isPostgreSql), compileValue(lessThan.value()));
+          "%s < %s",
+          quote(lessThan.attribute(), isPostgreSql, fields),
+          compileValue(lessThan.value(), isPostgreSql));
     }
     if (filter instanceof LessThanOrEqual) {
       LessThanOrEqual lessThanOrEqual = (LessThanOrEqual) filter;
       return format(
           "%s <= %s",
-          quote(lessThanOrEqual.attribute(), isPostgreSql), compileValue(lessThanOrEqual.value()));
+          quote(lessThanOrEqual.attribute(), isPostgreSql, fields),
+          compileValue(lessThanOrEqual.value(), isPostgreSql));
     }
     if (filter instanceof In) {
       In in = (In) filter;
       return format(
           "%s IN %s",
-          quote(in.attribute(), isPostgreSql),
-          compileValue(in.values(), /*arrayStart=*/ '(', /*arrayEnd=*/ ')'));
+          quote(in.attribute(), isPostgreSql, fields),
+          compileValue(in.values(), /*arrayStart=*/ '(', /*arrayEnd=*/ ')', isPostgreSql));
     }
     if (filter instanceof IsNull) {
       IsNull isNull = (IsNull) filter;
-      return format("%s IS NULL", quote(isNull.attribute(), isPostgreSql));
+      return format("%s IS NULL", quote(isNull.attribute(), isPostgreSql, fields));
     }
     if (filter instanceof IsNotNull) {
       IsNotNull isNotNull = (IsNotNull) filter;
-      return format("%s IS NOT NULL", quote(isNotNull.attribute(), isPostgreSql));
+      return format("%s IS NOT NULL", quote(isNotNull.attribute(), isPostgreSql, fields));
     }
     if (filter instanceof And) {
       And and = (And) filter;
       return format(
           "((%s) AND (%s))",
-          compileFilter(and.left(), isPostgreSql), compileFilter(and.right(), isPostgreSql));
+          compileFilter(and.left(), isPostgreSql, fields),
+          compileFilter(and.right(), isPostgreSql, fields));
     }
     if (filter instanceof Or) {
       Or or = (Or) filter;
       return format(
           "((%s) OR (%s))",
-          compileFilter(or.left(), isPostgreSql), compileFilter(or.right(), isPostgreSql));
+          compileFilter(or.left(), isPostgreSql, fields),
+          compileFilter(or.right(), isPostgreSql, fields));
     }
     if (filter instanceof Not) {
       Not not = (Not) filter;
-      return format("(NOT (%s))", compileFilter(not.child(), isPostgreSql));
+      return format("(NOT (%s))", compileFilter(not.child(), isPostgreSql, fields));
     }
     if (filter instanceof StringStartsWith) {
       StringStartsWith stringStartsWith = (StringStartsWith) filter;
       return format(
           "%s LIKE '%s%%'",
-          quote(stringStartsWith.attribute(), isPostgreSql), escape(stringStartsWith.value()));
+          quote(stringStartsWith.attribute(), isPostgreSql, fields),
+          escape(stringStartsWith.value()));
     }
     if (filter instanceof StringEndsWith) {
       StringEndsWith stringEndsWith = (StringEndsWith) filter;
       return format(
           "%s LIKE '%%%s'",
-          quote(stringEndsWith.attribute(), isPostgreSql), escape(stringEndsWith.value()));
+          quote(stringEndsWith.attribute(), isPostgreSql, fields), escape(stringEndsWith.value()));
     }
     if (filter instanceof StringContains) {
       StringContains stringContains = (StringContains) filter;
       return format(
           "%s LIKE '%%%s%%'",
-          quote(stringContains.attribute(), isPostgreSql), escape(stringContains.value()));
+          quote(stringContains.attribute(), isPostgreSql, fields), escape(stringContains.value()));
     }
 
     throw new IllegalArgumentException(format("Invalid filter: %s", filter));
   }
 
-  public static String compileFilters(Iterable<Filter> filters, boolean isPostgreSql) {
+  public static String compileFilters(
+      Iterable<Filter> filters, boolean isPostgreSql, Map<String, StructField> fields) {
     return StreamSupport.stream(filters.spliterator(), false)
-        .map(filter -> SparkFilterUtils.compileFilter(filter, isPostgreSql))
+        .map(filter -> SparkFilterUtils.compileFilter(filter, isPostgreSql, fields))
         .collect(Collectors.joining(" AND "));
   }
 
   /** Converts value to SQL expression. */
-  static String compileValue(Object value) {
-    return compileValue(value, /*arrayStart=*/ '[', /*arrayEnd=*/ ']');
+  static String compileValue(Object value, boolean isPostgreSql) {
+    return compileValue(value, /*arrayStart=*/ '[', /*arrayEnd=*/ ']', isPostgreSql);
   }
 
   /** Converts value to SQL expression customizing array start/end values. */
-  static String compileValue(Object value, char arrayStart, char arrayEnd) {
+  static String compileValue(Object value, char arrayStart, char arrayEnd, boolean isPostgreSql) {
     if (value == null) {
       return null;
     }
@@ -309,12 +330,27 @@ public class SparkFilterUtils {
     if (value instanceof Date || value instanceof LocalDate) {
       return "DATE '" + value + "'";
     }
-    if (value instanceof Timestamp || value instanceof Instant) {
+    if (isPostgreSql && value instanceof Timestamp) {
+      return "'" + value + "-0'";
+    } else if (isPostgreSql && value instanceof Instant) {
+      return "'" + value + "'";
+    } else if (value instanceof Timestamp || value instanceof Instant) {
       return "TIMESTAMP '" + value + "'";
+    }
+    if (value instanceof byte[] || value instanceof Byte[]) {
+      return isPostgreSql
+          ? "'" + escape(new String((byte[]) value, StandardCharsets.UTF_8)) + "'"
+          : "b'" + escape(new String((byte[]) value, StandardCharsets.UTF_8)) + "'";
+    }
+    if (value instanceof BigDecimal) {
+      return "NUMERIC '" + value + "'";
+    }
+    if (isPostgreSql && value instanceof Double) {
+      return "'" + value + "'";
     }
     if (value instanceof Object[]) {
       return Arrays.stream((Object[]) value)
-          .map(SparkFilterUtils::compileValue)
+          .map(v -> SparkFilterUtils.compileValue(v, isPostgreSql))
           .collect(
               Collectors.joining(
                   ", ", Character.toString(arrayStart), Character.toString(arrayEnd)));
@@ -326,10 +362,43 @@ public class SparkFilterUtils {
     return value.replace("'", "\\'");
   }
 
-  static String quote(String value, boolean isPostgreSql) {
+  static String quote(String value, boolean isPostgreSql, Map<String, StructField> fields) {
+    if (!isPostgreSql && isJson(fields, value)) {
+      return "TO_JSON_STRING(`" + value + "`)";
+    }
+    if (isPostgreSql && isJsonb(fields, value)) {
+      return "CAST(\"" + value + "\" AS VARCHAR)";
+    }
     if (isPostgreSql) {
       return "\"" + value + "\"";
     }
     return "`" + value + "`";
+  }
+
+  static boolean isJson(Map<String, StructField> fields, String fieldName) {
+    return isJson(fields, fieldName, "json");
+  }
+
+  static boolean isJsonb(Map<String, StructField> fields, String fieldName) {
+    return isJson(fields, fieldName, "jsonb");
+  }
+
+  static boolean isJsonb(StructField field) {
+    return isJson(field, "jsonb");
+  }
+
+  static boolean isJson(
+      Map<String, StructField> fields, String fieldName, String fieldLikeMetadataType) {
+    if (fields.containsKey(fieldName)) {
+      return isJson(fields.get(fieldName), fieldLikeMetadataType);
+    }
+    return false;
+  }
+
+  static boolean isJson(StructField field, String fieldLikeMetadataType) {
+    return field.dataType() == DataTypes.StringType
+        && field.metadata() != null
+        && field.metadata().contains(SpannerUtils.COLUMN_TYPE)
+        && fieldLikeMetadataType.equals(field.metadata().getString(SpannerUtils.COLUMN_TYPE));
   }
 }

@@ -3,6 +3,11 @@
 The connector supports reading [Google Cloud Spanner](https://cloud.google.com/spanner) tables into Spark's DataFrames. This is done by using the [Spark SQL Data Source API](https://spark.apache.org/docs/latest/sql-programming-guide.html#data-sources) to communicate with [Spanner Java library](https://github.com/googleapis/java-spanner).
 
 ## Unreleased Changes
+
+This Readme may include documentation for changes that haven't been released yet.  The latest release's documentation and source code are found here.
+
+https://github.com/GoogleCloudDataproc/spark-spanner-connector/blob/master/README.md
+
 ## Requirements
 
 ### Enable the Cloud Spanner API

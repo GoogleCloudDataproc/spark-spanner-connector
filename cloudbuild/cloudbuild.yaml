@@ -20,7 +20,7 @@ steps:
     env:
       - 'SPANNER_PROJECT_ID=$PROJECT_ID'
       - 'SPANNER_INSTANCE_ID=test-instance'
-      - 'SPANNER_DATABASE_ID=test-database'
+      - 'SPANNER_DATABASE_ID=testdb'
 
   # 4. Run acceptance tests by creating real Dataproc clusters.
   # TODO: Make the acceptance test run in parallel with integration-real-spanner.

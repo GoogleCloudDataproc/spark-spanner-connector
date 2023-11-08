@@ -26,6 +26,7 @@ import com.google.common.collect.Streams;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.Batch;
@@ -44,22 +45,35 @@ import org.slf4j.LoggerFactory;
 public class SpannerScanner implements Batch, Scan {
   private SpannerTable spannerTable;
   private Filter[] filters;
-  private String[] requiredColumns;
+  private Set<String> requiredColumns;
   private Map<String, String> opts;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
   private final Timestamp INIT_TIME = Timestamp.now();
   private Map<String, StructField> fields;
 
   public SpannerScanner(
-      Map<String, String> opts, SpannerTable spannerTable, Map<String, StructField> fields) {
+      Map<String, String> opts,
+      SpannerTable spannerTable,
+      Map<String, StructField> fields,
+      Filter[] filters,
+      Set<String> requiredColumns) {
     this.opts = opts;
     this.spannerTable = spannerTable;
     this.fields = fields;
+    this.filters = filters;
+    this.requiredColumns = requiredColumns;
   }
 
   @Override
   public StructType readSchema() {
-    return this.spannerTable.schema();
+    StructType prevSchema = this.spannerTable.schema();
+    StructType prunedSchema = new StructType();
+    for (StructField field : prevSchema.fields()) {
+      if (this.requiredColumns == null || this.requiredColumns.contains(field.name())) {
+        prunedSchema = prunedSchema.add(field);
+      }
+    }
+    return prunedSchema;
   }
 
   @Override
@@ -72,30 +86,17 @@ public class SpannerScanner implements Batch, Scan {
     return new SpannerPartitionReaderFactory();
   }
 
-  public void setFilters(Filter[] filters) {
-    this.filters = filters;
-  }
-
-  public Filter[] getFilters() {
-    return this.filters;
-  }
-
-  public void setRequiredColumns(String[] requiredColumns) {
-    this.requiredColumns = requiredColumns;
-  }
-
   @Override
   public InputPartition[] planInputPartitions() {
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
-    if (this.requiredColumns != null && this.requiredColumns.length > 0) {
+    if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
       selectPrefix = "SELECT " + String.join(", ", this.requiredColumns);
     }
     String sqlStmt = selectPrefix + " FROM " + this.spannerTable.name();
-    Filter[] filters = this.getFilters();
-    if (filters.length > 0) {
+    if (this.filters.length > 0) {
       sqlStmt +=
           " WHERE "
               + SparkFilterUtils.getCompiledFilter(
@@ -103,7 +104,7 @@ public class SpannerScanner implements Batch, Scan {
                   Optional.empty(),
                   batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL),
                   fields,
-                  filters);
+                  this.filters);
     }
 
     Boolean enableDataboost = false;

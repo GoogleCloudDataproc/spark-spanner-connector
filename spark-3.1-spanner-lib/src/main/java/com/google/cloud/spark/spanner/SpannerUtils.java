@@ -79,10 +79,8 @@ public class SpannerUtils {
       Properties buildProperties = new Properties();
       buildProperties.load(
           SpannerUtils.class.getResourceAsStream("/spark-spanner-connector.properties"));
-      System.out.println(buildProperties.getProperty("connector.version"));
       return buildProperties;
     } finally {
-      System.out.println("FAILED");
       return new Properties();
     }
   }

@@ -113,9 +113,17 @@ df.select("word")
 
 filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`. Note filters containing ArrayType column is not pushed down.
 
+### Monitoring
+
+When Data Boost is enabled, the usage can be monitored by using Cloud Monitoring. The [page]([url](https://cloud.google.com/spanner/docs/databoost/databoost-monitor#use_to_track_usage)) explains how to do that step by step. The usage cannot be grouped by the Spark job id though. 
+
+### Debugging 
+
+Dataproc [web interface]([url](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces)) can be used to debug especially to tune the performance. On the `YARN Application Timeline` page, it displays the execution timeline details for the executors and other functions. You can assign more workers if there are many tasks assigned to a same executor.
+
 ### PostgreSQL
 
-The connector supports the Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-components).
+The connector supports the Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-components). 
 
 #### Data types
 
@@ -134,4 +142,6 @@ timestamptz/timestamp with time zone |TimestampType| Only microseconds will be c
 
 #### Filter Pushdown
 
-Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. Filters containing array column will not be pushed down.
+Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. For the jsonb column, `IN` filter is not pushdown to Cloud Spanner.  
+
+Filters containing array column will not be pushed down.

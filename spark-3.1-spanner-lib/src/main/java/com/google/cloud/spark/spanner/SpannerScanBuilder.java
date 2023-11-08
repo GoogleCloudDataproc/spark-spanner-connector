@@ -14,8 +14,8 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,8 +37,8 @@ import org.slf4j.LoggerFactory;
 public class SpannerScanBuilder
     implements ScanBuilder, SupportsPushDownFilters, SupportsPushDownRequiredColumns {
   private CaseInsensitiveStringMap opts;
-  private Set<Filter> pushedFilters;
-  private List<String> requiredColumns;
+  private List<Filter> pushedFilters;
+  private Set<String> requiredColumns;
   private SpannerScanner scanner;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanBuilder.class);
   private SpannerTable spannerTable;
@@ -46,7 +46,7 @@ public class SpannerScanBuilder
 
   public SpannerScanBuilder(CaseInsensitiveStringMap options) {
     this.opts = options;
-    this.pushedFilters = new HashSet<Filter>();
+    this.pushedFilters = new ArrayList<Filter>();
     this.spannerTable = new SpannerTable(options);
     this.fields = new LinkedHashMap<>();
     for (StructField field : spannerTable.schema().fields()) {
@@ -57,14 +57,18 @@ public class SpannerScanBuilder
   @Override
   public Scan build() {
     this.scanner =
-        new SpannerScanner(this.opts.asCaseSensitiveMap(), this.spannerTable, this.fields);
-    this.scanner.setFilters(this.pushedFilters());
+        new SpannerScanner(
+            this.opts.asCaseSensitiveMap(),
+            this.spannerTable,
+            this.fields,
+            this.pushedFilters(),
+            this.requiredColumns);
     return this.scanner;
   }
 
   @Override
   public Filter[] pushedFilters() {
-    return this.pushedFilters.toArray(new Filter[this.pushedFilters.size()]);
+    return this.pushedFilters.toArray(new Filter[0]);
   }
 
   @Override
@@ -78,16 +82,8 @@ public class SpannerScanBuilder
         unhandledFilters.add(filter);
       }
     }
-
     this.pushedFilters.addAll(handledFilters);
-    if (this.scanner != null) {
-      this.scanner.setFilters(this.pushedFilters.toArray(new Filter[this.pushedFilters.size()]));
-    }
     return unhandledFilters.stream().toArray(Filter[]::new);
-  }
-
-  public StructType readSchema() {
-    return this.scanner.readSchema();
   }
 
   /*
@@ -101,13 +97,6 @@ public class SpannerScanBuilder
     // A user could invoke: SELECT a, b, d, a FROM TABLE;
     // and we should still be able to serve them back their
     // query without deduplication.
-    List<String> requiredColumns = new ArrayList<>();
-    for (StructField col : requiredSchema.fields()) {
-      requiredColumns.add(col.name());
-    }
-    this.requiredColumns = requiredColumns;
-    if (this.scanner != null) {
-      this.scanner.setRequiredColumns(this.requiredColumns.toArray(new String[0]));
-    }
+    this.requiredColumns = ImmutableSet.copyOf(requiredSchema.fieldNames());
   }
 }

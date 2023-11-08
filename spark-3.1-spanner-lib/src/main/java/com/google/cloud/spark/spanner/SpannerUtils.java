@@ -35,11 +35,11 @@ import com.google.cloud.spanner.connection.ConnectionOptions;
 import java.sql.Timestamp;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Properties;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
@@ -71,18 +71,19 @@ public class SpannerUtils {
 
   // TODO: Infer the UserAgent's version from the library version dynamically.
   private static final Properties BUILD_PROPERTIES = loadBuildProperties();
-  private static final String USER_AGENT = "spark-spanner/v".concat(BUILD_PROPERTIES.getProperty("connector.version"));
+  private static final String USER_AGENT =
+      "spark-spanner/v".concat(BUILD_PROPERTIES.getProperty("connector.version"));
 
   private static Properties loadBuildProperties() {
     try {
-        Properties buildProperties = new Properties();
-        buildProperties.load(
-                SparkBigQueryUtil.class.getResourceAsStream("/spark-spanner-connector.properties"));
-        System.out.println(buildProperties.getProperty("connector.version"));
-        return buildProperties;
-    } catch (IOException e) {
-        System.out.println("FAAILED");
-        throw new UncheckedIOException(e);
+      Properties buildProperties = new Properties();
+      buildProperties.load(
+          SpannerUtils.class.getResourceAsStream("/spark-spanner-connector.properties"));
+      System.out.println(buildProperties.getProperty("connector.version"));
+      return buildProperties;
+    } finally {
+      System.out.println("FAILED");
+      return new Properties();
     }
   }
 

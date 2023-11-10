@@ -309,24 +309,33 @@ class SpannerTestBase {
       java.math.BigDecimal D,
       ZonedDateTime E,
       ZonedDateTime F,
-      boolean G,
+      Boolean G,
       ZonedDateTime[] H,
       ZonedDateTime[] I,
       String J,
       String K) {
     GenericInternalRow row = new GenericInternalRow(12);
     row.update(0, UTF8String.fromString(id));
-    row.update(1, new GenericArrayData(A));
-    row.update(2, new GenericArrayData(toSparkStrList(B)));
-    row.update(3, UTF8String.fromString(C));
-    SpannerUtils.toSparkDecimal(row, D, 4);
-    row.update(5, SpannerUtils.zonedDateTimeToSparkDate(E));
-    row.update(6, SpannerUtils.zonedDateTimeToSparkTimestamp(F));
-    row.setBoolean(7, G);
-    row.update(8, SpannerUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
-    row.update(9, SpannerUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
-    row.update(10, stringToBytes(J));
-    row.update(11, UTF8String.fromString(K));
+    row.update(1, A == null ? A : new GenericArrayData(A));
+    row.update(2, B == null ? B : new GenericArrayData(toSparkStrList(B)));
+    row.update(3, C == null ? C : UTF8String.fromString(C));
+    if (D == null) {
+      row.update(4, null);
+    } else {
+      SpannerUtils.toSparkDecimal(row, D, 4);
+    }
+    row.update(5, E == null ? E : SpannerUtils.zonedDateTimeToSparkDate(E));
+    row.update(6, F == null ? F : SpannerUtils.zonedDateTimeToSparkTimestamp(F));
+    if (G == null) {
+      row.update(7, null);
+    } else {
+      row.setBoolean(7, G);
+    }
+    row.update(8, H == null ? null : SpannerUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
+    row.update(
+        9, I == null ? I : SpannerUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
+    row.update(10, J == null ? J : stringToBytes(J));
+    row.update(11, K == null ? K : UTF8String.fromString(K));
 
     return row;
   }

@@ -340,7 +340,9 @@ public class SparkFilterUtils {
     } else if (isPostgreSql && value instanceof Instant) {
       return "'" + value + "'";
     } else if (value instanceof Timestamp || value instanceof Instant) {
-      return "TIMESTAMP '" + value + "Z'";
+      return value.toString().endsWith("Z")
+          ? "TIMESTAMP '" + value + "'"
+          : "TIMESTAMP '" + value + "Z'";
     }
     if (value instanceof byte[] || value instanceof Byte[]) {
       return isPostgreSql

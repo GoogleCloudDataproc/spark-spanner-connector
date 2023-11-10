@@ -176,7 +176,6 @@ public class SpannerUtils {
   }
 
   public static BatchClientWithCloser batchClientFromProperties(Map<String, String> properties) {
-    System.out.println(USER_AGENT);
     SpannerOptions.Builder builder =
         SpannerOptions.newBuilder()
             .setProjectId(properties.get("projectId"))

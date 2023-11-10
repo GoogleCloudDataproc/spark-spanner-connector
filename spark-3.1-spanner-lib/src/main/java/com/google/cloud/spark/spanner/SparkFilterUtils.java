@@ -217,11 +217,13 @@ public class SparkFilterUtils {
     }
     if (filter instanceof EqualNullSafe) {
       EqualNullSafe equalNullSafe = (EqualNullSafe) filter;
-      String left = quote(equalNullSafe.attribute(), isPostgreSql, fields);
+      String leftNullCheck =
+          quote(equalNullSafe.attribute(), isPostgreSql, fields, /* isNullCheck= */ true);
+      String leftValueCheck = quote(equalNullSafe.attribute(), isPostgreSql, fields);
       String right = compileValue(equalNullSafe.value(), isPostgreSql);
       return format(
-          "%1$s IS NULL AND %2$s IS NULL OR %1$s IS NOT NULL AND %2$s IS NOT NULL AND %1$s = %2$s",
-          left, right);
+          "%1$s IS NULL AND %2$s IS NULL OR %1$s IS NOT NULL AND %2$s IS NOT NULL AND %3$s = %2$s",
+          leftNullCheck, right, leftValueCheck);
     }
     if (filter instanceof GreaterThan) {
       GreaterThan greaterThan = (GreaterThan) filter;
@@ -260,11 +262,14 @@ public class SparkFilterUtils {
     }
     if (filter instanceof IsNull) {
       IsNull isNull = (IsNull) filter;
-      return format("%s IS NULL", quote(isNull.attribute(), isPostgreSql, fields));
+      return format(
+          "%s IS NULL", quote(isNull.attribute(), isPostgreSql, fields, /* isNullCheck= */ true));
     }
     if (filter instanceof IsNotNull) {
       IsNotNull isNotNull = (IsNotNull) filter;
-      return format("%s IS NOT NULL", quote(isNotNull.attribute(), isPostgreSql, fields));
+      return format(
+          "%s IS NOT NULL",
+          quote(isNotNull.attribute(), isPostgreSql, fields, /* isNullCheck= */ true));
     }
     if (filter instanceof And) {
       And and = (And) filter;
@@ -335,7 +340,9 @@ public class SparkFilterUtils {
     } else if (isPostgreSql && value instanceof Instant) {
       return "'" + value + "'";
     } else if (value instanceof Timestamp || value instanceof Instant) {
-      return "TIMESTAMP '" + value + "'";
+      return value.toString().endsWith("Z")
+          ? "TIMESTAMP '" + value + "'"
+          : "TIMESTAMP '" + value + "Z'";
     }
     if (value instanceof byte[] || value instanceof Byte[]) {
       return isPostgreSql
@@ -347,6 +354,8 @@ public class SparkFilterUtils {
     }
     if (isPostgreSql && value instanceof Double) {
       return "'" + value + "'";
+    } else if (value instanceof Double) {
+      return "CAST(\"" + value + "\" AS FLOAT64)";
     }
     if (value instanceof Object[]) {
       return Arrays.stream((Object[]) value)
@@ -363,7 +372,12 @@ public class SparkFilterUtils {
   }
 
   static String quote(String value, boolean isPostgreSql, Map<String, StructField> fields) {
-    if (!isPostgreSql && isJson(fields, value)) {
+    return quote(value, isPostgreSql, fields, /* isNullCheck= */ false);
+  }
+
+  static String quote(
+      String value, boolean isPostgreSql, Map<String, StructField> fields, boolean isNullCheck) {
+    if (!isPostgreSql && isJson(fields, value) && !isNullCheck) {
       return "TO_JSON_STRING(`" + value + "`)";
     }
     if (isPostgreSql && isJsonb(fields, value)) {

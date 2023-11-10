@@ -365,7 +365,7 @@ public class SparkFilterUtilsTest {
                   In.apply("tsfield", new Object[] {ts1, ts2}), isPostgreSql, EMPTY_FIELDS))
           .isEqualTo(
               parseQuotedSplitter(
-                  "{0}tsfield{0} IN (TIMESTAMP ''2008-12-25 15:30:00.0'', TIMESTAMP ''2020-01-25 02:10:10.0'')"));
+                  "{0}tsfield{0} IN (TIMESTAMP ''2008-12-25 15:30:00.0Z'', TIMESTAMP ''2020-01-25 02:10:10.0Z'')"));
     }
   }
 

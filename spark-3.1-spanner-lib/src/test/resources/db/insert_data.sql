@@ -59,6 +59,9 @@ VALUES
         TIMESTAMP("2023-09-22T12:22:05Z"), false, [DATE(2023, 9, 2), DATE(2023, 12, 31)],
         [TIMESTAMP("2023-09-22T12:11:10Z"), TIMESTAMP("2023-09-23T12:11:09Z")], FROM_HEX("deadbeef"),
         JSON'{}'
+    ),
+    (
+        "id3", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, b"deadbeef", NULL
     );
 
 DELETE FROM nullsTable WHERE 1=1;
@@ -68,7 +71,11 @@ VALUES
     (1, NULL, NULL, NULL, NULL, NULL, NULL, true, [NULL, DATE("2023-09-23T00:00:00Z")], NULL, [true, NULL, false], [23.67], NULL, NULL, [CAST(-99.37171 AS NUMERIC), NULL]),
     (2, [1, 2, NULL], NULL, NULL, 99.37171, NULL, NULL, NULL, [DATE("2022-10-02T00:00:00Z"), NULL], NULL, [NULL, NULL, true], [NULL, 198.1827], NULL, NULL, NULL),
     (3, [2, 3, NULL], ["a", "b", "FF", NULL], "😎🚨", NULL, NULL, TIMESTAMP("2023-09-23T12:11:09Z"), false, NULL, NULL, NULL, [-28888.8888, 0.12, NULL], NULL, NULL, [NULL, CAST(-55.7 AS NUMERIC), CAST(9.3 AS NUMERIC)]),
-    (4, [NULL, 4, 57, 10], ["💡🚨", NULL, "b", "fg"], "🚨", 55.7, DATE("2023-12-31T00:00:00Z"), NULL, false, NULL, [NULL, TIMESTAMP("2023-09-23T12:11:09Z")], [true, true], [0.71], [NULL, FROM_HEX("beefdead")], [NULL, JSON'{"a":1}'], [NULL, CAST(12 AS NUMERIC)]);
+    (4, [NULL, 4, 57, 10], ["💡🚨", NULL, "b", "fg"], "🚨", 55.7, DATE(2023, 12, 31), NULL, false, NULL, [NULL, TIMESTAMP("2023-09-23T12:11:09Z")], [true, true], [0.71], [NULL, FROM_HEX("beefdead")], [NULL, JSON'{"a":1}'], [NULL, CAST(12 AS NUMERIC)]),
+    (5, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+    (6, [NULL, 1234], [NULL, "stringarray"], NULL, NULL, NULL, NULL, NULL, [NULL, DATE(2023, 12, 31)], [NULL, TIMESTAMP("2023-09-23T12:11:09Z")], [NULL, true], [NULL, 0.000001], [NULL, b"beefdead"], [NULL, JSON'{"a":1}'], [NULL, CAST(123456 AS NUMERIC)]),
+    (7, [], [], NULL, NULL, NULL, NULL, NULL, [], [], [], [], [], [], []);
+
 
 DELETE FROM bytesTable WHERE 1=1;
 INSERT INTO

@@ -251,7 +251,9 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
                   ZonedDateTime.parse("2023-09-23T12:11:09Z"),
                 },
                 "deadbeef",
-                "{}"));
+                "{}"),
+            makeCompositeTableRow(
+                "id3", null, null, null, null, null, null, null, null, null, "deadbeef", null));
 
     Comparator<InternalRow> cmp = new InternalRowComparator();
     Collections.sort(expectRows, cmp);
@@ -280,12 +282,28 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
       assertThat(actualRow.getBoolean(7)).isEqualTo(expectedRow.getBoolean(7));
       assertThat(actualRow.getArray(8)).isEqualTo(expectedRow.getArray(8));
       assertThat(actualRow.getArray(9)).isEqualTo(expectedRow.getArray(9));
-      assertThat(bytesToString(actualRow.getBinary(10)))
-          .isEqualTo(bytesToString(expectedRow.getBinary(10)));
+      if (i == 2) {
+        assertThat(hexBytesToString(actualRow.getBinary(10)))
+            .isEqualTo(toStringForBytes(expectedRow.getBinary(10)));
+      } else {
+        assertThat(hexBytesToString(actualRow.getBinary(10)))
+            .isEqualTo(hexBytesToString(expectedRow.getBinary(10)));
+      }
     }
   }
 
-  private static String bytesToString(byte[] bytes) {
+  private static String hexBytesToString(byte[] bytes) {
     return bytes == null ? "" : new String(bytes);
+  }
+
+  private static String toStringForBytes(byte[] bytes) {
+    if (bytes == null) {
+      return "null";
+    }
+    String result = "";
+    for (byte b : bytes) {
+      result = result + String.format("%02x", b);
+    }
+    return result;
   }
 }

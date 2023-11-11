@@ -38,6 +38,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.sql.Timestamp;
@@ -112,7 +113,8 @@ public class SpannerUtils {
   private static String loadConnectorVersion() {
     try {
       Properties buildProperties = new Properties();
-      InputStream inputStream = SpannerUtils.class.getResourceAsStream("/spark-spanner-connector.properties");
+      InputStream inputStream =
+          SpannerUtils.class.getResourceAsStream("/spark-spanner-connector.properties");
       if (inputStream == null) {
         // Failed to fetch the Spark Spanner connector version.
         return "";

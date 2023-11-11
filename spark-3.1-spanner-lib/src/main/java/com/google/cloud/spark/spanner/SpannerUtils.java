@@ -89,7 +89,7 @@ public class SpannerUtils {
           .map(image -> "dataproc-image/" + image)
           .orElse("");
 
-  static final String CONNECTOR_VERSION = loadBuildProperties().getProperty("connector.version");
+  static final String CONNECTOR_VERSION = loadConnectorVersion();
 
   public static final String COLUMN_TYPE = "col_type";
 
@@ -109,12 +109,16 @@ public class SpannerUtils {
           GCP_REGION_PART,
           DATAPROC_IMAGE_PART);
 
-  private static Properties loadBuildProperties() {
+  private static String loadConnectorVersion() {
     try {
       Properties buildProperties = new Properties();
-      buildProperties.load(
-          SpannerUtils.class.getResourceAsStream("/spark-spanner-connector.properties"));
-      return buildProperties;
+      InputStream inputStream = SpannerUtils.class.getResourceAsStream("/spark-spanner-connector.properties");
+      if (inputStream == null) {
+        // Failed to fetch the Spark Spanner connector version.
+        return "";
+      }
+      buildProperties.load(inputStream);
+      return buildProperties.getProperty("connector.version");
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

@@ -25,7 +25,7 @@ def main():
                 .option("databaseId", "<DATABASE_ID>") \
                 .option("enableDataBoost", "true") \
                 .option("table", "<TABLE_NAME>") \
-                .load(table)
+                .load()
     df.printSchema()
     df.show()
 

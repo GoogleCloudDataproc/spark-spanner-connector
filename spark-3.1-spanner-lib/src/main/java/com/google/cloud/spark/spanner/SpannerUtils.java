@@ -14,6 +14,8 @@
 
 package com.google.cloud.spark.spanner;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +34,13 @@ import com.google.cloud.spanner.Type.Code.*;
 import com.google.cloud.spanner.Value;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.io.CharStreams;
+import com.google.common.io.Closeables;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.sql.Timestamp;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -39,6 +48,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
@@ -64,12 +80,83 @@ public class SpannerUtils {
           .setMaxAttempts(100)
           .build();
   private static final ObjectMapper jsonMapper = new ObjectMapper();
+
+  @VisibleForTesting
+  static String GCP_REGION_PART = getGcpRegion().map(region -> " region/" + region).orElse("");
+
+  @VisibleForTesting
+  static String DATAPROC_IMAGE_PART =
+      Optional.ofNullable(System.getenv("DATAPROC_IMAGE_VERSION"))
+          .map(image -> "dataproc-image/" + image)
+          .orElse("");
+
+  static final String CONNECTOR_VERSION = loadConnectorVersion();
+
   public static final String COLUMN_TYPE = "col_type";
 
   public static Long SECOND_TO_DAYS = 60 * 60 * 24L;
 
-  // TODO: Infer the UserAgent's version from the library version dynamically.
-  private static String USER_AGENT = "spark-spanner/v0.0.1";
+  private static String SPARK_VERSION = org.apache.spark.package$.MODULE$.SPARK_VERSION();
+  private static String JAVA_VERSION = System.getProperty("java.runtime.version");
+  private static String SCALA_VERSION = scala.util.Properties.versionNumberString();
+
+  private static String USER_AGENT =
+      String.format(
+          "spark-spanner/%s spark/%s java/%s scala/%s %s %s",
+          CONNECTOR_VERSION,
+          SPARK_VERSION,
+          JAVA_VERSION,
+          SCALA_VERSION,
+          GCP_REGION_PART,
+          DATAPROC_IMAGE_PART);
+
+  private static String loadConnectorVersion() {
+    try {
+      Properties buildProperties = new Properties();
+      InputStream inputStream =
+          SpannerUtils.class.getResourceAsStream("/spark-spanner-connector.properties");
+      if (inputStream == null) {
+        // Failed to fetch the Spark Spanner connector version.
+        return "";
+      }
+      buildProperties.load(inputStream);
+      return buildProperties.getProperty("connector.version");
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  // Queries the GCE metadata server
+  @VisibleForTesting
+  static Optional<String> getGcpRegion() {
+    RequestConfig config =
+        RequestConfig.custom()
+            .setConnectTimeout(100)
+            .setConnectionRequestTimeout(100)
+            .setSocketTimeout(100)
+            .build();
+    CloseableHttpClient httpClient = HttpClients.custom().setDefaultRequestConfig(config).build();
+    HttpGet httpGet =
+        new HttpGet("http://metadata.google.internal/computeMetadata/v1/instance/zone");
+    httpGet.addHeader("Metadata-Flavor", "Google");
+    try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
+      if (response.getStatusLine().getStatusCode() == 200) {
+        String body =
+            CharStreams.toString(new InputStreamReader(response.getEntity().getContent(), UTF_8));
+        return Optional.of(body.substring(body.lastIndexOf('/') + 1));
+      } else {
+        return Optional.empty();
+      }
+    } catch (Exception e) {
+      return Optional.empty();
+    } finally {
+      try {
+        Closeables.close(httpClient, true);
+      } catch (IOException e) {
+        // nothing to do
+      }
+    }
+  }
 
   public static Connection connectionFromProperties(Map<String, String> properties) {
     String connUriPrefix = "cloudspanner:";

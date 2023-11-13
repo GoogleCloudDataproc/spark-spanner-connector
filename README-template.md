@@ -24,6 +24,10 @@ MY_CLUSTER=...
 gcloud dataproc clusters create "$MY_CLUSTER" --scopes https://www.googleapis.com/auth/cloud-platform
 ```
 
+### Permission
+
+If you run a Spark job on the Dataproc cluster, you'll have to assign corresponding [Spanner permission](https://cloud.google.com/spanner/docs/iam#permissions) to the [Dataproc VM service account](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/service-accounts#dataproc_service_accounts_2). If you choose to use Dataproc Serverless, you'll have to make sure the [Serverless service account](https://cloud.google.com/dataproc-serverless/docs/concepts/service-account#console) has the permission.
+
 ## Downloading and Using the Connector
 
 You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-${next-release-tag}.jar` directly.

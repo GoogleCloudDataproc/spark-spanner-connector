@@ -20,7 +20,7 @@ gcloud dataproc clusters create "$MY_CLUSTER" --scopes https://www.googleapis.co
 
 ## Downloading and Using the Connector
 
-You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-0.0.1-BETA.jar` directly.
+You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-1.0.0.jar` directly.
 
 ### Connector to Spark Compatibility Matrix
 | Connector \ Spark                     | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     |
@@ -42,7 +42,7 @@ You can use the standard `--jars` or `--packages` (or alternatively, the `spark.
 
 ```shell
 gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
-    --jars=gs://spark-lib/spanner/spark-3.1-spanner-0.0.1-BETA.jar \
+    --jars=gs://spark-lib/spanner/spark-3.1-spanner-1.0.0.jar \
     --region us-central1 examples/SpannerSpark.py
 ```
 ## Usage
@@ -107,6 +107,14 @@ df.select("word")
 
 filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`. Note filters containing ArrayType column is not pushed down.
 
+### Monitoring
+
+When Data Boost is enabled, the usage can be monitored by using Cloud Monitoring. The [page]([url](https://cloud.google.com/spanner/docs/databoost/databoost-monitor#use_to_track_usage)) explains how to do that step by step. The usage cannot be grouped by the Spark job id though.
+
+### Debugging
+
+Dataproc [web interface]([url](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces)) can be used to debug especially to tune the performance. On the `YARN Application Timeline` page, it displays the execution timeline details for the executors and other functions. You can assign more workers if there are many tasks assigned to a same executor.
+
 ### PostgreSQL
 
 The connector supports the Spanner [PostgreSQL interface-enabled databases](https://cloud.google.com/spanner/docs/postgresql-interface#postgresql-components).
@@ -128,4 +136,6 @@ timestamptz/timestamp with time zone |TimestampType| Only microseconds will be c
 
 #### Filter Pushdown
 
-Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. Filters containing array column will not be pushed down.
+Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. For the jsonb column, `IN` filter is not pushdown to Cloud Spanner.
+
+Filters containing array column will not be pushed down.

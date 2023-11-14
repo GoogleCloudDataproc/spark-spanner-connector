@@ -127,7 +127,7 @@ Dataproc [web interface]([url](https://cloud.google.com/dataproc/docs/concepts/a
 
 ### Root-partitionable Query
 
-When enable Data Boost, all queries passed to Cloud Spanner needs to be root-partitionable. Please see [`Read data in parallel`](https://cloud.google.com/spanner/docs/reads#read_data_in_parallel) for more details. If you see the issue when running Spark Spanner connector, probably the table you input is not supported. 
+When DataBoost is enabled, all queries that are fed into Cloud Spanner must be root-partionable. Please see [`Read data in parallel`](https://cloud.google.com/spanner/docs/reads#read_data_in_parallel) for more details. If you encounter an issue related to partitioning when using this connector, it is probably that the table being read from is not supported.
 
 ### PostgreSQL
 

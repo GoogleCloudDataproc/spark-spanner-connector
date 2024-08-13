@@ -19,6 +19,7 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +45,12 @@ import org.slf4j.LoggerFactory;
  */
 public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   private String tableName;
+
+  private final String instanceId;
+
+  private final String databaseId;
+
+  private final String projectId;
   private StructType tableSchema;
   private static final ImmutableSet<TableCapability> tableCapabilities =
       ImmutableSet.of(TableCapability.BATCH_READ);
@@ -82,6 +89,9 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
         this.tableSchema =
             createSchema(tableName, rs, conn.getDialect().equals(Dialect.POSTGRESQL));
       }
+      this.projectId = properties.get("projectId");
+      this.instanceId = properties.get("instanceId");
+      this.databaseId = properties.get("databaseId");
     }
   }
 
@@ -304,5 +314,16 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     throw new SpannerConnectorException(
         SpannerErrorCode.WRITES_NOT_SUPPORTED,
         "writes are not supported in the Spark Spanner Connector");
+  }
+
+  @Override
+  public Map<String, String> properties() {
+    return ImmutableMap.<String, String>builder()
+        .put("openlineage.dataset.name", String.format("%s/%s", databaseId, tableName))
+        .put(
+            "openlineage.dataset.namespace",
+            String.format("spanner://%s/%s", projectId, instanceId))
+        .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner")
+        .build();
   }
 }

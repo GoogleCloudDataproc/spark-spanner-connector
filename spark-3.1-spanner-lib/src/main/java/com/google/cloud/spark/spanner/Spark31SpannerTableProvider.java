@@ -36,8 +36,7 @@ public class Spark31SpannerTableProvider
    */
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    SpannerTable st = new SpannerTable(options);
-    return st.schema();
+    return new SpannerTable(options).schema();
   }
 
   /*

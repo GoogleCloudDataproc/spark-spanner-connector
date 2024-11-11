@@ -14,6 +14,8 @@
 
 package com.google.cloud.spark.spanner;
 
+import java.util.Map;
+import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.SparkSession;
 import org.junit.ClassRule;
 import org.junit.rules.ExternalResource;
@@ -26,6 +28,21 @@ public class SparkSpannerIntegrationTestBase extends SpannerTestBase {
 
   public SparkSpannerIntegrationTestBase() {
     this.spark = sparkFactory.spark;
+  }
+
+  public DataFrameReader reader() {
+    Map<String, String> props = connectionProperties();
+    DataFrameReader reader =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .option("viewsEnabled", true)
+            .option("projectId", props.get("projectId"))
+            .option("instanceId", props.get("instanceId"))
+            .option("databaseId", props.get("databaseId"));
+    String emulatorHost = props.get("emulatorHost");
+    if (emulatorHost != null) reader = reader.option("emulatorHost", props.get("emulatorHost"));
+    return reader;
   }
 
   protected static class SparkFactory extends ExternalResource {

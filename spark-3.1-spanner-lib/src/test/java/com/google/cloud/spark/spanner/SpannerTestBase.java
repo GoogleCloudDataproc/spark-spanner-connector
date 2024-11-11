@@ -14,16 +14,13 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.BatchClient;
-import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
-import com.google.cloud.spanner.Instance;
 import com.google.cloud.spanner.InstanceAdminClient;
-import com.google.cloud.spanner.InstanceConfig;
+import com.google.cloud.spanner.InstanceConfigId;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
 import com.google.cloud.spanner.Mutation;
@@ -31,9 +28,7 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.common.collect.Lists;
-import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
-import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
-import com.google.spanner.admin.instance.v1.CreateInstanceMetadata;
+import io.micrometer.observation.Observation.CheckedRunnable;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,33 +37,38 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class SpannerTestBase {
-  // It is imperative that we generate a unique databaseId since in
-  // the teardown we delete the Cloud Spanner database, hence use
-  // system time.Nanos to avoid any cross-pollution between concurrently
-  // running tests.
-  private static String databaseId = System.getenv("SPANNER_DATABASE_ID") + "-" + System.nanoTime();
-  private static String databaseIdPg = databaseId + "-pg";
-  private static String instanceId = System.getenv("SPANNER_INSTANCE_ID");
-  private static String projectId = System.getenv("SPANNER_PROJECT_ID");
-  private static String table = "ATable";
-  private static String tablePg = "composite_table";
+
+  // Since in the teardown we delete the Cloud Spanner database, here we append a random value to
+  // the database ID to avoid any cross-pollution between concurrently running tests.
+  // Note that a database ID must be 2-30 characters long.
+  private static final String databaseId =
+      System.getenv("SPANNER_DATABASE_ID") + "-" + new Random().nextInt(10000000);
+  private static final String databaseIdPg = databaseId + "-pg";
+  private static final String instanceId = System.getenv("SPANNER_INSTANCE_ID");
+  private static final String projectId = System.getenv("SPANNER_PROJECT_ID");
+  private static final String table = "ATable";
+  private static final String tablePg = "composite_table";
+  private static final String instanceConfigId = "regional-us-central1";
   private static Spanner spanner;
   protected static String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
+
+  private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   private static SpannerOptions createSpannerOptions() {
     return emulatorHost != null
         ? SpannerOptions.newBuilder().setProjectId(projectId).setEmulatorHost(emulatorHost).build()
         : SpannerOptions.newBuilder().setProjectId(projectId).build();
   }
-
-  private static Thread mainThread = Thread.currentThread();
 
   private static synchronized boolean createSpanner() {
     if (spanner != null) {
@@ -77,19 +77,7 @@ class SpannerTestBase {
 
     spanner = createSpannerOptions().getService();
 
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread() {
-              @Override
-              public void run() {
-                teardown();
-                try {
-                  mainThread.join();
-                } catch (Exception e) {
-                  System.out.println("mainThread::join exception: " + e);
-                }
-              }
-            });
+    Runtime.getRuntime().addShutdownHook(new Thread(SpannerTestBase::teardown));
     return true;
   }
 
@@ -97,67 +85,65 @@ class SpannerTestBase {
     return spanner.getBatchClient(DatabaseId.of(projectId, instanceId, databaseId));
   }
 
-  private static void initDatabase() throws Exception {
-    // 1. Create the Spanner handle.
-    if (!createSpanner()) {
+  private static void runIgnoringAlreadyExist(CheckedRunnable<Exception> runnable)
+      throws Exception {
+    try {
+      runnable.run();
+    } catch (Exception e) {
+      if (!e.toString().contains("ALREADY_EXISTS")) {
+        throw e;
+      }
+    }
+  }
+
+  private static void createAndPopulateDatabase(
+      DatabaseAdminClient databaseAdminClient,
+      Dialect dialect,
+      String databaseId,
+      Iterable<String> ddls,
+      Iterable<String> dmls)
+      throws Exception {
+    if (Dialect.POSTGRESQL.equals(dialect) && emulatorHost != null && !emulatorHost.isEmpty()) {
+      // Spanner emulator doesn't support the PostgreSql dialect interface.
+      // If the emulator is set. We return immediately here.
+      // TODO: Throw an exception here instead of failing silently.
+      // Caveat: This populatePgDatabase function is always called regardless of whether PG
+      // databases are needed or not. Making this throw an exception (instead of failing silently)
+      // will stop all tests from using an emulator. A bigger refactoring of the test setup process
+      // will be needed to address this.
       return;
     }
 
-    System.out.println("\033[34minitDatabase invoked!\033[00m");
-    // 2. Now create the instance.
-    InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
-    InstanceConfig config =
-        instanceAdminClient.listInstanceConfigs().iterateAll().iterator().next();
-    InstanceInfo instanceInfo =
-        InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
-            .setInstanceConfigId(config.getId())
-            .setNodeCount(1)
-            .setDisplayName("SparkSpanner Test")
-            .build();
-    OperationFuture<Instance, CreateInstanceMetadata> createInstanceOperation =
-        instanceAdminClient.createInstance(instanceInfo);
-
-    try {
-      createInstanceOperation.get();
-    } catch (Exception e) {
-      if (!e.toString().contains("ALREADY_EXISTS")) {
-        throw e;
-      }
+    switch (dialect) {
+      case GOOGLE_STANDARD_SQL:
+        runIgnoringAlreadyExist(
+            databaseAdminClient.createDatabase(instanceId, databaseId, ddls)::get);
+        break;
+      case POSTGRESQL:
+        runIgnoringAlreadyExist(
+            databaseAdminClient.createDatabase(
+                    instanceId,
+                    dialect.createDatabaseStatementFor(databaseId),
+                    dialect,
+                    Collections.emptyList())
+                ::get);
+        runIgnoringAlreadyExist(
+            databaseAdminClient.updateDatabaseDdl(instanceId, databaseId, ddls, null)::get);
+        break;
     }
 
-    DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
-
-    // 2. Create the database.
-    // TODO: Skip this process if the database already exists.
-    OperationFuture<Database, CreateDatabaseMetadata> createDatabaseOperation =
-        databaseAdminClient.createDatabase(instanceId, databaseId, TestData.initialDDL);
-    try {
-      createDatabaseOperation.get();
-    } catch (Exception e) {
-      if (!e.toString().contains("ALREADY_EXISTS")) {
-        throw e;
-      }
-    }
-
-    // 3.1. Insert data into the databse.
+    // Insert data into the database.
     DatabaseClient databaseClient =
         spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
     databaseClient
         .readWriteTransaction()
         .run(
             txn -> {
-              try {
-                TestData.initialDML.forEach(sql -> txn.executeUpdate(Statement.of(sql)));
-              } catch (Exception e) {
-                if (!e.toString().contains("ALREADY_EXISTS")) {
-                  throw e;
-                }
-              }
-
+              runIgnoringAlreadyExist(
+                  () -> dmls.forEach(sql -> txn.executeUpdate(Statement.of(sql))));
               return null;
             });
 
-    // 3.2. Insert the Shakespeare data.
     // Using a smaller value of 1000 statements
     int maxValuesPerTxn = 1000;
     List<List<Mutation>> partitionedMutations =
@@ -165,76 +151,50 @@ class SpannerTestBase {
     for (List<Mutation> mutations : partitionedMutations) {
       databaseClient.write(mutations);
     }
-
-    populatePgDatabase(databaseAdminClient);
-  }
-
-  private static void populatePgDatabase(DatabaseAdminClient databaseAdminClient) throws Exception {
-    if (emulatorHost != null && !emulatorHost.isEmpty()) {
-      // Spanner emulator doesn't support the PostgreSql dialect interface.
-      // If the emulator is set. We return immediately here.
-      return;
-    }
-    String createDatabasePg = "CREATE DATABASE \"" + databaseIdPg + "\"";
-    OperationFuture<Database, CreateDatabaseMetadata> createDatabaseOperationPg =
-        databaseAdminClient.createDatabase(
-            instanceId, createDatabasePg, Dialect.POSTGRESQL, Collections.emptyList());
-    try {
-      createDatabaseOperationPg.get();
-    } catch (Exception e) {
-      if (!e.toString().contains("ALREADY_EXISTS")) {
-        throw e;
-      }
-    }
-    OperationFuture<Void, UpdateDatabaseDdlMetadata> updateDatabaseDdlPg =
-        databaseAdminClient.updateDatabaseDdl(
-            instanceId, databaseIdPg, TestData.initialDDLPg, null);
-    try {
-      updateDatabaseDdlPg.get();
-    } catch (Exception e) {
-      if (!e.toString().contains("ALREADY_EXISTS")) {
-        throw e;
-      }
-    }
-
-    DatabaseClient databaseClientPg =
-        spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseIdPg));
-    databaseClientPg
-        .readWriteTransaction()
-        .run(
-            txn -> {
-              try {
-                TestData.initialDMLPg.forEach(sql -> txn.executeUpdate(Statement.of(sql)));
-              } catch (Exception e) {
-                if (!e.toString().contains("ALREADY_EXISTS")) {
-                  throw e;
-                }
-              }
-
-              return null;
-            });
-
-    int maxValuesPerTxn = 1000;
-    List<List<Mutation>> partitionedMutations =
-        Lists.partition(TestData.shakespearMutations, maxValuesPerTxn);
-    for (List<Mutation> mutations : partitionedMutations) {
-      databaseClientPg.write(mutations);
-    }
   }
 
   @BeforeClass
   public static void setUp() throws Exception {
-    initDatabase();
+    // Create the Spanner handle.
+    if (!createSpanner()) {
+      return;
+    }
+
+    // Create the instance.
+    InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
+    InstanceInfo instanceInfo =
+        InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
+            .setInstanceConfigId(InstanceConfigId.of(projectId, instanceConfigId))
+            .setNodeCount(1)
+            .setDisplayName("SparkSpanner Test")
+            .build();
+    runIgnoringAlreadyExist(() -> instanceAdminClient.createInstance(instanceInfo).get());
+
+    // Create the database and populate data
+    log.info("\033[34mInitializing databases!\033[00m");
+    DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
+    createAndPopulateDatabase(
+        databaseAdminClient,
+        Dialect.GOOGLE_STANDARD_SQL,
+        databaseId,
+        TestData.initialDDL,
+        TestData.initialDML);
+    createAndPopulateDatabase(
+        databaseAdminClient,
+        Dialect.POSTGRESQL,
+        databaseIdPg,
+        TestData.initialDDLPg,
+        TestData.initialDMLPg);
   }
 
   private static void cleanupDatabase() {
+    log.info("\033[33mCleaning up databases\033[00m");
     DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
     databaseAdminClient.dropDatabase(instanceId, databaseId);
     databaseAdminClient.dropDatabase(instanceId, databaseIdPg);
   }
 
   public static void teardown() {
-    System.out.println("\033[33mShutting down now!\033[00m");
     cleanupDatabase();
     spanner.close();
   }
@@ -260,7 +220,7 @@ class SpannerTestBase {
     return connectionProperties(false);
   }
 
-  InternalRow makeInternalRow(int A, String B, double C) {
+  static InternalRow makeInternalRow(int A, String B, double C) {
     GenericInternalRow row = new GenericInternalRow(3);
     row.setLong(0, A);
     row.update(1, UTF8String.fromString(B));
@@ -268,10 +228,10 @@ class SpannerTestBase {
     return row;
   }
 
-  InternalRow makeATableInternalRow(
+  static InternalRow makeATableInternalRow(
       long A, String B, byte[] C, ZonedDateTime D, double E, String[] F, String G) {
     GenericInternalRow row = new GenericInternalRow(7);
-    row.setLong(0, ((Long) A));
+    row.setLong(0, A);
     row.update(1, UTF8String.fromString(B));
     if (C == null) {
       row.update(2, null);
@@ -284,7 +244,7 @@ class SpannerTestBase {
     if (F == null) {
       row.update(5, null);
     } else {
-      List<UTF8String> fDest = new ArrayList<UTF8String>(F.length);
+      List<UTF8String> fDest = new ArrayList<>(F.length);
       for (String s : F) {
         fDest.add(UTF8String.fromString(s));
       }
@@ -294,14 +254,15 @@ class SpannerTestBase {
     return row;
   }
 
-  class InternalRowComparator implements Comparator<InternalRow> {
+  static class InternalRowComparator implements Comparator<InternalRow> {
+
     @Override
     public int compare(InternalRow r1, InternalRow r2) {
       return r1.toString().compareTo(r2.toString());
     }
   }
 
-  public InternalRow makeCompositeTableRow(
+  public static InternalRow makeCompositeTableRow(
       String id,
       long[] A,
       String[] B,
@@ -331,16 +292,17 @@ class SpannerTestBase {
     } else {
       row.setBoolean(7, G);
     }
-    row.update(8, H == null ? null : SpannerUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
     row.update(
-        9, I == null ? I : SpannerUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
+        8, H == null ? null : SpannerTestUtils.zonedDateTimeIterToSparkDates(Arrays.asList(H)));
+    row.update(
+        9, I == null ? I : SpannerTestUtils.zonedDateTimeIterToSparkTimestamps(Arrays.asList(I)));
     row.update(10, J == null ? J : stringToBytes(J));
     row.update(11, K == null ? K : UTF8String.fromString(K));
 
     return row;
   }
 
-  public InternalRow makeCompositeTableRowPg(
+  public static InternalRow makeCompositeTableRowPg(
       long id,
       String charvCol,
       String textCol,
@@ -429,7 +391,7 @@ class SpannerTestBase {
     return row;
   }
 
-  private UTF8String[] toSparkStrList(String[] strs) {
+  private static UTF8String[] toSparkStrList(String[] strs) {
     List<UTF8String> dest = new ArrayList<>();
     for (String s : strs) {
       dest.add(UTF8String.fromString(s));

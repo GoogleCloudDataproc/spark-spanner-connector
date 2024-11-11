@@ -56,14 +56,10 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   public SpannerTable(Map<String, String> properties) {
-    this.tableName =
-        Objects.requireNonNull(properties.get("table"), "Option \"table\" is missing.");
-    this.projectId =
-        Objects.requireNonNull(properties.get("projectId"), "Option \"table\" is missing.");
-    this.instanceId =
-        Objects.requireNonNull(properties.get("projectId"), "Option \"instanceId\" is missing.");
-    this.databaseId =
-        Objects.requireNonNull(properties.get("projectId"), "Option \"databaseId\" is missing.");
+    this.tableName = getOption(properties, "table");
+    this.projectId = getOption(properties, "projectId");
+    this.instanceId = getOption(properties, "instanceId");
+    this.databaseId = getOption(properties, "databaseId");
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       boolean isPostgreSql;
       if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
@@ -270,5 +266,9 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
             String.format("spanner://%s/%s", projectId, instanceId))
         .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner")
         .build();
+  }
+
+  private static String getOption(Map<String, String> properties, String option) {
+    return Objects.requireNonNull(properties.get(option), "Option \"" + option + "\" is missing.");
   }
 }

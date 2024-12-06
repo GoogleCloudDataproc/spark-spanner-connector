@@ -24,6 +24,7 @@ import com.google.cloud.spanner.SpannerException;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public class SpannerInputPartitionReaderContext
     implements AutoCloseable, InputPartitionReaderContext<InternalRow> {
@@ -40,6 +41,8 @@ public class SpannerInputPartitionReaderContext
       throw new SpannerConnectorException(
           SpannerErrorCode.SPANNER_FAILED_TO_PARSE_OPTIONS, "Error parsing the input options.", e);
     }
+    // The map might be case-insensitive when being serialized
+    opts = new CaseInsensitiveStringMap(opts);
 
     // Please note that we are using BatchClientWithCloser to avoid resource leaks.
     // That is because, since we do have a deterministic scope and timeline for how long
@@ -69,7 +72,7 @@ public class SpannerInputPartitionReaderContext
 
   @Override
   public InternalRow get() {
-    return SpannerUtils.resultSetRowToInternalRow(this.rs);
+    return SpannerUtils.spannerStructToInternalRow(this.rs.getCurrentRowAsStruct());
   }
 
   @Override

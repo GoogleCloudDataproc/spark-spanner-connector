@@ -33,7 +33,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.spark.sql.Dataset;
@@ -50,17 +49,7 @@ import scala.collection.Seq;
 public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
   public Dataset<Row> readFromTable(String table) {
-    Map<String, String> props = this.connectionProperties();
-    return spark
-        .read()
-        .format("cloud-spanner")
-        .option("viewsEnabled", true)
-        .option("projectId", props.get("projectId"))
-        .option("instanceId", props.get("instanceId"))
-        .option("databaseId", props.get("databaseId"))
-        .option("emulatorHost", props.get("emulatorHost"))
-        .option("table", table)
-        .load();
+    return reader().option("table", table).load();
   }
 
   @Test
@@ -652,7 +641,7 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     // assertThat(actualEStrs).containsExactlyElementsIn(expectEs);
   }
 
-  private String toString(Row row) {
+  public static String toString(Row row) {
     StructType types = row.schema();
     String rowStr = "";
     int i = 0;
@@ -666,7 +655,7 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     return rowStr;
   }
 
-  private String toString(Row row, int index, DataType dataType) {
+  private static String toString(Row row, int index, DataType dataType) {
     if (row.isNullAt(index)) {
       return "null";
     }
@@ -750,7 +739,7 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     }
   }
 
-  private String toStringForBytes(byte[] bytes) {
+  private static String toStringForBytes(byte[] bytes) {
     if (bytes == null) {
       return "null";
     }

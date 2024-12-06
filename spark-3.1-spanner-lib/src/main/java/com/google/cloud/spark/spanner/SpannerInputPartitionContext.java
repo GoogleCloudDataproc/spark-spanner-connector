@@ -22,13 +22,12 @@ import org.apache.spark.sql.catalyst.InternalRow;
 public class SpannerInputPartitionContext
     implements InputPartitionContext<InternalRow>, Serializable {
 
-  private BatchTransactionId batchTransactionId;
-  private Partition partition;
-  private String mapAsJSONStr;
+  private final BatchTransactionId batchTransactionId;
+  private final Partition partition;
+  private final String mapAsJSONStr;
 
   public SpannerInputPartitionContext(
       Partition partition, BatchTransactionId batchTransactionId, String mapAsJSONStr) {
-
     this.mapAsJSONStr = mapAsJSONStr;
     this.partition = partition;
     this.batchTransactionId = batchTransactionId;
@@ -36,8 +35,7 @@ public class SpannerInputPartitionContext
 
   @Override
   public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
-    return new SpannerInputPartitionReaderContext(
-        this.partition, this.batchTransactionId, this.mapAsJSONStr);
+    return new SpannerInputPartitionReaderContext(partition, batchTransactionId, mapAsJSONStr);
   }
 
   @Override

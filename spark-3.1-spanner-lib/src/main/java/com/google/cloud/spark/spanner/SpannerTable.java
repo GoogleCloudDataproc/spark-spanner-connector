@@ -15,13 +15,11 @@
 package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spanner.Dialect;
-import com.google.cloud.spanner.ResultSet;
-import com.google.cloud.spanner.Statement;
-import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,7 +32,6 @@ import org.apache.spark.sql.connector.write.LogicalWriteInfo;
 import org.apache.spark.sql.connector.write.WriteBuilder;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
@@ -44,38 +41,31 @@ import org.slf4j.LoggerFactory;
  * SpannerTable implements Table.
  */
 public class SpannerTable implements Table, SupportsRead, SupportsWrite {
-  private String tableName;
+
+  private final String tableName;
 
   private final String instanceId;
 
   private final String databaseId;
 
   private final String projectId;
-  private StructType tableSchema;
+  private final SpannerTableSchema tableSchema;
   private static final ImmutableSet<TableCapability> tableCapabilities =
       ImmutableSet.of(TableCapability.BATCH_READ);
-  private static final String QUERY_PREFIX =
-      "SELECT COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE='YES' AS ISNULLABLE, SPANNER_TYPE "
-          + "FROM INFORMATION_SCHEMA.COLUMNS WHERE ";
-  private static final String QUERY_SUFFIX = " ORDER BY ORDINAL_POSITION";
-  private static final String GOOGLESQL_SCHEMA =
-      QUERY_PREFIX + "TABLE_NAME=@tableName" + QUERY_SUFFIX;
-  private static final String POSTGRESQL_SCHEMA =
-      QUERY_PREFIX + "columns.table_name=$1" + QUERY_SUFFIX;
 
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   public SpannerTable(Map<String, String> properties) {
+    this.tableName = getOption(properties, "table");
+    this.projectId = getOption(properties, "projectId");
+    this.instanceId = getOption(properties, "instanceId");
+    this.databaseId = getOption(properties, "databaseId");
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
-      String tableName = properties.get("table");
-      if (tableName == null) {
-        log.error("\"table\" is expecting in properties");
-      }
-      Statement stmt;
+      boolean isPostgreSql;
       if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
-        stmt = Statement.newBuilder(GOOGLESQL_SCHEMA).bind("tableName").to(tableName).build();
+        isPostgreSql = false;
       } else if (conn.getDialect().equals(Dialect.POSTGRESQL)) {
-        stmt = Statement.newBuilder(POSTGRESQL_SCHEMA).bind("p1").to(tableName).build();
+        isPostgreSql = true;
       } else {
         throw new SpannerConnectorException(
             SpannerErrorCode.DATABASE_DIALECT_NOT_SUPPORTED,
@@ -85,57 +75,8 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
                 + tableName
                 + " is not supported.");
       }
-      try (final ResultSet rs = conn.executeQuery(stmt)) {
-        this.tableSchema =
-            createSchema(tableName, rs, conn.getDialect().equals(Dialect.POSTGRESQL));
-      }
-      this.projectId = properties.get("projectId");
-      this.instanceId = properties.get("instanceId");
-      this.databaseId = properties.get("databaseId");
+      this.tableSchema = new SpannerTableSchema(conn, tableName, isPostgreSql);
     }
-  }
-
-  public StructType createSchema(String tableName, ResultSet rs, boolean isPostgreSql) {
-    this.tableName = tableName;
-
-    Integer columnSize = rs.getColumnCount();
-    // Expecting resultset columns in the ordering:
-    //       COLUMN_NAME, ORDINAL_POSITION, IS_NULLABLE, SPANNER_TYPE
-    // row1:
-    // ...
-    // rowN:
-    StructType schema = new StructType();
-    while (rs.next()) {
-      Struct row = rs.getCurrentRowAsStruct();
-      String columnName = row.getString(0);
-      // Integer ordinalPosition = column.getInt(1);
-      boolean isNullable = row.getBoolean(2);
-      String colType = row.getString(3);
-      DataType catalogType =
-          isPostgreSql
-              ? SpannerTable.ofSpannerStrTypePg(colType, isNullable)
-              : SpannerTable.ofSpannerStrType(colType, isNullable);
-      MetadataBuilder metadataBuilder = new MetadataBuilder();
-      if (isJson(colType)) {
-        metadataBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
-        schema = schema.add(columnName, catalogType, isNullable, metadataBuilder.build());
-      } else if (isJsonb(colType)) {
-        metadataBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
-        schema = schema.add(columnName, catalogType, isNullable, metadataBuilder.build());
-      } else {
-        schema = schema.add(columnName, catalogType, isNullable, "" /* No comments for the text */);
-      }
-    }
-    this.tableSchema = schema;
-    return schema;
-  }
-
-  public static boolean isJson(String spannerStrType) {
-    return "JSON".equals(spannerStrType.trim().toUpperCase());
-  }
-
-  public static boolean isJsonb(String spannerStrType) {
-    return "jsonb".equals(spannerStrType.trim().toLowerCase());
   }
 
   public static DataType ofSpannerStrType(String spannerStrType, boolean isNullable) {
@@ -286,7 +227,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public StructType schema() {
-    return this.tableSchema;
+    return this.tableSchema.schema;
   }
 
   /*
@@ -325,5 +266,9 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
             String.format("spanner://%s/%s", projectId, instanceId))
         .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner")
         .build();
+  }
+
+  private static String getOption(Map<String, String> properties, String option) {
+    return Objects.requireNonNull(properties.get(option), "Option \"" + option + "\" is missing.");
   }
 }

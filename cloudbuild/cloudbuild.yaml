@@ -11,7 +11,7 @@ steps:
     entrypoint: 'bash'
     args: ['/workspace/cloudbuild/presubmit.sh', 'init']
 
-  # 3. Run integration tests with Spanner emulator
+  # 3. Run integration tests with real Spanner databases
   - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
     id: 'integration-real-spanner'
     waitFor: ['init']

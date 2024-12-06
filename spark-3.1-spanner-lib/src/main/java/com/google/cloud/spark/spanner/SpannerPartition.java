@@ -16,16 +16,19 @@ package com.google.cloud.spark.spanner;
 
 import java.io.Serializable;
 import org.apache.spark.Partition;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
 
 public class SpannerPartition implements Partition, InputPartition, Serializable {
 
   private final com.google.cloud.spanner.Partition partition;
   private final int index;
-  private InputPartitionContext ctx;
+  private final InputPartitionContext<InternalRow> ctx;
 
   public SpannerPartition(
-      com.google.cloud.spanner.Partition partition, int index, InputPartitionContext ctx) {
+      com.google.cloud.spanner.Partition partition,
+      int index,
+      InputPartitionContext<InternalRow> ctx) {
     this.index = index;
     this.partition = partition;
     this.ctx = ctx;
@@ -41,7 +44,7 @@ public class SpannerPartition implements Partition, InputPartition, Serializable
     return "SpannerPartition{index=" + this.index + ", stream=" + this.partition + "}";
   }
 
-  public InputPartitionContext getContext() {
+  public InputPartitionContext<InternalRow> getContext() {
     return this.ctx;
   }
 }

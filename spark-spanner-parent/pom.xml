@@ -387,6 +387,10 @@
                         <exclude>**/*AcceptanceTest.java</exclude>
                         <exclude>**/*IntegrationTest.java</exclude>
                     </excludes>
+                    <!-- FXIME: This plugin is intended for unit tests,
+                    but apparently the excludes filters above fail to exclude
+                    all integration tests (e.g., ReadIntegrationTestBase.java,
+                    SpannerInputPartitionReaderContextTest.java) -->
                 </configuration>
             </plugin>
             <plugin>

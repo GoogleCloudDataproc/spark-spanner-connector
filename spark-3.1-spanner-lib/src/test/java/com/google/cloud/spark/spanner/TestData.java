@@ -38,7 +38,7 @@ public final class TestData {
     List<String> stmts = new ArrayList<>();
     for (String stmt : splits) {
       stmt = stmt.trim();
-      if (stmt != "" && stmt != "\n") {
+      if (!stmt.equals("") && !stmt.equals("\n")) {
         stmts.add(stmt);
       }
     }
@@ -72,7 +72,7 @@ public final class TestData {
     List<Mutation> mutations = new ArrayList<>();
     for (String csvLine : csvLines) {
       csvLine = csvLine.trim();
-      if (csvLine == "" || csvLine == "\n") {
+      if (csvLine.equals("") || csvLine.equals("\n")) {
         continue;
       }
 

@@ -43,13 +43,14 @@ import org.slf4j.LoggerFactory;
  * SpannerScanner implements Scan.
  */
 public class SpannerScanner implements Batch, Scan {
-  private SpannerTable spannerTable;
-  private Filter[] filters;
-  private Set<String> requiredColumns;
-  private Map<String, String> opts;
+  private final SpannerTable spannerTable;
+  private final Filter[] filters;
+  private final Set<String> requiredColumns;
+  private final Map<String, String> opts;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
   private final Timestamp INIT_TIME = Timestamp.now();
-  private Map<String, StructField> fields;
+  private final Map<String, StructField> fields;
+  private final StructType readSchema;
 
   public SpannerScanner(
       Map<String, String> opts,
@@ -62,18 +63,12 @@ public class SpannerScanner implements Batch, Scan {
     this.fields = fields;
     this.filters = filters;
     this.requiredColumns = requiredColumns;
+    this.readSchema = SpannerUtils.pruneSchema(spannerTable.schema(), requiredColumns);
   }
 
   @Override
   public StructType readSchema() {
-    StructType prevSchema = this.spannerTable.schema();
-    StructType prunedSchema = new StructType();
-    for (StructField field : prevSchema.fields()) {
-      if (this.requiredColumns == null || this.requiredColumns.contains(field.name())) {
-        prunedSchema = prunedSchema.add(field);
-      }
-    }
-    return prunedSchema;
+    return readSchema;
   }
 
   @Override

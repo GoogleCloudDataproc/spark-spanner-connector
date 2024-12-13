@@ -27,6 +27,7 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.micrometer.observation.Observation.CheckedRunnable;
 import java.time.ZonedDateTime;
@@ -177,8 +178,8 @@ class SpannerTestBase {
         databaseAdminClient,
         Dialect.GOOGLE_STANDARD_SQL,
         databaseId,
-        TestData.initialDDL,
-        TestData.initialDML);
+        Iterables.concat(TestData.initialDDL, TestData.initialDDLGraph),
+        Iterables.concat(TestData.initialDML, TestData.initialDMLGraph));
     createAndPopulateDatabase(
         databaseAdminClient,
         Dialect.POSTGRESQL,

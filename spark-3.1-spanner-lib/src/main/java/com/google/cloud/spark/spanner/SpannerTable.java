@@ -56,10 +56,10 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   public SpannerTable(Map<String, String> properties) {
-    this.tableName = getOption(properties, "table");
-    this.projectId = getOption(properties, "projectId");
-    this.instanceId = getOption(properties, "instanceId");
-    this.databaseId = getOption(properties, "databaseId");
+    this.tableName = getRequiredOption(properties, "table");
+    this.projectId = getRequiredOption(properties, "projectId");
+    this.instanceId = getRequiredOption(properties, "instanceId");
+    this.databaseId = getRequiredOption(properties, "databaseId");
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       boolean isPostgreSql;
       if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
@@ -268,7 +268,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
         .build();
   }
 
-  private static String getOption(Map<String, String> properties, String option) {
+  private static String getRequiredOption(Map<String, String> properties, String option) {
     return Objects.requireNonNull(properties.get(option), "Option \"" + option + "\" is missing.");
   }
 }

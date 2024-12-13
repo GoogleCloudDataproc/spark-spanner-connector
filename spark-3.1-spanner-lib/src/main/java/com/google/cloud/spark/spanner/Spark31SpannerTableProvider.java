@@ -14,7 +14,9 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
@@ -31,12 +33,17 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 public class Spark31SpannerTableProvider
     implements DataSourceRegister, TableProvider, CreatableRelationProvider {
 
+  private @Nullable Table table;
+
   /*
    * Infers the schema of the table identified by the given options.
    */
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    return new SpannerTable(options).schema();
+    if (table == null) {
+      table = getTable(options);
+    }
+    return table.schema();
   }
 
   /*
@@ -46,7 +53,10 @@ public class Spark31SpannerTableProvider
   @Override
   public Table getTable(
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
-    return new SpannerTable(properties);
+    if (table == null) {
+      table = getTable(properties);
+    }
+    return table;
   }
 
   /*
@@ -77,5 +87,17 @@ public class Spark31SpannerTableProvider
     throw new SpannerConnectorException(
         SpannerErrorCode.WRITES_NOT_SUPPORTED,
         "writes are not supported in the Spark Spanner Connector");
+  }
+
+  private Table getTable(Map<String, String> properties) {
+    boolean hasTable = properties.containsKey("table");
+    boolean hasGraph = properties.containsKey("graph");
+    if (hasTable && !hasGraph) {
+      return new SpannerTable(properties);
+    } else if (!hasTable && hasGraph) {
+      return SpannerGraphBuilder.build(properties);
+    } else {
+      throw new SpannerConnectorException("properties must contain one of \"table\" or \"graph\"");
+    }
   }
 }

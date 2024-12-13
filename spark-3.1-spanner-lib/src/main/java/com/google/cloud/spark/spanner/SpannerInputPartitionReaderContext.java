@@ -23,6 +23,7 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
@@ -31,9 +32,13 @@ public class SpannerInputPartitionReaderContext
 
   private BatchClientWithCloser batchClientWithCloser;
   private ResultSet rs;
+  private final SpannerRowConverter rowConverter;
 
   public SpannerInputPartitionReaderContext(
-      Partition partition, BatchTransactionId batchTransactionId, String mapAsJSONStr) {
+      Partition partition,
+      BatchTransactionId batchTransactionId,
+      String mapAsJSONStr,
+      SpannerRowConverter rowConverter) {
     Map<String, String> opts;
     try {
       opts = SpannerUtils.deserializeMap(mapAsJSONStr);
@@ -53,6 +58,7 @@ public class SpannerInputPartitionReaderContext
         batchClientWithCloser.batchClient.batchReadOnlyTransaction(batchTransactionId)) {
       this.rs = txn.execute(partition);
     }
+    this.rowConverter = Objects.requireNonNull(rowConverter);
   }
 
   @Override
@@ -72,7 +78,7 @@ public class SpannerInputPartitionReaderContext
 
   @Override
   public InternalRow get() {
-    return SpannerUtils.spannerStructToInternalRow(this.rs.getCurrentRowAsStruct());
+    return rowConverter.convert(this.rs.getCurrentRowAsStruct());
   }
 
   @Override

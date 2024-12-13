@@ -86,7 +86,8 @@ public class SpannerInputPartitionReaderContextTest extends SpannerTestBase {
 
       for (final Partition partition : partitions) {
         SpannerInputPartitionContext sCtx =
-            new SpannerInputPartitionContext(partition, txn.getBatchTransactionId(), mapAsJSON);
+            new SpannerInputPartitionContext(
+                partition, txn.getBatchTransactionId(), mapAsJSON, new SpannerRowConverterDirect());
         try {
           InputPartitionReaderContext<InternalRow> ctx = sCtx.createPartitionReaderContext();
 

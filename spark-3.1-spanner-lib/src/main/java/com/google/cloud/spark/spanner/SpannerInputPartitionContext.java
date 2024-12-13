@@ -25,17 +25,23 @@ public class SpannerInputPartitionContext
   private final BatchTransactionId batchTransactionId;
   private final Partition partition;
   private final String mapAsJSONStr;
+  private final SpannerRowConverter rowConverter;
 
   public SpannerInputPartitionContext(
-      Partition partition, BatchTransactionId batchTransactionId, String mapAsJSONStr) {
+      Partition partition,
+      BatchTransactionId batchTransactionId,
+      String mapAsJSONStr,
+      SpannerRowConverter rowConverter) {
     this.mapAsJSONStr = mapAsJSONStr;
     this.partition = partition;
     this.batchTransactionId = batchTransactionId;
+    this.rowConverter = rowConverter;
   }
 
   @Override
   public InputPartitionReaderContext<InternalRow> createPartitionReaderContext() {
-    return new SpannerInputPartitionReaderContext(partition, batchTransactionId, mapAsJSONStr);
+    return new SpannerInputPartitionReaderContext(
+        partition, batchTransactionId, mapAsJSONStr, rowConverter);
   }
 
   @Override

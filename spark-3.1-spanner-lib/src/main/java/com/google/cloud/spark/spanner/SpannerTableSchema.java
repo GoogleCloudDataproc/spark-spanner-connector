@@ -6,6 +6,7 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
@@ -68,6 +69,10 @@ public class SpannerTableSchema {
       metadataBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
     }
     return new StructField(name, catalogType, isNullable, metadataBuilder.build());
+  }
+
+  public StructField getStructFieldForColumn(String columnName) {
+    return Objects.requireNonNull(columns.get(columnName));
   }
 
   public static boolean isJson(String spannerStrType) {

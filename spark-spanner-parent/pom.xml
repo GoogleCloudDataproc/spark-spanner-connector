@@ -425,6 +425,17 @@
                         <directory>src/build/resources</directory>
                         <filtering>true</filtering>
                       </resource>
+                      <resource>
+                        <directory>../python</directory>
+                        <filtering>true</filtering>
+                        <includes>
+                          <include>**/*.py</include>
+                        </includes>
+                        <excludes>
+                          <exclude>**/tests.py</exclude>
+                          <exclude>**/tests_gold.py</exclude>
+                        </excludes>
+                      </resource>
                     </resources>
                   </configuration>
                 </execution>

@@ -20,29 +20,34 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public final class TestData {
   public static List<String> initialDDL = createInitialDDL("/db/populate_ddl.sql");
   public static List<String> initialDDLPg = createInitialDDL("/db/populate_ddl_pg.sql");
+  public static List<String> initialDDLGraph = createInitialDDL("/db/populate_ddl_graph.sql");
   public static List<String> initialDML = createInitialDML("/db/insert_data.sql");
   public static List<String> initialDMLPg = createInitialDML("/db/insert_data_pg.sql");
+  public static List<String> initialDMLGraph = createInitialDML("/db/insert_data_graph.sql");
   public static List<Mutation> shakespearMutations = createShakespeareTableMutations();
 
   private TestData() {}
 
   private static List<String> readAndParseSQL(String filename) {
     String initialDDL = mustReadResource(filename);
-    String[] splits = initialDDL.trim().split(";");
-    List<String> stmts = new ArrayList<>();
-    for (String stmt : splits) {
-      stmt = stmt.trim();
-      if (!stmt.equals("") && !stmt.equals("\n")) {
-        stmts.add(stmt);
-      }
-    }
-    return stmts;
+    String[] statements =
+        Arrays.stream(initialDDL.split("\\r?\\n"))
+            .map(String::trim)
+            .filter(l -> !l.startsWith("--"))
+            .collect(Collectors.joining("\n"))
+            .split(";");
+    return Arrays.stream(statements)
+        .map(String::trim)
+        .filter(s -> !s.isEmpty())
+        .collect(Collectors.toList());
   }
 
   private static List<String> createInitialDDL(String filePath) {

@@ -125,7 +125,10 @@ public class SpannerScanner implements Batch, Scan {
                           part,
                           Math.toIntExact(index),
                           new SpannerInputPartitionContext(
-                              part, txn.getBatchTransactionId(), mapAsJSON)))
+                              part,
+                              txn.getBatchTransactionId(),
+                              mapAsJSON,
+                              new SpannerRowConverterDirect())))
               .collect(Collectors.toList());
 
       return parts.toArray(new InputPartition[0]);

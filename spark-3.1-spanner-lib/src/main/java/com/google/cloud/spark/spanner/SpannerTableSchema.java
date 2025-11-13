@@ -19,7 +19,7 @@ public class SpannerTableSchema {
           + "FROM INFORMATION_SCHEMA.COLUMNS WHERE ";
   private static final String QUERY_SUFFIX = " ORDER BY ORDINAL_POSITION";
   private static final String GOOGLESQL_SCHEMA =
-      QUERY_PREFIX + "TABLE_NAME=@tableName" + QUERY_SUFFIX;
+      QUERY_PREFIX + "UPPER(TABLE_NAME)=UPPER(@tableName)" + QUERY_SUFFIX;
   private static final String POSTGRESQL_SCHEMA =
       QUERY_PREFIX + "columns.table_name=$1" + QUERY_SUFFIX;
 
@@ -28,15 +28,18 @@ public class SpannerTableSchema {
   public final String name;
   public final StructType schema;
 
+  static Statement buildSchemaQuery(String tableName, boolean isPostgreSql) {
+    if (isPostgreSql) {
+      return Statement.newBuilder(POSTGRESQL_SCHEMA).bind("p1").to(tableName).build();
+    } else {
+      return Statement.newBuilder(GOOGLESQL_SCHEMA).bind("tableName").to(tableName).build();
+    }
+  }
+
   public SpannerTableSchema(Connection conn, String tableName, boolean isPostgreSql) {
     this.name = tableName;
     this.columns = new HashMap<>();
-    Statement stmt;
-    if (isPostgreSql) {
-      stmt = Statement.newBuilder(POSTGRESQL_SCHEMA).bind("p1").to(tableName).build();
-    } else {
-      stmt = Statement.newBuilder(GOOGLESQL_SCHEMA).bind("tableName").to(tableName).build();
-    }
+    Statement stmt = buildSchemaQuery(tableName, isPostgreSql);
     try (final ResultSet rs = conn.executeQuery(stmt)) {
       // Expecting resultset columns in the ordering:
       //       COLUMN_NAME, IS_NULLABLE, SPANNER_TYPE

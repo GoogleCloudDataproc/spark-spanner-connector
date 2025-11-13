@@ -88,7 +88,13 @@ public class SpannerScanner implements Batch, Scan {
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
     if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
-      selectPrefix = "SELECT " + String.join(", ", this.requiredColumns);
+      // Prefix each column with the table name to avoid ambiguity when column name
+      // matches table name
+      String columnsWithTablePrefix =
+          this.requiredColumns.stream()
+              .map(col -> this.spannerTable.name() + "." + col)
+              .collect(Collectors.joining(", "));
+      selectPrefix = "SELECT " + columnsWithTablePrefix;
     }
     String sqlStmt = selectPrefix + " FROM " + this.spannerTable.name();
     if (this.filters.length > 0) {

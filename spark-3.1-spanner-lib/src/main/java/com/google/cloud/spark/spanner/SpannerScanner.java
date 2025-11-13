@@ -90,9 +90,13 @@ public class SpannerScanner implements Batch, Scan {
     if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
+      boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
+      String tableName = this.spannerTable.name();
+      String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
       String columnsWithTablePrefix =
           this.requiredColumns.stream()
-              .map(col -> this.spannerTable.name() + "." + col)
+              .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
+              .map(quotedCol -> quotedTableName + "." + quotedCol)
               .collect(Collectors.joining(", "));
       selectPrefix = "SELECT " + columnsWithTablePrefix;
     }

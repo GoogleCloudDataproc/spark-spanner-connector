@@ -81,6 +81,15 @@ public class SpannerScanner implements Batch, Scan {
     return new SpannerPartitionReaderFactory();
   }
 
+  static String buildColumnsWithTablePrefix(
+      String tableName, Set<String> columns, boolean isPostgreSql) {
+    String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
+    return columns.stream()
+        .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
+        .map(quotedCol -> quotedTableName + "." + quotedCol)
+        .collect(Collectors.joining(", "));
+  }
+
   @Override
   public InputPartition[] planInputPartitions() {
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
@@ -91,13 +100,8 @@ public class SpannerScanner implements Batch, Scan {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
       boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
-      String tableName = this.spannerTable.name();
-      String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
       String columnsWithTablePrefix =
-          this.requiredColumns.stream()
-              .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
-              .map(quotedCol -> quotedTableName + "." + quotedCol)
-              .collect(Collectors.joining(", "));
+          buildColumnsWithTablePrefix(this.spannerTable.name(), this.requiredColumns, isPostgreSql);
       selectPrefix = "SELECT " + columnsWithTablePrefix;
     }
     String sqlStmt = selectPrefix + " FROM " + this.spannerTable.name();

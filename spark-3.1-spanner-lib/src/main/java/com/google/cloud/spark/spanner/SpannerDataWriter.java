@@ -1,6 +1,5 @@
 package com.google.cloud.spark.spanner;
 
-import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Mutation;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,10 +13,11 @@ import org.apache.spark.sql.types.StructType;
 public class SpannerDataWriter implements DataWriter<InternalRow> {
   private final int partitionId;
   private final long taskId;
-  private final DatabaseClient databaseClient;
+  private final BatchClientWithCloser batchClientWithCloser;
   private final List<Mutation> mutations = new ArrayList<>();
   private final String tableName;
   private final StructType schema;
+  private final int mutationsPerBatch;
 
   public SpannerDataWriter(
       int partitionId, long taskId, Map<String, String> properties, StructType schema) {
@@ -25,8 +25,8 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     this.taskId = taskId;
     this.tableName = properties.get("table");
     this.schema = schema;
-    BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(properties);
-    this.databaseClient = batchClient.databaseClient;
+    this.mutationsPerBatch = Integer.parseInt(properties.getOrDefault("batchSize", "1000"));
+    batchClientWithCloser = SpannerUtils.batchClientFromProperties(properties);
   }
 
   @Override
@@ -36,7 +36,10 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   @Override
   public WriterCommitMessage commit() throws IOException {
-    databaseClient.write(mutations);
+    for (int i = 0; i < mutations.size(); i += mutationsPerBatch) {
+      int end = Math.min(i + mutationsPerBatch, mutations.size());
+      batchClientWithCloser.databaseClient.write(mutations.subList(i, end));
+    }
     return new SpannerWriterCommitMessage(partitionId, taskId);
   }
 
@@ -48,5 +51,6 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   @Override
   public void close() throws IOException {
     mutations.clear();
+    batchClientWithCloser.close();
   }
 }

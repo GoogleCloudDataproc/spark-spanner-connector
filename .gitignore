@@ -29,3 +29,6 @@ dependency-reduced-pom.xml
 
 # Mac
 .DS_Store
+
+# direnv
+.envrc

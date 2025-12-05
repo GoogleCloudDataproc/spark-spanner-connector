@@ -75,7 +75,8 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
         .isEqualTo(java.sql.Timestamp.valueOf("2023-01-01 10:10:10"));
     assertThat(writtenRows.get(0).getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-01-01"));
     assertThat(writtenRows.get(0).<byte[]>getAs(6)).isEqualTo(new byte[] {1, 2, 3});
-    assertThat(writtenRows.get(0).getDecimal(7)).isEqualTo(new java.math.BigDecimal("123.456"));
+    assertThat(writtenRows.get(0).getDecimal(7).compareTo(new java.math.BigDecimal("123.456")))
+        .isEqualTo(0);
 
     assertThat(writtenRows.get(1).getLong(0)).isEqualTo(2L);
     assertThat(writtenRows.get(1).getString(1)).isEqualTo("two");
@@ -85,6 +86,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
         .isEqualTo(java.sql.Timestamp.valueOf("2023-02-02 20:20:20"));
     assertThat(writtenRows.get(1).getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-02-02"));
     assertThat(writtenRows.get(1).<byte[]>getAs(6)).isEqualTo(new byte[] {4, 5, 6});
-    assertThat(writtenRows.get(1).getDecimal(7)).isEqualTo(new java.math.BigDecimal("789.012"));
+    assertThat(writtenRows.get(1).getDecimal(7).compareTo(new java.math.BigDecimal("789.012")))
+        .isEqualTo(0);
   }
 }

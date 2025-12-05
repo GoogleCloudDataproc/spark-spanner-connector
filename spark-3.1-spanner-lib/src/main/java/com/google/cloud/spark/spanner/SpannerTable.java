@@ -62,10 +62,6 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     this.projectId = getRequiredOption(properties, "projectId");
     this.instanceId = getRequiredOption(properties, "instanceId");
     this.databaseId = getRequiredOption(properties, "databaseId");
-    log.info("Spanner table '{}'", tableName);
-    log.info("Spanner instance '{}'", instanceId);
-    log.info("Spanner Database Id '{}'", databaseId);
-    log.info("Spanner Project Id '{}'", projectId);
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       boolean isPostgreSql;
       if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
@@ -258,7 +254,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
-    return new SpannerWriteBuilder(info, this.properties, this.schema());
+    return new SpannerWriteBuilder(info);
   }
 
   @Override

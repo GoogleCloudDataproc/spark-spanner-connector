@@ -48,6 +48,7 @@ public class SpannerWriterUtils {
       } else if (fieldType.equals(DataTypes.BinaryType)) {
         builder.set(fieldName).to(ByteArray.copyFrom(record.getBinary(i)));
       } else if (fieldType.sql().startsWith("DECIMAL")) {
+        // TODO Ensure we do not lose precision here
         BigDecimal bd = record.getDecimal(i, 38, 9).toJavaBigDecimal();
         builder.set(fieldName).to(bd);
       }

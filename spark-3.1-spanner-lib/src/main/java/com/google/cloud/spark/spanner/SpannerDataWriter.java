@@ -25,7 +25,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     this.taskId = taskId;
     this.tableName = properties.get("table");
     this.schema = schema;
-    this.mutationsPerBatch = Integer.parseInt(properties.getOrDefault("batchSize", "1000"));
+    this.mutationsPerBatch = Integer.parseInt(properties.getOrDefault("mutationsPerBatch", "1000"));
     batchClientWithCloser = SpannerUtils.batchClientFromProperties(properties);
   }
 

@@ -24,6 +24,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     StructType schema =
         new StructType(
             new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
               DataTypes.createStructField("string_col", DataTypes.StringType, true),
               DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
               DataTypes.createStructField("double_col", DataTypes.DoubleType, true),

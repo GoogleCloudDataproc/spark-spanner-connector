@@ -51,15 +51,21 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   private final String projectId;
   private final SpannerTableSchema tableSchema;
   private static final ImmutableSet<TableCapability> tableCapabilities =
-      ImmutableSet.of(TableCapability.BATCH_READ);
+      ImmutableSet.of(TableCapability.BATCH_READ, TableCapability.BATCH_WRITE);
+  private final Map<String, String> properties;
 
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   public SpannerTable(Map<String, String> properties) {
+    this.properties = properties;
     this.tableName = getRequiredOption(properties, "table");
     this.projectId = getRequiredOption(properties, "projectId");
     this.instanceId = getRequiredOption(properties, "instanceId");
     this.databaseId = getRequiredOption(properties, "databaseId");
+    log.info("Spanner table '{}'", tableName);
+    log.info("Spanner instance '{}'", instanceId);
+    log.info("Spanner Database Id '{}'", databaseId);
+    log.info("Spanner Project Id '{}'", projectId);
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       boolean isPostgreSql;
       if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
@@ -252,20 +258,20 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
-    throw new SpannerConnectorException(
-        SpannerErrorCode.WRITES_NOT_SUPPORTED,
-        "writes are not supported in the Spark Spanner Connector");
+    return new SpannerWriteBuilder(info, this.properties, this.schema());
   }
 
   @Override
   public Map<String, String> properties() {
-    return ImmutableMap.<String, String>builder()
-        .put("openlineage.dataset.name", String.format("%s/%s", databaseId, tableName))
-        .put(
-            "openlineage.dataset.namespace",
-            String.format("spanner://%s/%s", projectId, instanceId))
-        .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner")
-        .build();
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .putAll(this.properties)
+            .put("openlineage.dataset.name", String.format("%s/%s", databaseId, tableName))
+            .put(
+                "openlineage.dataset.namespace",
+                String.format("spanner://%s/%s", projectId, instanceId))
+            .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner");
+    return builder.build();
   }
 
   private static String getRequiredOption(Map<String, String> properties, String option) {

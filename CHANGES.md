@@ -2,8 +2,6 @@
 
 ## Next
 
-## 1.1.1 - 2025-12-03
-
 *   Prefix column names with table name to avoid ambiguity
 *   Make table name lookup case-insensitive for GoogleSQL
 

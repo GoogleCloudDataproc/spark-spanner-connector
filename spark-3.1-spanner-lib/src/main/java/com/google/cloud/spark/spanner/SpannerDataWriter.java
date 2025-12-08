@@ -1,10 +1,15 @@
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Mutation;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.WriterCommitMessage;
@@ -13,11 +18,12 @@ import org.apache.spark.sql.types.StructType;
 public class SpannerDataWriter implements DataWriter<InternalRow> {
   private final int partitionId;
   private final long taskId;
-  private final BatchClientWithCloser batchClientWithCloser;
+  private final DatabaseClient databaseClient;
   private final List<Mutation> mutations = new ArrayList<>();
   private final String tableName;
   private final StructType schema;
   private final int mutationsPerBatch;
+  private final int numWriterThreads;
 
   public SpannerDataWriter(
       int partitionId, long taskId, Map<String, String> properties, StructType schema) {
@@ -26,7 +32,9 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     this.tableName = properties.get("table");
     this.schema = schema;
     this.mutationsPerBatch = Integer.parseInt(properties.getOrDefault("mutationsPerBatch", "1000"));
-    batchClientWithCloser = SpannerUtils.batchClientFromProperties(properties);
+    this.numWriterThreads = Integer.parseInt(properties.getOrDefault("numWriterThreads", "8"));
+    BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(properties);
+    this.databaseClient = batchClient.databaseClient;
   }
 
   @Override
@@ -36,9 +44,23 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   @Override
   public WriterCommitMessage commit() throws IOException {
+    ExecutorService executor = Executors.newFixedThreadPool(numWriterThreads);
+    List<Future<?>> futures = new ArrayList<>();
+
     for (int i = 0; i < mutations.size(); i += mutationsPerBatch) {
-      int end = Math.min(i + mutationsPerBatch, mutations.size());
-      batchClientWithCloser.databaseClient.write(mutations.subList(i, end));
+      final List<Mutation> batch =
+          mutations.subList(i, Math.min(i + mutationsPerBatch, mutations.size()));
+      futures.add(executor.submit(() -> databaseClient.write(batch)));
+    }
+
+    try {
+      for (Future<?> future : futures) {
+        future.get(); // Wait for all batches to complete
+      }
+    } catch (InterruptedException | ExecutionException e) {
+      throw new IOException("Error during parallel batch write", e);
+    } finally {
+      executor.shutdown();
     }
     return new SpannerWriterCommitMessage(partitionId, taskId);
   }
@@ -51,6 +73,5 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   @Override
   public void close() throws IOException {
     mutations.clear();
-    batchClientWithCloser.close();
   }
 }

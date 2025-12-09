@@ -31,7 +31,10 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   // Limits
   private final int maxMutationsPerBatch;
-  private final long maxBytesPerBatch;
+  private final long bytesPerTransaction;
+
+  // Connector options
+  private final boolean assumeIdempotentWrites;
 
   // Buffers
   private final List<Mutation> mutationBuffer = new ArrayList<>();
@@ -51,12 +54,12 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
     // Default to 1MB (Safety) and 1000 Mutations
     this.maxMutationsPerBatch =
-        Integer.parseInt(properties.getOrDefault("mutationsPerBatch", "1000"));
-    this.maxBytesPerBatch =
-        Long.parseLong(properties.getOrDefault("batchSizeBytes", "1048576")); // 1 MB default
-
-    int numThreads = Integer.parseInt(properties.getOrDefault("numWriterThreads", "8"));
-
+        Integer.parseInt(properties.getOrDefault("mutationsPerTransaction", "1000"));
+    this.bytesPerTransaction =
+        Long.parseLong(properties.getOrDefault("bytesPerTransaction", "1048576")); // 1 MB default
+    this.assumeIdempotentWrites =
+        Boolean.parseBoolean(properties.getOrDefault("assumeIdempotentRows", "false"));
+      int numThreads = Integer.parseInt(properties.getOrDefault("numWriteThreads", "8"));
     SessionPoolOptions sessionPoolOptions =
         SessionPoolOptions.newBuilder().setMinSessions(1).setMaxSessions(numThreads).build();
     this.batchClient = SpannerUtils.batchClientFromProperties(properties, sessionPoolOptions);
@@ -74,7 +77,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     // 3. Check if buffer is full (Count OR Bytes)
     if (!mutationBuffer.isEmpty()
         && (mutationBuffer.size() >= maxMutationsPerBatch
-            || currentBatchBytes + mutationSize > maxBytesPerBatch)) {
+            || currentBatchBytes + mutationSize > bytesPerTransaction)) {
       flushBufferAsync();
     }
 

@@ -23,12 +23,7 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.ByteArray;
-import com.google.cloud.spanner.DatabaseId;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
-import com.google.cloud.spanner.Struct;
-import com.google.cloud.spanner.Type;
-import com.google.cloud.spanner.Value;
+import com.google.cloud.spanner.*;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import com.google.common.annotations.VisibleForTesting;
@@ -106,6 +101,8 @@ public class SpannerUtils {
           SCALA_VERSION,
           GCP_REGION_PART,
           DATAPROC_IMAGE_PART);
+  private static final SessionPoolOptions defaultSessionPoolOptions =
+      SessionPoolOptions.newBuilder().build();
 
   private static String loadConnectorVersion() {
     try {
@@ -179,8 +176,14 @@ public class SpannerUtils {
   }
 
   public static BatchClientWithCloser batchClientFromProperties(Map<String, String> properties) {
+    return batchClientFromProperties(properties, defaultSessionPoolOptions);
+  }
+
+  public static BatchClientWithCloser batchClientFromProperties(
+      Map<String, String> properties, SessionPoolOptions sessionPoolOptions) {
     SpannerOptions.Builder builder =
         SpannerOptions.newBuilder()
+            .setSessionPoolOption(sessionPoolOptions)
             .setProjectId(properties.get("projectId"))
             .setHeaderProvider(FixedHeaderProvider.create("user-agent", USER_AGENT));
     builder

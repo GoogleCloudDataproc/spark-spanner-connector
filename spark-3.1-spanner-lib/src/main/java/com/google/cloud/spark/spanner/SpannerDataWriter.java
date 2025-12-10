@@ -1,15 +1,16 @@
 package com.google.cloud.spark.spanner;
 
+import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.MutationGroup;
 import com.google.cloud.spanner.SessionPoolOptions;
+import com.google.rpc.Code;
+import com.google.spanner.v1.BatchWriteResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
@@ -23,6 +24,7 @@ import org.slf4j.LoggerFactory;
 public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   private static final Logger log = LoggerFactory.getLogger(SpannerDataWriter.class);
+  private static final int MAX_RETRIES = 4;
 
   private final int partitionId;
   private final long taskId;
@@ -30,20 +32,23 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   private final StructType schema;
 
   // Limits
-  private final int maxMutationsPerBatch;
+  private final int mutationsPerTransaction;
   private final long bytesPerTransaction;
 
   // Connector options
-  private final boolean assumeIdempotentWrites;
+  private final boolean assumeIdempotentRows;
+
+  private final int maxPendingTransactions;
 
   // Buffers
   private final List<Mutation> mutationBuffer = new ArrayList<>();
   private final BatchClientWithCloser batchClient;
   private long currentBatchBytes = 0;
 
+  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   // Async Execution
   private final ExecutorService executor;
-  private final List<Future<?>> pendingWrites = new ArrayList<>();
+  private final List<CompletableFuture<Void>> pendingWrites = new ArrayList<>();
 
   public SpannerDataWriter(
       int partitionId, long taskId, Map<String, String> properties, StructType schema) {
@@ -53,13 +58,15 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     this.schema = schema;
 
     // Default to 1MB (Safety) and 1000 Mutations
-    this.maxMutationsPerBatch =
+    this.mutationsPerTransaction =
         Integer.parseInt(properties.getOrDefault("mutationsPerTransaction", "1000"));
     this.bytesPerTransaction =
         Long.parseLong(properties.getOrDefault("bytesPerTransaction", "1048576")); // 1 MB default
-    this.assumeIdempotentWrites =
+    this.assumeIdempotentRows =
         Boolean.parseBoolean(properties.getOrDefault("assumeIdempotentRows", "false"));
-      int numThreads = Integer.parseInt(properties.getOrDefault("numWriteThreads", "8"));
+    int numThreads = Integer.parseInt(properties.getOrDefault("numWriteThreads", "8"));
+    this.maxPendingTransactions =
+        Integer.parseInt(properties.getOrDefault("maxPendingTransactions", "20"));
     SessionPoolOptions sessionPoolOptions =
         SessionPoolOptions.newBuilder().setMinSessions(1).setMaxSessions(numThreads).build();
     this.batchClient = SpannerUtils.batchClientFromProperties(properties, sessionPoolOptions);
@@ -76,7 +83,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
     // 3. Check if buffer is full (Count OR Bytes)
     if (!mutationBuffer.isEmpty()
-        && (mutationBuffer.size() >= maxMutationsPerBatch
+        && (mutationBuffer.size() >= mutationsPerTransaction
             || currentBatchBytes + mutationSize > bytesPerTransaction)) {
       flushBufferAsync();
     }
@@ -88,54 +95,156 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   @Override
   public WriterCommitMessage commit() throws IOException {
-    // Flush whatever is left in the buffer
-    if (!mutationBuffer.isEmpty()) {
+    try {
+      // 1. Flush the final partial buffer (if any rows remain)
       flushBufferAsync();
+
+      // 2. Wait for ALL in-flight writes to finish
+      for (CompletableFuture<Void> writeTask : pendingWrites) {
+        // join() blocks until the task is done or throws an unchecked exception
+        writeTask.join();
+      }
+
+    } catch (Exception e) {
+      // If ANY batch failed (even after retries), we must crash the Spark task here.
+      // This triggers Spark's retry mechanism for the whole partition.
+      throw new IOException("Failed to commit Spanner partition " + partitionId, e);
     }
 
-    // Wait for all async writes to finish
-    waitForPendingWrites();
-
-    // Clean up
-    executor.shutdown();
+    pendingWrites.clear();
 
     return new SpannerWriterCommitMessage(partitionId, taskId);
   }
 
-  private void flushBufferAsync() throws IOException {
-    // Create a copy of the buffer for the async thread
-    final List<Mutation> batchToSend = new ArrayList<>(mutationBuffer);
+  private void flushBufferAsync() {
+    if (mutationBuffer.isEmpty()) return;
 
-    // Clear the main buffer immediately so we can keep reading
+    final List<Mutation> rawMutations = new ArrayList<>(mutationBuffer);
     mutationBuffer.clear();
     currentBatchBytes = 0;
 
-    // Submit to thread pool
-    Future<?> future =
-        executor.submit(
-            () -> {
-              batchClient.databaseClient.write(batchToSend);
-              return null;
-            });
+    // Create a "Shell" Future that represents the whole retry lifecycle
+    CompletableFuture<Void> batchLifecycle = new CompletableFuture<>();
 
-    pendingWrites.add(future);
+    // Track the lifecycle future, not the raw runnable
+    pendingWrites.add(batchLifecycle);
 
-    // Backpressure
-    // If we have too many pending requests (e.g., > 20), wait for them to clear.
-    // This prevents the ExecutorQueue from growing infinitely and causing OOM.
-    if (pendingWrites.size() > 20) {
-      waitForPendingWrites();
+    if (assumeIdempotentRows) {
+      // High throughput, manual retries, at-least-once writes
+      List<MutationGroup> groups = new ArrayList<>(rawMutations.size());
+      for (Mutation m : rawMutations) {
+        groups.add(MutationGroup.of(m));
+      }
+      attemptWriteRecursive(groups, 0, batchLifecycle);
+
+    } else {
+      // Strict Transaction, No Manual Retries, Exactly-Once
+      dispatchStandardWrite(rawMutations, batchLifecycle);
+    }
+    // Manage Backpressure
+    cleanUpFinishedWrites();
+    while (pendingWrites.size() >= this.maxPendingTransactions) {
+      waitForOneWrite();
     }
   }
 
-  private void waitForPendingWrites() throws IOException {
+  private void attemptWriteRecursive(
+      List<MutationGroup> currentBatch, int attempt, CompletableFuture<Void> lifecycle) {
+    // Submit the heavy I/O to the worker thread (don't run on scheduler thread)
+    executor.submit(
+        () -> {
+          try {
+            List<MutationGroup> failedGroups = new ArrayList<>();
+
+            // --- SPANNER CALL (Blocking I/O) ---
+            ServerStream<BatchWriteResponse> stream =
+                this.batchClient.databaseClient.batchWriteAtLeastOnce(currentBatch);
+
+            for (BatchWriteResponse response : stream) {
+              if (response.getStatus().getCode() != Code.OK.getNumber()) {
+                for (int index : response.getIndexesList()) {
+                  failedGroups.add(currentBatch.get(index));
+                }
+              }
+            }
+            // -----------------------------------
+
+            if (failedGroups.isEmpty()) {
+              // SUCCESS: Mark the lifecycle as complete
+              lifecycle.complete(null);
+            } else {
+              // FAILURE: Check if we can retry
+              if (attempt >= MAX_RETRIES) {
+                lifecycle.completeExceptionally(
+                    new IOException("Exhausted retries for " + failedGroups.size() + " items."));
+              } else {
+                // NON-BLOCKING BACKOFF:
+                // specific delay calculation
+                long delayMs = (long) Math.pow(2, attempt) * 1000 + (long) (Math.random() * 500);
+
+                System.out.println(
+                    "Partial failure. Scheduling retry " + (attempt + 1) + " in " + delayMs + "ms");
+
+                // Schedule the NEXT attempt. This thread terminates immediately.
+                scheduler.schedule(
+                    () -> attemptWriteRecursive(failedGroups, attempt + 1, lifecycle),
+                    delayMs,
+                    TimeUnit.MILLISECONDS);
+              }
+            }
+
+          } catch (Exception e) {
+            // Handle fatal transport errors by scheduling a retry of the whole batch
+            if (attempt < MAX_RETRIES) {
+              long delayMs = (long) Math.pow(2, attempt) * 1000;
+              scheduler.schedule(
+                  () -> attemptWriteRecursive(currentBatch, attempt + 1, lifecycle),
+                  delayMs,
+                  TimeUnit.MILLISECONDS);
+            } else {
+              lifecycle.completeExceptionally(e);
+            }
+          }
+        });
+  }
+
+  /**
+   * PATH B: Non-Idempotent / Exactly-Once Uses standard 'write()'. NO RETRY LOOP for generic errors
+   * (to prevent duplicates). The Spanner Client library handles 'Aborted' retries internally.
+   */
+  private void dispatchStandardWrite(List<Mutation> batch, CompletableFuture<Void> lifecycle) {
+    executor.submit(
+        () -> {
+          try {
+            // This blocks until Commit or Failure
+            // The Spanner client library AUTOMATICALLY retries 'Aborted' (locking) errors.
+            this.batchClient.databaseClient.write(batch);
+
+            // If we get here, it is committed exactly once.
+            lifecycle.complete(null);
+
+          } catch (Exception e) {
+            // CRITICAL: We DO NOT retry generic exceptions (like Timeout/Unavailable) manually
+            // here.
+            // Because we don't know if the data was written or not.
+            // We must fail the Spark Task and let Spark handle the partition recovery.
+            lifecycle.completeExceptionally(e);
+          }
+        });
+  }
+  // Helper to keep the queue clean
+  private void cleanUpFinishedWrites() {
+    pendingWrites.removeIf(CompletableFuture::isDone);
+  }
+
+  private void waitForOneWrite() {
+    if (pendingWrites.isEmpty()) return;
     try {
-      for (Future<?> future : pendingWrites) {
-        future.get(); // Blocks until completion, throws exception if write failed
-      }
-      pendingWrites.clear();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new IOException("Failed to write batch to Spanner", e);
+      // Wait for the oldest lifecycle to complete (success or fail)
+      pendingWrites.get(0).get();
+      cleanUpFinishedWrites();
+    } catch (Exception e) {
+      throw new RuntimeException("Write failed", e);
     }
   }
 
@@ -143,6 +252,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   public void abort() throws IOException {
     mutationBuffer.clear();
     executor.shutdownNow();
+    scheduler.shutdownNow();
   }
 
   @Override
@@ -150,6 +260,9 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     mutationBuffer.clear();
     if (!executor.isShutdown()) {
       executor.shutdown();
+    }
+    if (!scheduler.isShutdown()) {
+      scheduler.shutdown();
     }
     if (this.batchClient != null) {
       try {

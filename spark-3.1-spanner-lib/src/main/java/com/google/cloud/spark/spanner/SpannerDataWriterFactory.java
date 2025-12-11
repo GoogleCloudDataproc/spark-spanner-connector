@@ -4,6 +4,7 @@ import com.google.cloud.spanner.SessionPoolOptions;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.DataWriterFactory;
@@ -26,7 +27,8 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
     BatchClientWithCloser batchClient =
         SpannerUtils.batchClientFromProperties(properties, sessionPoolOptions);
     ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-    return new SpannerDataWriter(partitionId, taskId, properties, schema, batchClient, executor);
+    return new SpannerDataWriter(partitionId, taskId, properties, schema, batchClient, executor, scheduler);
   }
 }

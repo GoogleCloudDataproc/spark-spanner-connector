@@ -45,7 +45,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   private final BatchClientWithCloser batchClient;
   private long currentBatchBytes = 0;
 
-  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+  private final ScheduledExecutorService scheduler;
   // Async Execution
   private final ExecutorService executor;
 
@@ -58,7 +58,8 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       Map<String, String> properties,
       StructType schema,
       BatchClientWithCloser batchClient,
-      ExecutorService executor) {
+      ExecutorService executor,
+      ScheduledExecutorService scheduler) {
     this.partitionId = partitionId;
     this.taskId = taskId;
     this.tableName = properties.get("table");
@@ -76,6 +77,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
     this.batchClient = batchClient;
     this.executor = executor;
+    this.scheduler = scheduler;
   }
 
   @Override
@@ -261,7 +263,16 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   public void abort() throws IOException {
     mutationBuffer.clear();
     executor.shutdownNow();
+    pendingWrites.forEach(f -> f.cancel(true));
     scheduler.shutdownNow();
+    if (this.batchClient != null) {
+      try {
+        this.batchClient.close();
+      } catch (Exception e) {
+        // Log warning (e.g., via Logger or System.err)
+        log.warn("Failed to close batch client", e);
+      }
+    }
   }
 
   @Override

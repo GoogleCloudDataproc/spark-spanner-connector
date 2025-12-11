@@ -13,11 +13,8 @@ import com.google.rpc.Status;
 import com.google.spanner.v1.BatchWriteResponse;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
@@ -37,6 +34,7 @@ public class SpannerDataWriterTest {
   @Mock private BatchClient mockBatchClient;
   private ExecutorService executor = Executors.newFixedThreadPool(2);
 
+  private ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
   @Mock private ServerStream<BatchWriteResponse> mockSuccessStream;
   @Mock private ServerStream<BatchWriteResponse> mockTransientFailureStream;
   private StructType schema;
@@ -53,11 +51,11 @@ public class SpannerDataWriterTest {
 
     BatchWriteResponse transientError =
         BatchWriteResponse.newBuilder()
-            .addIndexes(1)
+            .addIndexes(0)
             .setStatus(Status.newBuilder().setCode(Code.DEADLINE_EXCEEDED_VALUE).build())
             .build();
     when(mockTransientFailureStream.iterator())
-        .thenReturn(Arrays.asList(transientError).iterator());
+        .thenReturn(Collections.singletonList(transientError).iterator());
     schema =
         new StructType(
             new StructField[] {
@@ -73,7 +71,7 @@ public class SpannerDataWriterTest {
   }
 
   private SpannerDataWriter createWriter(Map<String, String> props) {
-    return new SpannerDataWriter(0, 0, props, schema, batchClientWithCloser, executor);
+    return new SpannerDataWriter(0, 0, props, schema, batchClientWithCloser, executor, scheduledExecutor);
   }
 
   private Row createMockRow(long i) {
@@ -127,7 +125,7 @@ public class SpannerDataWriterTest {
     // Use a real executor here to test the blocking behavior
     ExecutorService realExecutor = Executors.newSingleThreadExecutor();
     SpannerDataWriter writer =
-        new SpannerDataWriter(0, 0, properties, schema, batchClientWithCloser, realExecutor);
+        new SpannerDataWriter(0, 0, properties, schema, batchClientWithCloser, realExecutor, scheduledExecutor);
 
     CompletableFuture<Void> blockingFuture = new CompletableFuture<>();
     writer.pendingWrites.add(blockingFuture); // Manually fill the queue
@@ -168,7 +166,7 @@ public class SpannerDataWriterTest {
     // but the result of the execution.
     ExecutorService realExecutor = Executors.newSingleThreadExecutor();
     SpannerDataWriter writer =
-        new SpannerDataWriter(0, 0, properties, schema, batchClientWithCloser, realExecutor);
+        new SpannerDataWriter(0, 0, properties, schema, batchClientWithCloser, realExecutor, scheduledExecutor);
 
     SpannerException permanentError =
         SpannerExceptionFactory.newSpannerException(ErrorCode.INVALID_ARGUMENT, "Permanent error");

@@ -1,6 +1,6 @@
 package com.google.cloud.spark.spanner;
 
-import java.util.HashMap;
+import com.google.cloud.spanner.SessionPoolOptions;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
@@ -12,12 +12,18 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
   private final StructType schema;
 
   public SpannerDataWriterFactory(Map<String, String> properties, StructType schema) {
-    this.properties = new HashMap<>(properties);
+    this.properties = properties;
     this.schema = schema;
   }
 
   @Override
   public DataWriter<InternalRow> createWriter(int partitionId, long taskId) {
-    return new SpannerDataWriter(partitionId, taskId, properties, schema);
+    int numThreads = Integer.parseInt(properties.getOrDefault("numWriteThreads", "8"));
+    SessionPoolOptions sessionPoolOptions =
+        SessionPoolOptions.newBuilder().setMinSessions(1).setMaxSessions(numThreads).build();
+    BatchClientWithCloser batchClient =
+        SpannerUtils.batchClientFromProperties(properties, sessionPoolOptions);
+
+    return new SpannerDataWriter(partitionId, taskId, properties, schema, batchClient);
   }
 }

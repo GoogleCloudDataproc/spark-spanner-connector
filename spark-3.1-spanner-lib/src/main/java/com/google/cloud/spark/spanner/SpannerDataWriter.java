@@ -3,7 +3,6 @@ package com.google.cloud.spark.spanner;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.MutationGroup;
-import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.rpc.Code;
 import com.google.spanner.v1.BatchWriteResponse;
 import java.io.IOException;
@@ -51,7 +50,11 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   private final List<CompletableFuture<Void>> pendingWrites = new ArrayList<>();
 
   public SpannerDataWriter(
-      int partitionId, long taskId, Map<String, String> properties, StructType schema) {
+      int partitionId,
+      long taskId,
+      Map<String, String> properties,
+      StructType schema,
+      BatchClientWithCloser batchClient) {
     this.partitionId = partitionId;
     this.taskId = taskId;
     this.tableName = properties.get("table");
@@ -67,9 +70,8 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     int numThreads = Integer.parseInt(properties.getOrDefault("numWriteThreads", "8"));
     this.maxPendingTransactions =
         Integer.parseInt(properties.getOrDefault("maxPendingTransactions", "20"));
-    SessionPoolOptions sessionPoolOptions =
-        SessionPoolOptions.newBuilder().setMinSessions(1).setMaxSessions(numThreads).build();
-    this.batchClient = SpannerUtils.batchClientFromProperties(properties, sessionPoolOptions);
+
+    this.batchClient = batchClient;
     this.executor = Executors.newFixedThreadPool(numThreads);
   }
 
@@ -108,7 +110,9 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     } catch (Exception e) {
       // If ANY batch failed (even after retries), we must crash the Spark task here.
       // This triggers Spark's retry mechanism for the whole partition.
-      throw new IOException("Failed to commit Spanner partition " + partitionId, e);
+      // join call above can  wraps any exceptions from task  in CompletionException -- unwrap it.
+      Throwable rootCause = (e instanceof CompletionException) ? e.getCause() : e;
+      throw new IOException("Failed to commit Spanner partition " + partitionId, rootCause);
     }
 
     pendingWrites.clear();

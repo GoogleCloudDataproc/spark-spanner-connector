@@ -5,6 +5,8 @@ import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import java.math.BigDecimal;
+
+import com.google.cloud.spanner.Value;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
@@ -22,8 +24,26 @@ public class SpannerWriterUtils {
       DataType fieldType = field.dataType();
 
       if (record.isNullAt(i)) {
-        // TODO: Handle null values correctly.
-        continue;
+          if (record.isNullAt(i)) {
+              if (fieldType.equals(DataTypes.LongType)) {
+                  builder.set(fieldName).to(Value.int64(null));
+              } else if (fieldType.equals(DataTypes.StringType)) {
+                  builder.set(fieldName).to(Value.string(null));
+              } else if (fieldType.equals(DataTypes.BooleanType)) {
+                  builder.set(fieldName).to(Value.bool(null));
+              } else if (fieldType.equals(DataTypes.DoubleType)) {
+                  builder.set(fieldName).to(Value.float64(null));
+              } else if (fieldType.equals(DataTypes.TimestampType)) {
+                  builder.set(fieldName).to(Value.timestamp(null));
+              } else if (fieldType.equals(DataTypes.DateType)) {
+                  builder.set(fieldName).to(Value.date(null));
+              } else if (fieldType.equals(DataTypes.BinaryType)) {
+                  builder.set(fieldName).to(Value.bytes(null));
+              } else if (fieldType.sql().startsWith("DECIMAL")) {
+                  builder.set(fieldName).to(Value.numeric(null));
+              }
+              continue;
+          }
       }
 
       if (fieldType.equals(DataTypes.LongType)) {
@@ -47,10 +67,11 @@ public class SpannerWriterUtils {
                     localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
       } else if (fieldType.equals(DataTypes.BinaryType)) {
         builder.set(fieldName).to(ByteArray.copyFrom(record.getBinary(i)));
-      } else if (fieldType.sql().startsWith("DECIMAL")) {
-        // TODO Ensure we do not lose precision here
-        BigDecimal bd = record.getDecimal(i, 38, 9).toJavaBigDecimal();
-        builder.set(fieldName).to(bd);
+      } else if (fieldType instanceof org.apache.spark.sql.types.DecimalType) {
+          // TODO Ensure we do not lose precision here
+          org.apache.spark.sql.types.DecimalType dt = (org.apache.spark.sql.types.DecimalType) fieldType;
+          BigDecimal bd = record.getDecimal(i, dt.precision(), dt.scale()).toJavaBigDecimal();
+          builder.set(fieldName).to(bd);
       }
       // TODO: Add support for ArrayType and StructType.
     }

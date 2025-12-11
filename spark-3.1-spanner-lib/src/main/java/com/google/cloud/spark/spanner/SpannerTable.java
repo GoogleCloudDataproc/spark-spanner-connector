@@ -19,7 +19,6 @@ import com.google.cloud.spanner.connection.Connection;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -58,10 +57,10 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   public SpannerTable(Map<String, String> properties) {
     this.properties = properties;
-    this.tableName = getRequiredOption(properties, "table");
-    this.projectId = getRequiredOption(properties, "projectId");
-    this.instanceId = getRequiredOption(properties, "instanceId");
-    this.databaseId = getRequiredOption(properties, "databaseId");
+    this.tableName = SpannerUtils.getRequiredOption(properties, "table");
+    this.projectId = SpannerUtils.getRequiredOption(properties, "projectId");
+    this.instanceId = SpannerUtils.getRequiredOption(properties, "instanceId");
+    this.databaseId = SpannerUtils.getRequiredOption(properties, "databaseId");
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       boolean isPostgreSql;
       if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
@@ -270,7 +269,4 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     return builder.build();
   }
 
-  private static String getRequiredOption(Map<String, String> properties, String option) {
-    return Objects.requireNonNull(properties.get(option), "Option \"" + option + "\" is missing.");
-  }
 }

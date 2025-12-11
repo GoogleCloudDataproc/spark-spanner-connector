@@ -36,13 +36,7 @@ import java.io.UncheckedIOException;
 import java.sql.Timestamp;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import javax.annotation.Nullable;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -493,4 +487,8 @@ public class SpannerUtils {
     }
     return prunedSchema;
   }
+
+    static String getRequiredOption(Map<String, String> properties, String option) {
+      return Objects.requireNonNull(properties.get(option), "Option \"" + option + "\" is missing.");
+    }
 }

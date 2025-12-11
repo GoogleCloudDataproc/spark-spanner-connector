@@ -2,8 +2,10 @@ package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.Dataset;
@@ -18,6 +20,157 @@ import org.junit.Test;
 public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   private static final String WRITE_TABLE_NAME = "writeTestTable";
+
+  @Test
+  public void testWriteWithNulls() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+              DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
+              DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
+              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
+              DataTypes.createStructField("date_col", DataTypes.DateType, true),
+              DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
+              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
+            });
+
+    List<Row> rows =
+        Collections.singletonList(RowFactory.create(3L, null, null, null, null, null, null, null));
+
+    Dataset<Row> df = spark.createDataFrame(rows, schema);
+
+    Map<String, String> props = connectionProperties();
+    props.put("table", WRITE_TABLE_NAME);
+
+    df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    Dataset<Row> writtenDf =
+        spark.read().format("cloud-spanner").options(props).load().filter("long_col = 3");
+
+    assertEquals(1, writtenDf.count());
+    Row writtenRow = writtenDf.first();
+
+    assertThat(writtenRow.getLong(0)).isEqualTo(3L);
+    for (int i = 1; i < schema.length(); i++) {
+      assertNull("Column " + schema.fields()[i].name() + " should be null", writtenRow.get(i));
+    }
+  }
+
+  @Test
+  public void testIdempotentWrite() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            });
+
+    List<Row> rows = Arrays.asList(RowFactory.create(4L, "four"), RowFactory.create(5L, "five"));
+
+    Dataset<Row> df = spark.createDataFrame(rows, schema);
+
+    Map<String, String> props = connectionProperties();
+    props.put("table", WRITE_TABLE_NAME);
+    props.put("assumeIdempotentWrites", "true");
+
+    df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    Dataset<Row> writtenDf =
+        spark.read().format("cloud-spanner").options(props).load().filter("long_col IN (4, 5)");
+
+    assertEquals(2, writtenDf.count());
+    List<Row> writtenRows = writtenDf.collectAsList();
+    List<Long> actual =
+        writtenRows.stream()
+            .map(row -> row.getLong(0))
+            .sorted()
+            .collect(java.util.stream.Collectors.toList());
+
+    assertThat(actual).containsExactly(4L, 5L).inOrder();
+  }
+
+  @Test
+  public void testEmptyDataFrameWrite() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            });
+
+    Dataset<Row> df = spark.createDataFrame(Collections.emptyList(), schema);
+
+    Map<String, String> props = connectionProperties();
+    props.put("table", WRITE_TABLE_NAME);
+
+    // Get initial count to ensure no new rows are added
+    long initialCount = spark.read().format("cloud-spanner").options(props).load().count();
+
+    df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    long finalCount = spark.read().format("cloud-spanner").options(props).load().count();
+
+    assertEquals(
+        "Writing an empty DataFrame should not change the row count", initialCount, finalCount);
+  }
+
+  @Test
+  public void testUpsert() {
+    // 1. Write initial data
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            });
+    List<Row> initialRows =
+        Arrays.asList(RowFactory.create(10L, "ten"), RowFactory.create(11L, "eleven"));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+
+    Map<String, String> props = connectionProperties();
+    props.put("table", WRITE_TABLE_NAME);
+
+    initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    // Verify initial data is there
+    assertEquals(
+        2,
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(props)
+            .load()
+            .filter("long_col IN (10, 11)")
+            .count());
+
+    // 2. Write new data with Overwrite
+    List<Row> newRows =
+        Arrays.asList(RowFactory.create(10L, "new ten"), RowFactory.create(12L, "twelve"));
+    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+
+    newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Overwrite).save();
+
+    // 3. Verify that only the new data exists
+    List<Row> finalRows =
+        spark.read().format("cloud-spanner").options(props).load().collectAsList();
+
+    // The table should contain only the 2 new rows
+    assertEquals(2, finalRows.size());
+
+    // Check that the old row '11' is gone and the new row '12' is present
+    List<Long> actual =
+        finalRows.stream()
+            .map(row -> row.getLong(0))
+            .sorted()
+            .collect(java.util.stream.Collectors.toList());
+    assertThat(actual).containsExactly(10L, 12L).inOrder();
+
+    // Check that the value for key '10' was updated
+    Row updatedRow = finalRows.stream().filter(row -> row.getLong(0) == 10L).findFirst().get();
+    assertThat(updatedRow.getString(1)).isEqualTo("new ten");
+  }
 
   @Test
   public void testWrite() {

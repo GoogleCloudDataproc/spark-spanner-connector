@@ -488,7 +488,12 @@ public class SpannerUtils {
     return prunedSchema;
   }
 
-    static String getRequiredOption(Map<String, String> properties, String option) {
-      return Objects.requireNonNull(properties.get(option), "Option \"" + option + "\" is missing.");
+  static String getRequiredOption(Map<String, String> properties, String option) {
+    String tableName = properties.get(option);
+    if (tableName == null) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT, "Option 'table' property must be set");
     }
+    return tableName;
+  }
 }

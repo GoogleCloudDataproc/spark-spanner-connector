@@ -268,5 +268,4 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
             .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner");
     return builder.build();
   }
-
 }

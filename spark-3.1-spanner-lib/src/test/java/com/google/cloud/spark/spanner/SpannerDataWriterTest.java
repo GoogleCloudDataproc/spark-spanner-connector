@@ -266,26 +266,27 @@ public class SpannerDataWriterTest {
   }
 
   @Test
-  public void testIdempotentWriteFailsAfterMaxRetriesForTotalFailure() {
+  public void testIdempotentWriteFailsAfterMaxRetriesForTotalFailure() throws IOException {
     properties.put("assumeIdempotentRows", "true");
-    SpannerDataWriter writer = createWriter(properties);
+    try (SpannerDataWriter writer = createWriter(properties)) {
 
-    SpannerException permanentError =
-        SpannerExceptionFactory.newSpannerException(
-            ErrorCode.UNAVAILABLE, "Simulated permanent transport error");
+      SpannerException permanentError =
+          SpannerExceptionFactory.newSpannerException(
+              ErrorCode.UNAVAILABLE, "Simulated permanent transport error");
 
-    // Always throw an exception when the client is called
-    when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenThrow(permanentError);
+      // Always throw an exception when the client is called
+      when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenThrow(permanentError);
 
-    IOException thrown =
-        assertThrows(
-            IOException.class,
-            () -> {
-              writer.write(CreateInternalRow(1L));
-              writer.commit();
-            });
+      IOException thrown =
+          assertThrows(
+              IOException.class,
+              () -> {
+                writer.write(CreateInternalRow(1L));
+                writer.commit();
+              });
 
-    assertEquals(permanentError, thrown.getCause());
+      assertEquals(permanentError, thrown.getCause());
+    }
     // We expect MAX_RETRIES + 1 total calls.
     verify(mockDatabaseClient, times(5)).batchWriteAtLeastOnce(any());
   }
@@ -304,6 +305,22 @@ public class SpannerDataWriterTest {
     verify(mockDatabaseClient, times(1)).batchWriteAtLeastOnce(any());
     // Verify Spanner client is closed
     verify(mockSpanner, times(1)).close();
+  }
+
+  @Test
+  public void testMissingTablePropertyThrowsException() {
+    properties.remove("table"); // Make sure 'table' property is missing
+
+    SpannerConnectorException thrown =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> {
+              // This should fail because the 'table' property is missing.
+              createWriter(properties);
+            });
+
+    assertThat(thrown.getErrorCode()).isEqualTo(SpannerErrorCode.INVALID_ARGUMENT);
+    assertThat(thrown.getMessage()).contains("Option 'table' property must be set");
   }
 
   private InternalRow CreateInternalRow(long i) {

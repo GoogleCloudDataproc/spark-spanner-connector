@@ -27,11 +27,10 @@ public class SpannerBatchWrite implements BatchWrite {
   @Override
   public void commit(WriterCommitMessage[] messages) {
     // This is a no-op. There is no per-batch resources allocated.
-    log.info("Committing SpannerBatchWrite for queryId {}", info.queryId());
   }
 
   @Override
   public void abort(WriterCommitMessage[] messages) {
-    log.info("Aborting SpannerBatchWrite for queryId {}", info.queryId());
+    // This is a no-op. There is no per-batch resources allocated.
   }
 }

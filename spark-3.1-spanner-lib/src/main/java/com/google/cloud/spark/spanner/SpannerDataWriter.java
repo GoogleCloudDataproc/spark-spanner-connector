@@ -23,16 +23,16 @@ import org.slf4j.LoggerFactory;
 
 public class SpannerDataWriter implements DataWriter<InternalRow> {
 
-    private static final Logger log = LoggerFactory.getLogger(SpannerDataWriter.class);
+  private static final Logger log = LoggerFactory.getLogger(SpannerDataWriter.class);
   private static final int MAX_RETRIES = 4;
-    public static final String MUTATIONS_PER_TRANSACTION_DEFAULT_STR = "1000";
-    public static final String BYTES_PER_TRANSACTION_DEFAULT_STR = "1048576";
-    public static final String ASSUME_IDEMPOTENT_ROWS_DEFAULT_STR = "false";
-    public static final String MAX_PENDING_TRANSACTIONS_DEFAULT_STR = "20";
+  public static final String MUTATIONS_PER_TRANSACTION_DEFAULT_STR = "1000";
+  public static final String BYTES_PER_TRANSACTION_DEFAULT_STR = "1048576";
+  public static final String ASSUME_IDEMPOTENT_ROWS_DEFAULT_STR = "false";
+  public static final String MAX_PENDING_TRANSACTIONS_DEFAULT_STR = "20";
 
-    private final int partitionId;
+  private final int partitionId;
   private final long taskId;
-  private final String tableName;
+  final String tableName; // Made package-private for testing
   private final StructType schema;
 
   // Limits
@@ -67,17 +67,25 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     this.partitionId = partitionId;
     this.taskId = taskId;
     this.tableName = SpannerUtils.getRequiredOption(properties, "table");
+
     this.schema = schema;
 
     // Default to 1MB (Safety) and 1000 Mutations
     this.mutationsPerTransaction =
-        Integer.parseInt(properties.getOrDefault("mutationsPerTransaction", MUTATIONS_PER_TRANSACTION_DEFAULT_STR));
+        Integer.parseInt(
+            properties.getOrDefault(
+                "mutationsPerTransaction", MUTATIONS_PER_TRANSACTION_DEFAULT_STR));
     this.bytesPerTransaction =
-        Long.parseLong(properties.getOrDefault("bytesPerTransaction", BYTES_PER_TRANSACTION_DEFAULT_STR)); // 1 MB default
+        Long.parseLong(
+            properties.getOrDefault(
+                "bytesPerTransaction", BYTES_PER_TRANSACTION_DEFAULT_STR)); // 1 MB default
     this.assumeIdempotentRows =
-        Boolean.parseBoolean(properties.getOrDefault("assumeIdempotentRows", ASSUME_IDEMPOTENT_ROWS_DEFAULT_STR));
+        Boolean.parseBoolean(
+            properties.getOrDefault("assumeIdempotentRows", ASSUME_IDEMPOTENT_ROWS_DEFAULT_STR));
     this.maxPendingTransactions =
-        Integer.parseInt(properties.getOrDefault("maxPendingTransactions", MAX_PENDING_TRANSACTIONS_DEFAULT_STR));
+        Integer.parseInt(
+            properties.getOrDefault(
+                "maxPendingTransactions", MAX_PENDING_TRANSACTIONS_DEFAULT_STR));
 
     this.batchClient = batchClient;
     this.executor = executor;

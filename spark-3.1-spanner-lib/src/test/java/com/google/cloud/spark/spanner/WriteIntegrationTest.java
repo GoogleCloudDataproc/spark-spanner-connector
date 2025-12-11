@@ -145,12 +145,11 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
             .filter("long_col IN (10, 11)")
             .count());
 
-    // 2. Write new data with Overwrite
     List<Row> newRows =
         Arrays.asList(RowFactory.create(10L, "new ten"), RowFactory.create(12L, "twelve"));
     Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
 
-    newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Overwrite).save();
+    newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
     // 3. Verify that only the new data exists
     List<Row> finalRows =

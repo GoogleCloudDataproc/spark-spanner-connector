@@ -37,29 +37,19 @@ public class SpannerDataWriterTest {
 
   private final ScheduledExecutorService scheduledExecutor =
       TestingExecutors.sameThreadScheduledExecutor();
-  @Mock private ServerStream<BatchWriteResponse> mockSuccessStream;
-  @Mock private ServerStream<BatchWriteResponse> mockTransientFailureStream;
   private StructType schema;
   private Map<String, String> properties;
   private BatchClientWithCloser batchClientWithCloser;
   private ExpressionEncoder.Serializer<Row> serializer;
   @Mock private ExecutorService mockExecutor;
   @Mock private ScheduledExecutorService mockScheduledExecutor;
-  private final BatchWriteResponse transientError =
-      BatchWriteResponse.newBuilder()
-          .addIndexes(0)
-          .setStatus(Status.newBuilder().setCode(Code.DEADLINE_EXCEEDED_VALUE).build())
-          .build();
 
   @Before
   public void setUp() {
     MockitoAnnotations.openMocks(this);
     batchClientWithCloser =
         new BatchClientWithCloser(mockSpanner, mockBatchClient, mockDatabaseClient);
-    when(mockSuccessStream.iterator()).thenReturn(Collections.emptyIterator());
 
-    when(mockTransientFailureStream.iterator())
-        .thenReturn(Collections.singletonList(transientError).iterator());
     schema =
         new StructType(
             new StructField[] {
@@ -84,7 +74,7 @@ public class SpannerDataWriterTest {
         0, 0, props, schema, batchClientWithCloser, mockExecutor, mockScheduledExecutor);
   }
 
-    @Test
+  @Test
   public void testIdempotentWriteRecoversFromRetriableError() throws IOException {
     properties.put("assumeIdempotentRows", "true");
     try (SpannerDataWriter writer = createWriter(properties)) {
@@ -92,8 +82,8 @@ public class SpannerDataWriterTest {
       // On the first call, the executor submits a task that throws an error.
       // On the second call, the executor submits a task that succeeds.
       when(mockDatabaseClient.batchWriteAtLeastOnce(any()))
-          .thenReturn(mockTransientFailureStream)
-          .thenReturn(mockSuccessStream);
+          .thenAnswer(i -> mockTransientFailureStream())
+          .thenAnswer(i -> mockSuccessStream());
       writer.write(CreateInternalRow(1L));
       writer.commit();
     }
@@ -192,8 +182,7 @@ public class SpannerDataWriterTest {
     // Then, the backpressure `while` loop will run, calling waitForOneWrite.
     // waitForOneWrite will call .get() on the failed future, throwing an exception.
     RuntimeException thrown =
-        assertThrows(
-            RuntimeException.class, () -> writer.write(CreateInternalRow(1L)));
+        assertThrows(RuntimeException.class, () -> writer.write(CreateInternalRow(1L)));
 
     // Verify the cause is the original exception from the failed future.
     assertEquals(permanentError, thrown.getCause().getCause());
@@ -226,7 +215,7 @@ public class SpannerDataWriterTest {
     verify(mockSpanner, times(1)).close();
   }
 
-  private ServerStream<BatchWriteResponse> createTransientFailureStream() {
+  private ServerStream<BatchWriteResponse> mockTransientFailureStream() {
     BatchWriteResponse transientError =
         BatchWriteResponse.newBuilder()
             .addIndexes(0)
@@ -237,6 +226,17 @@ public class SpannerDataWriterTest {
     return mockStream;
   }
 
+  private ServerStream<BatchWriteResponse> mockSuccessStream() {
+    BatchWriteResponse result =
+        BatchWriteResponse.newBuilder()
+            .addIndexes(0)
+            .setStatus(Status.newBuilder().setCode(Code.OK_VALUE).build())
+            .build();
+    ServerStream<BatchWriteResponse> mockStream = mock(ServerStream.class);
+    when(mockStream.iterator()).thenReturn(Collections.singletonList(result).iterator());
+    return mockStream;
+  }
+
   @Test
   public void testIdempotentWriteFailsAfterMaxRetriesForPartialFailure() {
     properties.put("assumeIdempotentRows", "true");
@@ -244,11 +244,11 @@ public class SpannerDataWriterTest {
 
     // Always return a stream indicating a partial failure for all MAX_RETRIES + 1 calls
     when(mockDatabaseClient.batchWriteAtLeastOnce(any()))
-        .thenAnswer(invocation -> createTransientFailureStream()) // Call 1
-        .thenAnswer(invocation -> createTransientFailureStream()) // Call 2 (Retry 1)
-        .thenAnswer(invocation -> createTransientFailureStream()) // Call 3 (Retry 2)
-        .thenAnswer(invocation -> createTransientFailureStream()) // Call 4 (Retry 3)
-        .thenAnswer(invocation -> createTransientFailureStream()); // Call 5 (Retry 4, MAX_RETRIES)
+        .thenAnswer(invocation -> mockTransientFailureStream()) // Call 1
+        .thenAnswer(invocation -> mockTransientFailureStream()) // Call 2 (Retry 1)
+        .thenAnswer(invocation -> mockTransientFailureStream()) // Call 3 (Retry 2)
+        .thenAnswer(invocation -> mockTransientFailureStream()) // Call 4 (Retry 3)
+        .thenAnswer(invocation -> mockTransientFailureStream()); // Call 5 (Retry 4, MAX_RETRIES)
 
     IOException thrown =
         assertThrows(
@@ -295,7 +295,7 @@ public class SpannerDataWriterTest {
     properties.put("assumeIdempotentRows", "true");
     try (SpannerDataWriter writer = createWriter(properties)) {
       // Mock the client to always succeed
-      when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenReturn(mockSuccessStream);
+      when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenAnswer(i -> mockSuccessStream());
 
       writer.write(CreateInternalRow(1L));
       writer.commit();
@@ -306,7 +306,7 @@ public class SpannerDataWriterTest {
     verify(mockSpanner, times(1)).close();
   }
 
-    private InternalRow CreateInternalRow(long i) {
-        return serializer.apply(RowFactory.create(i, "row" + i));
-    }
+  private InternalRow CreateInternalRow(long i) {
+    return serializer.apply(RowFactory.create(i, "row" + i));
+  }
 }

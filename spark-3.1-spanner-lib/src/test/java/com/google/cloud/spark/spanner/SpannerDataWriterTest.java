@@ -44,6 +44,11 @@ public class SpannerDataWriterTest {
   private ExpressionEncoder.Serializer<Row> serializer;
   @Mock private ExecutorService mockExecutor;
   @Mock private ScheduledExecutorService mockScheduledExecutor;
+  private final BatchWriteResponse transientError =
+      BatchWriteResponse.newBuilder()
+          .addIndexes(0)
+          .setStatus(Status.newBuilder().setCode(Code.DEADLINE_EXCEEDED_VALUE).build())
+          .build();
 
   @Before
   public void setUp() {
@@ -52,11 +57,6 @@ public class SpannerDataWriterTest {
         new BatchClientWithCloser(mockSpanner, mockBatchClient, mockDatabaseClient);
     when(mockSuccessStream.iterator()).thenReturn(Collections.emptyIterator());
 
-    BatchWriteResponse transientError =
-        BatchWriteResponse.newBuilder()
-            .addIndexes(0)
-            .setStatus(Status.newBuilder().setCode(Code.DEADLINE_EXCEEDED_VALUE).build())
-            .build();
     when(mockTransientFailureStream.iterator())
         .thenReturn(Collections.singletonList(transientError).iterator());
     schema =
@@ -196,8 +196,7 @@ public class SpannerDataWriterTest {
     // waitForOneWrite will call .get() on the failed future, throwing an exception.
     RuntimeException thrown =
         assertThrows(
-            RuntimeException.class,
-            () -> writer.write(serializer.apply(createMockRow(1L))));
+            RuntimeException.class, () -> writer.write(serializer.apply(createMockRow(1L))));
 
     // Verify the cause is the original exception from the failed future.
     assertEquals(permanentError, thrown.getCause().getCause());
@@ -228,5 +227,69 @@ public class SpannerDataWriterTest {
 
     // Verify Spanner client is closed
     verify(mockSpanner, times(1)).close();
+  }
+
+  private ServerStream<BatchWriteResponse> createTransientFailureStream() {
+    BatchWriteResponse transientError =
+        BatchWriteResponse.newBuilder()
+            .addIndexes(0)
+            .setStatus(Status.newBuilder().setCode(Code.DEADLINE_EXCEEDED_VALUE).build())
+            .build();
+    ServerStream<BatchWriteResponse> mockStream = mock(ServerStream.class);
+    when(mockStream.iterator()).thenReturn(Collections.singletonList(transientError).iterator());
+    return mockStream;
+  }
+
+  @Test
+  public void testIdempotentWriteFailsAfterMaxRetriesForPartialFailure() {
+    properties.put("assumeIdempotentRows", "true");
+    SpannerDataWriter writer = createWriter(properties);
+
+    // Always return a stream indicating a partial failure for all MAX_RETRIES + 1 calls
+    when(mockDatabaseClient.batchWriteAtLeastOnce(any()))
+        .thenAnswer(invocation -> createTransientFailureStream()) // Call 1
+        .thenAnswer(invocation -> createTransientFailureStream()) // Call 2 (Retry 1)
+        .thenAnswer(invocation -> createTransientFailureStream()) // Call 3 (Retry 2)
+        .thenAnswer(invocation -> createTransientFailureStream()) // Call 4 (Retry 3)
+        .thenAnswer(invocation -> createTransientFailureStream()); // Call 5 (Retry 4, MAX_RETRIES)
+
+    IOException thrown =
+        assertThrows(
+            IOException.class,
+            () -> {
+              writer.write(serializer.apply(createMockRow(1L)));
+              writer.commit();
+            });
+
+    assertThat(thrown).isNotNull();
+    assertThat(thrown.getCause()).isInstanceOf(IOException.class);
+    assertThat(thrown.getCause().getMessage()).contains("Exhausted retries");
+    // We expect MAX_RETRIES + 1 total calls.
+    verify(mockDatabaseClient, times(5)).batchWriteAtLeastOnce(any());
+  }
+
+  @Test
+  public void testIdempotentWriteFailsAfterMaxRetriesForTotalFailure() {
+    properties.put("assumeIdempotentRows", "true");
+    SpannerDataWriter writer = createWriter(properties);
+
+    SpannerException permanentError =
+        SpannerExceptionFactory.newSpannerException(
+            ErrorCode.UNAVAILABLE, "Simulated permanent transport error");
+
+    // Always throw an exception when the client is called
+    when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenThrow(permanentError);
+
+    IOException thrown =
+        assertThrows(
+            IOException.class,
+            () -> {
+              writer.write(serializer.apply(createMockRow(1L)));
+              writer.commit();
+            });
+
+    assertEquals(permanentError, thrown.getCause());
+    // We expect MAX_RETRIES + 1 total calls.
+    verify(mockDatabaseClient, times(5)).batchWriteAtLeastOnce(any());
   }
 }

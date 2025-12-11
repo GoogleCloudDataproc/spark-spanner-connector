@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
@@ -83,11 +84,7 @@ public class SpannerDataWriterTest {
         0, 0, props, schema, batchClientWithCloser, mockExecutor, mockScheduledExecutor);
   }
 
-  private Row createMockRow(long i) {
-    return RowFactory.create(i, "row" + i);
-  }
-
-  @Test
+    @Test
   public void testIdempotentWriteRecoversFromRetriableError() throws IOException {
     properties.put("assumeIdempotentRows", "true");
     try (SpannerDataWriter writer = createWriter(properties)) {
@@ -97,7 +94,7 @@ public class SpannerDataWriterTest {
       when(mockDatabaseClient.batchWriteAtLeastOnce(any()))
           .thenReturn(mockTransientFailureStream)
           .thenReturn(mockSuccessStream);
-      writer.write(serializer.apply(createMockRow(1L)));
+      writer.write(CreateInternalRow(1L));
       writer.commit();
     }
 
@@ -119,7 +116,7 @@ public class SpannerDataWriterTest {
           assertThrows(
               IOException.class,
               () -> {
-                writer.write(serializer.apply(createMockRow(1L)));
+                writer.write(CreateInternalRow(1L));
                 writer.commit();
               });
 
@@ -146,7 +143,7 @@ public class SpannerDataWriterTest {
             () -> {
               try {
                 // This should trigger flushBufferAsync and block on waitForOneWrite
-                writer.write(serializer.apply(createMockRow(1L)));
+                writer.write(CreateInternalRow(1L));
                 writer.commit();
               } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -187,7 +184,7 @@ public class SpannerDataWriterTest {
     failedFuture.completeExceptionally(permanentError);
     writer.pendingWrites.add(failedFuture);
     // Fill mutation queue
-    writer.write(serializer.apply(createMockRow(1L)));
+    writer.write(CreateInternalRow(1L));
 
     // This next write should trigger flushBufferAsync.
     // Inside flushBufferAsync, cleanUpFinishedWrites is called.
@@ -196,7 +193,7 @@ public class SpannerDataWriterTest {
     // waitForOneWrite will call .get() on the failed future, throwing an exception.
     RuntimeException thrown =
         assertThrows(
-            RuntimeException.class, () -> writer.write(serializer.apply(createMockRow(1L))));
+            RuntimeException.class, () -> writer.write(CreateInternalRow(1L)));
 
     // Verify the cause is the original exception from the failed future.
     assertEquals(permanentError, thrown.getCause().getCause());
@@ -257,7 +254,7 @@ public class SpannerDataWriterTest {
         assertThrows(
             IOException.class,
             () -> {
-              writer.write(serializer.apply(createMockRow(1L)));
+              writer.write(CreateInternalRow(1L));
               writer.commit();
             });
 
@@ -284,7 +281,7 @@ public class SpannerDataWriterTest {
         assertThrows(
             IOException.class,
             () -> {
-              writer.write(serializer.apply(createMockRow(1L)));
+              writer.write(CreateInternalRow(1L));
               writer.commit();
             });
 
@@ -292,4 +289,24 @@ public class SpannerDataWriterTest {
     // We expect MAX_RETRIES + 1 total calls.
     verify(mockDatabaseClient, times(5)).batchWriteAtLeastOnce(any());
   }
+
+  @Test
+  public void testIdempotentWriteHappyPath() throws IOException {
+    properties.put("assumeIdempotentRows", "true");
+    try (SpannerDataWriter writer = createWriter(properties)) {
+      // Mock the client to always succeed
+      when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenReturn(mockSuccessStream);
+
+      writer.write(CreateInternalRow(1L));
+      writer.commit();
+    }
+    // Verify that batchWriteAtLeastOnce was called once
+    verify(mockDatabaseClient, times(1)).batchWriteAtLeastOnce(any());
+    // Verify Spanner client is closed
+    verify(mockSpanner, times(1)).close();
+  }
+
+    private InternalRow CreateInternalRow(long i) {
+        return serializer.apply(RowFactory.create(i, "row" + i));
+    }
 }

@@ -3,6 +3,7 @@ package com.google.cloud.spark.spanner;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.MutationGroup;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.rpc.Code;
 import com.google.spanner.v1.BatchWriteResponse;
 import java.io.IOException;
@@ -47,14 +48,17 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   // Async Execution
   private final ExecutorService executor;
-  private final List<CompletableFuture<Void>> pendingWrites = new ArrayList<>();
+
+  @VisibleForTesting
+  protected final List<CompletableFuture<Void>> pendingWrites = new ArrayList<>();
 
   public SpannerDataWriter(
       int partitionId,
       long taskId,
       Map<String, String> properties,
       StructType schema,
-      BatchClientWithCloser batchClient) {
+      BatchClientWithCloser batchClient,
+      ExecutorService executor) {
     this.partitionId = partitionId;
     this.taskId = taskId;
     this.tableName = properties.get("table");
@@ -67,12 +71,11 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
         Long.parseLong(properties.getOrDefault("bytesPerTransaction", "1048576")); // 1 MB default
     this.assumeIdempotentRows =
         Boolean.parseBoolean(properties.getOrDefault("assumeIdempotentRows", "false"));
-    int numThreads = Integer.parseInt(properties.getOrDefault("numWriteThreads", "8"));
     this.maxPendingTransactions =
         Integer.parseInt(properties.getOrDefault("maxPendingTransactions", "20"));
 
     this.batchClient = batchClient;
-    this.executor = Executors.newFixedThreadPool(numThreads);
+    this.executor = executor;
   }
 
   @Override
@@ -139,7 +142,8 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       for (Mutation m : rawMutations) {
         groups.add(MutationGroup.of(m));
       }
-      attemptWriteRecursive(groups, 0, batchLifecycle);
+
+      dispatchWriteAtLeastOnceRecursive(groups, 0, batchLifecycle);
 
     } else {
       // Strict Transaction, No Manual Retries, Exactly-Once
@@ -152,7 +156,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     }
   }
 
-  private void attemptWriteRecursive(
+  private void dispatchWriteAtLeastOnceRecursive(
       List<MutationGroup> currentBatch, int attempt, CompletableFuture<Void> lifecycle) {
     // Submit the heavy I/O to the worker thread (don't run on scheduler thread)
     executor.submit(
@@ -186,11 +190,11 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
                 // specific delay calculation
                 long delayMs = (long) Math.pow(2, attempt) * 1000 + (long) (Math.random() * 500);
 
-                  log.info("Partial failure. Scheduling retry {} in {}ms", attempt + 1, delayMs);
+                log.info("Partial failure. Scheduling retry {} in {}ms", attempt + 1, delayMs);
 
                 // Schedule the NEXT attempt. This thread terminates immediately.
                 scheduler.schedule(
-                    () -> attemptWriteRecursive(failedGroups, attempt + 1, lifecycle),
+                    () -> dispatchWriteAtLeastOnceRecursive(failedGroups, attempt + 1, lifecycle),
                     delayMs,
                     TimeUnit.MILLISECONDS);
               }
@@ -201,7 +205,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
             if (attempt < MAX_RETRIES) {
               long delayMs = (long) Math.pow(2, attempt) * 1000;
               scheduler.schedule(
-                  () -> attemptWriteRecursive(currentBatch, attempt + 1, lifecycle),
+                  () -> dispatchWriteAtLeastOnceRecursive(currentBatch, attempt + 1, lifecycle),
                   delayMs,
                   TimeUnit.MILLISECONDS);
             } else {
@@ -237,7 +241,9 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   }
   // Helper to keep the queue clean
   private void cleanUpFinishedWrites() {
-    pendingWrites.removeIf(CompletableFuture::isDone);
+    // Only remove futures that completed successfully.
+    // Errored futures should be left so that their exceptions can be thrown during commit().
+    pendingWrites.removeIf(future -> future.isDone() && !future.isCompletedExceptionally());
   }
 
   private void waitForOneWrite() {

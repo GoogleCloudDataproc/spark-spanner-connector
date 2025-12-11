@@ -2,6 +2,8 @@ package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spanner.SessionPoolOptions;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.DataWriterFactory;
@@ -23,7 +25,8 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
         SessionPoolOptions.newBuilder().setMinSessions(1).setMaxSessions(numThreads).build();
     BatchClientWithCloser batchClient =
         SpannerUtils.batchClientFromProperties(properties, sessionPoolOptions);
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
-    return new SpannerDataWriter(partitionId, taskId, properties, schema, batchClient);
+    return new SpannerDataWriter(partitionId, taskId, properties, schema, batchClient, executor);
   }
 }

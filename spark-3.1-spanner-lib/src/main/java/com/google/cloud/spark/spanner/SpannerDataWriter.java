@@ -186,8 +186,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
                 // specific delay calculation
                 long delayMs = (long) Math.pow(2, attempt) * 1000 + (long) (Math.random() * 500);
 
-                System.out.println(
-                    "Partial failure. Scheduling retry " + (attempt + 1) + " in " + delayMs + "ms");
+                  log.info("Partial failure. Scheduling retry {} in {}ms", attempt + 1, delayMs);
 
                 // Schedule the NEXT attempt. This thread terminates immediately.
                 scheduler.schedule(

@@ -29,6 +29,7 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
     ExecutorService executor = Executors.newFixedThreadPool(numThreads);
     ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-    return new SpannerDataWriter(partitionId, taskId, properties, schema, batchClient, executor, scheduler);
+    return new SpannerDataWriter(
+        partitionId, taskId, properties, schema, batchClient, executor, scheduler);
   }
 }

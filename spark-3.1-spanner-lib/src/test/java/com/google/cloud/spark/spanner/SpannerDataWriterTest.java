@@ -1,20 +1,20 @@
 package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.spanner.*;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.testing.TestingExecutors;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
 import com.google.spanner.v1.BatchWriteResponse;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
-
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
@@ -32,15 +32,18 @@ public class SpannerDataWriterTest {
   @Mock private Spanner mockSpanner;
   @Mock private DatabaseClient mockDatabaseClient;
   @Mock private BatchClient mockBatchClient;
-  private ExecutorService executor = Executors.newFixedThreadPool(2);
+  private final ExecutorService executor = MoreExecutors.newDirectExecutorService();
 
-  private ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
+  private final ScheduledExecutorService scheduledExecutor =
+      TestingExecutors.sameThreadScheduledExecutor();
   @Mock private ServerStream<BatchWriteResponse> mockSuccessStream;
   @Mock private ServerStream<BatchWriteResponse> mockTransientFailureStream;
   private StructType schema;
   private Map<String, String> properties;
   private BatchClientWithCloser batchClientWithCloser;
   private ExpressionEncoder.Serializer<Row> serializer;
+  @Mock private ExecutorService mockExecutor;
+  @Mock private ScheduledExecutorService mockScheduledExecutor;
 
   @Before
   public void setUp() {
@@ -71,7 +74,13 @@ public class SpannerDataWriterTest {
   }
 
   private SpannerDataWriter createWriter(Map<String, String> props) {
-    return new SpannerDataWriter(0, 0, props, schema, batchClientWithCloser, executor, scheduledExecutor);
+    return new SpannerDataWriter(
+        0, 0, props, schema, batchClientWithCloser, executor, scheduledExecutor);
+  }
+
+  private SpannerDataWriter createWriterMockExecutors(Map<String, String> props) {
+    return new SpannerDataWriter(
+        0, 0, props, schema, batchClientWithCloser, mockExecutor, mockScheduledExecutor);
   }
 
   private Row createMockRow(long i) {
@@ -125,7 +134,8 @@ public class SpannerDataWriterTest {
     // Use a real executor here to test the blocking behavior
     ExecutorService realExecutor = Executors.newSingleThreadExecutor();
     SpannerDataWriter writer =
-        new SpannerDataWriter(0, 0, properties, schema, batchClientWithCloser, realExecutor, scheduledExecutor);
+        new SpannerDataWriter(
+            0, 0, properties, schema, batchClientWithCloser, realExecutor, scheduledExecutor);
 
     CompletableFuture<Void> blockingFuture = new CompletableFuture<>();
     writer.pendingWrites.add(blockingFuture); // Manually fill the queue
@@ -166,7 +176,8 @@ public class SpannerDataWriterTest {
     // but the result of the execution.
     ExecutorService realExecutor = Executors.newSingleThreadExecutor();
     SpannerDataWriter writer =
-        new SpannerDataWriter(0, 0, properties, schema, batchClientWithCloser, realExecutor, scheduledExecutor);
+        new SpannerDataWriter(
+            0, 0, properties, schema, batchClientWithCloser, realExecutor, scheduledExecutor);
 
     SpannerException permanentError =
         SpannerExceptionFactory.newSpannerException(ErrorCode.INVALID_ARGUMENT, "Permanent error");
@@ -186,13 +197,36 @@ public class SpannerDataWriterTest {
     RuntimeException thrown =
         assertThrows(
             RuntimeException.class,
-            () -> {
-              writer.write(serializer.apply(createMockRow(1L)));
-            });
+            () -> writer.write(serializer.apply(createMockRow(1L))));
 
     // Verify the cause is the original exception from the failed future.
     assertEquals(permanentError, thrown.getCause().getCause());
 
     realExecutor.shutdown();
+  }
+
+  @Test
+  public void testAbortCancelsPendingWritesAndShutsDownExecutors() throws IOException {
+    SpannerDataWriter writer = createWriterMockExecutors(properties);
+
+    // Simulate some pending writes that are still active
+    CompletableFuture<Void> pendingFuture1 = new CompletableFuture<>();
+    CompletableFuture<Void> pendingFuture2 = new CompletableFuture<>();
+    writer.pendingWrites.add(pendingFuture1);
+    writer.pendingWrites.add(pendingFuture2);
+
+    // Call abort
+    writer.abort();
+
+    // Verify shutdown methods were called
+    verify(mockExecutor, times(1)).shutdownNow();
+    verify(mockScheduledExecutor, times(1)).shutdownNow();
+
+    // Verify pending futures were cancelled
+    assertTrue(pendingFuture1.isCancelled());
+    assertTrue(pendingFuture2.isCancelled());
+
+    // Verify Spanner client is closed
+    verify(mockSpanner, times(1)).close();
   }
 }

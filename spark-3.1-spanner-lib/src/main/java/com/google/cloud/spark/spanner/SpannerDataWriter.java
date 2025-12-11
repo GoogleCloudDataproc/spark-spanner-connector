@@ -269,7 +269,6 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       try {
         this.batchClient.close();
       } catch (Exception e) {
-        // Log warning (e.g., via Logger or System.err)
         log.warn("Failed to close batch client", e);
       }
     }
@@ -288,7 +287,6 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       try {
         this.batchClient.close();
       } catch (Exception e) {
-        // Log warning (e.g., via Logger or System.err)
         log.warn("Failed to close batch client", e);
       }
     }

@@ -112,4 +112,10 @@ CREATE TABLE writeTestTable (
     date_col DATE,
     bytes_col BYTES(MAX),
     numeric_col NUMERIC
-    ) PRIMARY KEY(long_col)
+    ) PRIMARY KEY(long_col);
+
+CREATE TABLE schemaValidationTestTable (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  value FLOAT64
+) PRIMARY KEY(id);

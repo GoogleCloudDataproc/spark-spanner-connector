@@ -16,7 +16,6 @@ package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
@@ -26,17 +25,12 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public class Spark31SpannerTableProvider implements DataSourceRegister, TableProvider {
 
-  private @Nullable Table table;
-
   /*
    * Infers the schema of the table identified by the given options.
    */
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    if (table == null) {
-      table = getTable(options);
-    }
-    return table.schema();
+    return getTable(options).schema();
   }
 
   /*
@@ -46,10 +40,24 @@ public class Spark31SpannerTableProvider implements DataSourceRegister, TablePro
   @Override
   public Table getTable(
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
-    if (table == null) {
-      table = getTable(properties);
+    boolean enablePartialRowUpdates =
+        Boolean.parseBoolean(properties.getOrDefault("enablePartialRowUpdates", "false"));
+
+    boolean hasTable = properties.containsKey("table");
+    boolean hasGraph = properties.containsKey("graph");
+    if (hasTable && !hasGraph) {
+      if (enablePartialRowUpdates) {
+        return new SpannerTable(properties, schema);
+      } else {
+        return new SpannerTable(properties);
+      }
+    } else if (!hasTable && hasGraph) {
+      return SpannerGraphBuilder.build(properties);
+    } else {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "properties must contain one of \"table\" or \"graph\"");
     }
-    return table;
   }
 
   /*
@@ -58,7 +66,7 @@ public class Spark31SpannerTableProvider implements DataSourceRegister, TablePro
    */
   @Override
   public boolean supportsExternalMetadata() {
-    return false;
+    return true;
   }
 
   /*
@@ -78,7 +86,9 @@ public class Spark31SpannerTableProvider implements DataSourceRegister, TablePro
     } else if (!hasTable && hasGraph) {
       return SpannerGraphBuilder.build(properties);
     } else {
-      throw new SpannerConnectorException("properties must contain one of \"table\" or \"graph\"");
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "properties must contain one of \"table\" or \"graph\"");
     }
   }
 }

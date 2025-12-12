@@ -74,6 +74,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     Map<String, String> props = connectionProperties();
     props.put("table", WRITE_TABLE_NAME);
     props.put("assumeIdempotentWrites", "true");
+    props.put("enablePartialRowUpdates", "true");
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
@@ -104,6 +105,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
     Map<String, String> props = connectionProperties();
     props.put("table", WRITE_TABLE_NAME);
+    props.put("enablePartialRowUpdates", "true");
 
     // Get initial count to ensure no new rows are added
     long initialCount = spark.read().format("cloud-spanner").options(props).load().count();
@@ -118,7 +120,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   @Test
   public void testUpsert() {
-    // 1. Write initial data
+    // 1. Write initial data using unique keys.
     StructType schema =
         new StructType(
             new StructField[] {
@@ -126,49 +128,48 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
               DataTypes.createStructField("string_col", DataTypes.StringType, true),
             });
     List<Row> initialRows =
-        Arrays.asList(RowFactory.create(10L, "ten"), RowFactory.create(11L, "eleven"));
+        Arrays.asList(
+            RowFactory.create(201L, "original twenty-one"),
+            RowFactory.create(202L, "original twenty-two"));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
 
     Map<String, String> props = connectionProperties();
     props.put("table", WRITE_TABLE_NAME);
+    props.put("enablePartialRowUpdates", "true");
 
     initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
-    // Verify initial data is there
-    assertEquals(
-        2,
+    // 2. Write a second DataFrame to update one row and insert another.
+    List<Row> newRows =
+        Arrays.asList(
+            RowFactory.create(201L, "new twenty-one"), // Update 201
+            RowFactory.create(203L, "new twenty-three") // Insert 203
+            );
+    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+
+    newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    // 3. Verify the final state of the rows involved in this test.
+    Dataset<Row> finalDf =
         spark
             .read()
             .format("cloud-spanner")
             .options(props)
             .load()
-            .filter("long_col IN (10, 11)")
-            .count());
+            .filter("long_col IN (201, 202, 203)");
 
-    List<Row> newRows =
-        Arrays.asList(RowFactory.create(10L, "new ten"), RowFactory.create(12L, "twelve"));
-    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+    assertEquals(3, finalDf.count());
 
-    newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+    Map<Long, Row> finalRows =
+        finalDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
 
-    // 3. Verify that only the new data exists
-    List<Row> finalRows =
-        spark.read().format("cloud-spanner").options(props).load().collectAsList();
-
-    // The table should contain only the 2 new rows
-    assertEquals(2, finalRows.size());
-
-    // Check that the old row '11' is gone and the new row '12' is present
-    List<Long> actual =
-        finalRows.stream()
-            .map(row -> row.getLong(0))
-            .sorted()
-            .collect(java.util.stream.Collectors.toList());
-    assertThat(actual).containsExactly(10L, 12L).inOrder();
-
-    // Check that the value for key '10' was updated
-    Row updatedRow = finalRows.stream().filter(row -> row.getLong(0) == 10L).findFirst().get();
-    assertThat(updatedRow.getString(1)).isEqualTo("new ten");
+    // Check that row 201 was updated.
+    assertThat(finalRows.get(201L).getString(1)).isEqualTo("new twenty-one");
+    // Check that row 202 was not touched.
+    assertThat(finalRows.get(202L).getString(1)).isEqualTo("original twenty-two");
+    // Check that row 203 was inserted.
+    assertThat(finalRows.get(203L).getString(1)).isEqualTo("new twenty-three");
   }
 
   @Test
@@ -185,6 +186,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
     Map<String, String> props = connectionProperties();
     props.put("table", WRITE_TABLE_NAME);
+    props.put("enablePartialRowUpdates", "true");
 
     initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
@@ -225,7 +227,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     List<Row> rows =
         Arrays.asList(
             RowFactory.create(
-                1L,
+                101L,
                 "one",
                 true,
                 1.1,
@@ -234,7 +236,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
                 new byte[] {1, 2, 3},
                 new java.math.BigDecimal("123.456")),
             RowFactory.create(
-                2L,
+                102L,
                 "two",
                 false,
                 2.2,
@@ -250,31 +252,31 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
-    Dataset<Row> writtenDf = spark.read().format("cloud-spanner").options(props).load();
+    Dataset<Row> writtenDf =
+        spark.read().format("cloud-spanner").options(props).load().filter("long_col IN (101, 102)");
 
     assertEquals(2, writtenDf.count());
 
-    List<Row> writtenRows = writtenDf.collectAsList();
-    assertThat(writtenRows.get(0).getLong(0)).isEqualTo(1L);
-    assertThat(writtenRows.get(0).getString(1)).isEqualTo("one");
-    assertThat(writtenRows.get(0).getBoolean(2)).isTrue();
-    assertThat(writtenRows.get(0).getDouble(3)).isEqualTo(1.1);
-    assertThat(writtenRows.get(0).getTimestamp(4))
-        .isEqualTo(java.sql.Timestamp.valueOf("2023-01-01 10:10:10"));
-    assertThat(writtenRows.get(0).getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-01-01"));
-    assertThat(writtenRows.get(0).<byte[]>getAs(6)).isEqualTo(new byte[] {1, 2, 3});
-    assertThat(writtenRows.get(0).getDecimal(7).compareTo(new java.math.BigDecimal("123.456")))
-        .isEqualTo(0);
+    Map<Long, Row> writtenRows =
+        writtenDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
 
-    assertThat(writtenRows.get(1).getLong(0)).isEqualTo(2L);
-    assertThat(writtenRows.get(1).getString(1)).isEqualTo("two");
-    assertThat(writtenRows.get(1).getBoolean(2)).isFalse();
-    assertThat(writtenRows.get(1).getDouble(3)).isEqualTo(2.2);
-    assertThat(writtenRows.get(1).getTimestamp(4))
-        .isEqualTo(java.sql.Timestamp.valueOf("2023-02-02 20:20:20"));
-    assertThat(writtenRows.get(1).getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-02-02"));
-    assertThat(writtenRows.get(1).<byte[]>getAs(6)).isEqualTo(new byte[] {4, 5, 6});
-    assertThat(writtenRows.get(1).getDecimal(7).compareTo(new java.math.BigDecimal("789.012")))
-        .isEqualTo(0);
+    Row row1 = writtenRows.get(101L);
+    assertThat(row1.getString(1)).isEqualTo("one");
+    assertThat(row1.getBoolean(2)).isTrue();
+    assertThat(row1.getDouble(3)).isEqualTo(1.1);
+    assertThat(row1.getTimestamp(4)).isEqualTo(java.sql.Timestamp.valueOf("2023-01-01 10:10:10"));
+    assertThat(row1.getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-01-01"));
+    assertThat(row1.<byte[]>getAs(6)).isEqualTo(new byte[] {1, 2, 3});
+    assertThat(row1.getDecimal(7).compareTo(new java.math.BigDecimal("123.456"))).isEqualTo(0);
+
+    Row row2 = writtenRows.get(102L);
+    assertThat(row2.getString(1)).isEqualTo("two");
+    assertThat(row2.getBoolean(2)).isFalse();
+    assertThat(row2.getDouble(3)).isEqualTo(2.2);
+    assertThat(row2.getTimestamp(4)).isEqualTo(java.sql.Timestamp.valueOf("2023-02-02 20:20:20"));
+    assertThat(row2.getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-02-02"));
+    assertThat(row2.<byte[]>getAs(6)).isEqualTo(new byte[] {4, 5, 6});
+    assertThat(row2.getDecimal(7).compareTo(new java.math.BigDecimal("789.012"))).isEqualTo(0);
   }
 }

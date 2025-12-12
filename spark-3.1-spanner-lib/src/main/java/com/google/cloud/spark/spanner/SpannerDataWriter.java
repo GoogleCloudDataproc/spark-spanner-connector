@@ -12,24 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.catalyst.util.MapData;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.WriterCommitMessage;
-import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.BinaryType;
-import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DateType;
-import org.apache.spark.sql.types.DoubleType;
-import org.apache.spark.sql.types.FloatType;
-import org.apache.spark.sql.types.IntegerType;
-import org.apache.spark.sql.types.LongType;
-import org.apache.spark.sql.types.MapType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -344,38 +333,6 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       return ((UTF8String) val).numBytes();
     }
 
-    // 2. Structs (Recursion)
-    else if (type instanceof StructType) {
-      StructType structType = (StructType) type;
-      InternalRow nestedRow = (InternalRow) val;
-      long structSize = 0;
-      StructField[] fields = structType.fields();
-
-      for (int i = 0; i < nestedRow.numFields(); i++) {
-        if (!nestedRow.isNullAt(i)) {
-          structSize +=
-              estimateValueSize(nestedRow.get(i, fields[i].dataType()), fields[i].dataType());
-        }
-      }
-      return structSize;
-    }
-
-    // 3. Arrays (Smart Iteration)
-    else if (type instanceof ArrayType) {
-      ArrayData arrayData = (ArrayData) val;
-      DataType elementType = ((ArrayType) type).elementType();
-      return estimateArraySize(arrayData, elementType);
-    }
-
-    // 4. Maps (Keys + Values)
-    else if (type instanceof MapType) {
-      MapData mapData = (MapData) val;
-      MapType mapType = (MapType) type;
-      // A Map is just two Arrays: Keys and Values
-      return estimateArraySize(mapData.keyArray(), mapType.keyType())
-          + estimateArraySize(mapData.valueArray(), mapType.valueType());
-    }
-
     // 5. Binary
     else if (type instanceof BinaryType) {
       return ((byte[]) val).length;
@@ -385,36 +342,5 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     else {
       return type.defaultSize();
     }
-  }
-
-  private long estimateArraySize(ArrayData arr, DataType elementType) {
-    long size = 0;
-    int numElements = arr.numElements();
-
-    // OPTIMIZATION: If element is fixed-width (Int, Long, Timestamp),
-    // don't iterate! Just multiply.
-    if (isFixedWidth(elementType)) {
-      return (long) numElements * elementType.defaultSize();
-    }
-
-    // SLOW PATH: Variable width (String, Struct, Nested Array)
-    // We must iterate to be safe.
-    for (int i = 0; i < numElements; i++) {
-      if (arr.isNullAt(i)) continue;
-
-      Object element = arr.get(i, elementType);
-      size += estimateValueSize(element, elementType);
-    }
-    return size;
-  }
-
-  private boolean isFixedWidth(DataType type) {
-    return (type instanceof IntegerType
-        || type instanceof LongType
-        || type instanceof DoubleType
-        || type instanceof FloatType
-        || type instanceof BooleanType
-        || type instanceof TimestampType
-        || type instanceof DateType);
   }
 }

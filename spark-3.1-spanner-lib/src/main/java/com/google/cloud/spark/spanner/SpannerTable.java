@@ -253,6 +253,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
+    SpannerUtils.validateSchema(info.schema(), this.schema(), this.tableName);
     return new SpannerWriteBuilder(info);
   }
 

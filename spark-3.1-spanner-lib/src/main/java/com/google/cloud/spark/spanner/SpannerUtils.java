@@ -37,6 +37,9 @@ import java.sql.Timestamp;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -495,5 +498,46 @@ public class SpannerUtils {
           SpannerErrorCode.INVALID_ARGUMENT, "Option 'table' property must be set");
     }
     return tableName;
+  }
+
+  public static void validateSchema(
+      StructType dfSchema, StructType spannerSchema, String tableName) {
+    // Create a map of Spanner columns (lowercase name -> StructField) for efficient,
+    // case-insensitive lookups.
+    Map<String, StructField> spannerSchemaMap =
+        Stream.of(spannerSchema.fields())
+            .collect(Collectors.toMap(field -> field.name().toLowerCase(), Function.identity()));
+
+    // Iterate over each column specified in the DataFrame.
+    for (StructField dfField : dfSchema.fields()) {
+      // Find the corresponding column in the Spanner table, ignoring case.
+      StructField spannerField = spannerSchemaMap.get(dfField.name().toLowerCase());
+
+      // 1. Check if the DataFrame column exists in the Spanner table.
+      if (spannerField == null) {
+        throw new SpannerConnectorException(
+            SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+            "DataFrame column '"
+                + dfField.name()
+                + "' not found in Spanner table '"
+                + tableName
+                + "'.");
+      }
+
+      // 2. Check for data type compatibility.
+      if (!dfField.dataType().equals(spannerField.dataType())) {
+        throw new SpannerConnectorException(
+            SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+            "Data type mismatch for column '"
+                + dfField.name()
+                + "'. DataFrame has type "
+                + dfField.dataType().simpleString()
+                + " but Spanner table expects type "
+                + spannerField.dataType().simpleString()
+                + ".");
+      }
+
+      // 3. Nullability checks are deferred to Spanner at write time since Spark can't guarantee it.
+    }
   }
 }

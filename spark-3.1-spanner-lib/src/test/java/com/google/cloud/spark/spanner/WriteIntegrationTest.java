@@ -172,6 +172,42 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
   }
 
   @Test
+  public void testUpdateSetColumnToNull() {
+    // 1. Write initial data with a non-null string value
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            });
+    List<Row> initialRows = Collections.singletonList(RowFactory.create(20L, "originalValue"));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+
+    Map<String, String> props = connectionProperties();
+    props.put("table", WRITE_TABLE_NAME);
+
+    initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    // Verify initial data
+    Dataset<Row> dfAfterInitialWrite =
+        spark.read().format("cloud-spanner").options(props).load().filter("long_col = 20");
+    assertEquals(1, dfAfterInitialWrite.count());
+    assertThat(dfAfterInitialWrite.first().getString(1)).isEqualTo("originalValue");
+
+    // 2. Update the existing row, setting string_col to null
+    List<Row> updateRows = Collections.singletonList(RowFactory.create(20L, null));
+    Dataset<Row> updateDf = spark.createDataFrame(updateRows, schema);
+
+    updateDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    // 3. Verify that the string_col is now null
+    Dataset<Row> dfAfterUpdate =
+        spark.read().format("cloud-spanner").options(props).load().filter("long_col = 20");
+    assertEquals(1, dfAfterUpdate.count());
+    assertNull(dfAfterUpdate.first().get(1));
+  }
+
+  @Test
   public void testWrite() {
     StructType schema =
         new StructType(

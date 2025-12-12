@@ -7,10 +7,7 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.types.*;
 
 public class SpannerWriterUtils {
 
@@ -21,7 +18,6 @@ public class SpannerWriterUtils {
       StructField field = schema.fields()[i];
       String fieldName = field.name();
       DataType fieldType = field.dataType();
-
       if (record.isNullAt(i)) {
         if (fieldType.equals(DataTypes.LongType)) {
           builder.set(fieldName).to(Value.int64(null));
@@ -37,7 +33,7 @@ public class SpannerWriterUtils {
           builder.set(fieldName).to(Value.date(null));
         } else if (fieldType.equals(DataTypes.BinaryType)) {
           builder.set(fieldName).to(Value.bytes(null));
-        } else if (fieldType.sql().startsWith("DECIMAL")) {
+        } else if (fieldType instanceof DecimalType) {
           builder.set(fieldName).to(Value.numeric(null));
         }
         continue;

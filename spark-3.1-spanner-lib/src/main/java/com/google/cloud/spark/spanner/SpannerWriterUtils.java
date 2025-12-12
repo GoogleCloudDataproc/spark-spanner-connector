@@ -23,26 +23,24 @@ public class SpannerWriterUtils {
       DataType fieldType = field.dataType();
 
       if (record.isNullAt(i)) {
-        if (record.isNullAt(i)) {
-          if (fieldType.equals(DataTypes.LongType)) {
-            builder.set(fieldName).to(Value.int64(null));
-          } else if (fieldType.equals(DataTypes.StringType)) {
-            builder.set(fieldName).to(Value.string(null));
-          } else if (fieldType.equals(DataTypes.BooleanType)) {
-            builder.set(fieldName).to(Value.bool(null));
-          } else if (fieldType.equals(DataTypes.DoubleType)) {
-            builder.set(fieldName).to(Value.float64(null));
-          } else if (fieldType.equals(DataTypes.TimestampType)) {
-            builder.set(fieldName).to(Value.timestamp(null));
-          } else if (fieldType.equals(DataTypes.DateType)) {
-            builder.set(fieldName).to(Value.date(null));
-          } else if (fieldType.equals(DataTypes.BinaryType)) {
-            builder.set(fieldName).to(Value.bytes(null));
-          } else if (fieldType.sql().startsWith("DECIMAL")) {
-            builder.set(fieldName).to(Value.numeric(null));
-          }
-          continue;
+        if (fieldType.equals(DataTypes.LongType)) {
+          builder.set(fieldName).to(Value.int64(null));
+        } else if (fieldType.equals(DataTypes.StringType)) {
+          builder.set(fieldName).to(Value.string(null));
+        } else if (fieldType.equals(DataTypes.BooleanType)) {
+          builder.set(fieldName).to(Value.bool(null));
+        } else if (fieldType.equals(DataTypes.DoubleType)) {
+          builder.set(fieldName).to(Value.float64(null));
+        } else if (fieldType.equals(DataTypes.TimestampType)) {
+          builder.set(fieldName).to(Value.timestamp(null));
+        } else if (fieldType.equals(DataTypes.DateType)) {
+          builder.set(fieldName).to(Value.date(null));
+        } else if (fieldType.equals(DataTypes.BinaryType)) {
+          builder.set(fieldName).to(Value.bytes(null));
+        } else if (fieldType.sql().startsWith("DECIMAL")) {
+          builder.set(fieldName).to(Value.numeric(null));
         }
+        continue;
       }
 
       if (fieldType.equals(DataTypes.LongType)) {

@@ -61,7 +61,6 @@ public class SpannerWriterUtils {
       } else if (fieldType.equals(DataTypes.BinaryType)) {
         builder.set(fieldName).to(ByteArray.copyFrom(record.getBinary(i)));
       } else if (fieldType instanceof org.apache.spark.sql.types.DecimalType) {
-        // TODO Ensure we do not lose precision here
         org.apache.spark.sql.types.DecimalType dt =
             (org.apache.spark.sql.types.DecimalType) fieldType;
         BigDecimal bd = record.getDecimal(i, dt.precision(), dt.scale()).toJavaBigDecimal();

@@ -6,7 +6,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.google.api.gax.rpc.ServerStream;
-import com.google.cloud.spanner.*;
+import com.google.cloud.spanner.BatchClient;
+import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.testing.TestingExecutors;
 import com.google.rpc.Code;

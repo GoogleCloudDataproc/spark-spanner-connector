@@ -100,4 +100,31 @@ public class SpannerUtilsTest {
             .getMessage()
             .contains("DataFrame has type string but Spanner table expects type bigint"));
   }
+
+  @Test
+  public void testValidateSchemaNumericScaleMismatch() {
+    // Spanner GoogleSQL NUMERIC maps to DecimalType(38, 9)
+    StructType spannerSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("price", DataTypes.createDecimalType(38, 9), true, null)
+            });
+
+    // DataFrame has a numeric column with scale > 9
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("price", DataTypes.createDecimalType(38, 10), true, null)
+            });
+
+    SpannerConnectorException exception =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
+    assertTrue(exception.getMessage().contains("Data type mismatch for column 'price'"));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains("DataFrame has type decimal(38,10) but Spanner table expects type decimal(38,9)"));
+  }
 }

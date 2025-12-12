@@ -97,4 +97,39 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     assertThat(e.getMessage()).contains("Cannot write incompatible data to table");
     assertThat(e.getMessage()).contains("Cannot find data for output column 'name'");
   }
+
+  @Test
+  public void testNumericScaleMismatchFailsInGoogleSql() {
+    if (usePg) {
+      // This validation is specific to GoogleSQL's strict NUMERIC(38,9) type.
+      // PostgreSQL's NUMERIC is more flexible and this write may not fail.
+      return;
+    }
+
+    // Create a DataFrame with a high-scale decimal type.
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 10), true)
+            });
+    List<Row> rows =
+        Collections.singletonList(
+            RowFactory.create(999L, new java.math.BigDecimal("123.1234567890")));
+    Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
+
+    Map<String, String> props = connectionProperties(usePg);
+    props.put("table", "writeTestTable");
+    props.put("enablePartialRowUpdates", "true"); // Must be true to test connector validation.
+
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
+
+    assertThat(e.getErrorCode()).isEqualTo(SpannerErrorCode.SCHEMA_VALIDATION_ERROR);
+    assertThat(e.getMessage()).contains("Data type mismatch for column 'numeric_col'");
+    assertThat(e.getMessage())
+        .contains("DataFrame has type decimal(38,10) but Spanner table expects type decimal(38,9)");
+  }
 }

@@ -23,7 +23,13 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.ByteArray;
-import com.google.cloud.spanner.*;
+import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.SessionPoolOptions;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import com.google.common.annotations.VisibleForTesting;
@@ -36,7 +42,13 @@ import java.io.UncheckedIOException;
 import java.sql.Timestamp;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -495,7 +507,7 @@ public class SpannerUtils {
     String tableName = properties.get(option);
     if (tableName == null) {
       throw new SpannerConnectorException(
-          SpannerErrorCode.INVALID_ARGUMENT, "Option 'table' property must be set");
+          SpannerErrorCode.INVALID_ARGUMENT, "Option '" + option + "' property must be set");
     }
     return tableName;
   }

@@ -16,7 +16,20 @@ import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.WriterCommitMessage;
-import org.apache.spark.sql.types.*;
+import org.apache.spark.sql.types.ArrayType;
+import org.apache.spark.sql.types.BinaryType;
+import org.apache.spark.sql.types.BooleanType;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DateType;
+import org.apache.spark.sql.types.DoubleType;
+import org.apache.spark.sql.types.FloatType;
+import org.apache.spark.sql.types.IntegerType;
+import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.MapType;
+import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -217,7 +230,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
           } catch (Exception e) {
             // Handle fatal transport errors by scheduling a retry of the whole batch
             if (attempt < MAX_RETRIES) {
-              long delayMs = (long) Math.pow(2, attempt) * 1000;
+              long delayMs = (long) Math.pow(2, attempt) * 1000 + (long) (Math.random() * 500);
               scheduler.schedule(
                   () -> dispatchWriteAtLeastOnceRecursive(currentBatch, attempt + 1, lifecycle),
                   delayMs,
@@ -267,7 +280,14 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       pendingWrites.get(0).get();
       cleanUpFinishedWrites();
     } catch (Exception e) {
-      throw new RuntimeException("Write failed", e);
+      Throwable rootCause = e;
+      if (e instanceof ExecutionException || e instanceof CompletionException) {
+        if (e.getCause() != null) {
+          rootCause = e.getCause();
+        }
+      }
+      throw new SpannerConnectorException(
+          "Write failed while waiting for a pending batch to complete.", rootCause);
     }
   }
 

@@ -182,10 +182,10 @@ public class SpannerDataWriterTest {
     // Then, the backpressure `while` loop will run, calling waitForOneWrite.
     // waitForOneWrite will call .get() on the failed future, throwing an exception.
     RuntimeException thrown =
-        assertThrows(RuntimeException.class, () -> writer.write(CreateInternalRow(1L)));
+        assertThrows(SpannerConnectorException.class, () -> writer.write(CreateInternalRow(1L)));
 
     // Verify the cause is the original exception from the failed future.
-    assertEquals(permanentError, thrown.getCause().getCause());
+    assertEquals(permanentError, thrown.getCause());
 
     realExecutor.shutdown();
   }

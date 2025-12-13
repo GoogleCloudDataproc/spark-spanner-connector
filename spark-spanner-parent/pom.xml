@@ -292,6 +292,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-testlib</artifactId>
+            <version>${guava.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.openlineage</groupId>
             <artifactId>openlineage-spark_2.12</artifactId>
             <version>${openlineage.version}</version>

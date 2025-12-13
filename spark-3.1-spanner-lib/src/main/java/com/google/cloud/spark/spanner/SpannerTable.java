@@ -19,7 +19,6 @@ import com.google.cloud.spanner.connection.Connection;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,17 +48,20 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   private final String databaseId;
 
   private final String projectId;
-  private final SpannerTableSchema tableSchema;
+  private final SpannerTableSchema dbSchema;
+  private final StructType sparkSchema;
   private static final ImmutableSet<TableCapability> tableCapabilities =
-      ImmutableSet.of(TableCapability.BATCH_READ);
+      ImmutableSet.of(TableCapability.BATCH_READ, TableCapability.BATCH_WRITE);
+  private final Map<String, String> properties;
 
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   public SpannerTable(Map<String, String> properties) {
-    this.tableName = getRequiredOption(properties, "table");
-    this.projectId = getRequiredOption(properties, "projectId");
-    this.instanceId = getRequiredOption(properties, "instanceId");
-    this.databaseId = getRequiredOption(properties, "databaseId");
+    this.properties = properties;
+    this.tableName = SpannerUtils.getRequiredOption(properties, "table");
+    this.projectId = SpannerUtils.getRequiredOption(properties, "projectId");
+    this.instanceId = SpannerUtils.getRequiredOption(properties, "instanceId");
+    this.databaseId = SpannerUtils.getRequiredOption(properties, "databaseId");
     try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
       boolean isPostgreSql;
       if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
@@ -75,7 +77,35 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
                 + tableName
                 + " is not supported.");
       }
-      this.tableSchema = new SpannerTableSchema(conn, tableName, isPostgreSql);
+      this.dbSchema = new SpannerTableSchema(conn, tableName, isPostgreSql);
+      this.sparkSchema = this.dbSchema.schema;
+    }
+  }
+
+  public SpannerTable(Map<String, String> properties, StructType dfSchema) {
+    this.properties = properties;
+    this.tableName = SpannerUtils.getRequiredOption(properties, "table");
+    this.projectId = SpannerUtils.getRequiredOption(properties, "projectId");
+    this.instanceId = SpannerUtils.getRequiredOption(properties, "instanceId");
+    this.databaseId = SpannerUtils.getRequiredOption(properties, "databaseId");
+    try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
+      boolean isPostgreSql;
+      if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
+        isPostgreSql = false;
+      } else if (conn.getDialect().equals(Dialect.POSTGRESQL)) {
+        isPostgreSql = true;
+      } else {
+        throw new SpannerConnectorException(
+            SpannerErrorCode.DATABASE_DIALECT_NOT_SUPPORTED,
+            "The dialect used "
+                + conn.getDialect()
+                + " in the Spanner table "
+                + tableName
+                + " is not supported.");
+      }
+      // Still get the DB schema for validation.
+      this.dbSchema = new SpannerTableSchema(conn, tableName, isPostgreSql);
+      this.sparkSchema = dfSchema;
     }
   }
 
@@ -227,7 +257,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public StructType schema() {
-    return this.tableSchema.schema;
+    return this.sparkSchema;
   }
 
   /*
@@ -252,23 +282,20 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
-    throw new SpannerConnectorException(
-        SpannerErrorCode.WRITES_NOT_SUPPORTED,
-        "writes are not supported in the Spark Spanner Connector");
+    SpannerUtils.validateSchema(info.schema(), this.dbSchema.schema, this.tableName);
+    return new SpannerWriteBuilder(info);
   }
 
   @Override
   public Map<String, String> properties() {
-    return ImmutableMap.<String, String>builder()
-        .put("openlineage.dataset.name", String.format("%s/%s", databaseId, tableName))
-        .put(
-            "openlineage.dataset.namespace",
-            String.format("spanner://%s/%s", projectId, instanceId))
-        .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner")
-        .build();
-  }
-
-  private static String getRequiredOption(Map<String, String> properties, String option) {
-    return Objects.requireNonNull(properties.get(option), "Option \"" + option + "\" is missing.");
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .putAll(this.properties)
+            .put("openlineage.dataset.name", String.format("%s/%s", databaseId, tableName))
+            .put(
+                "openlineage.dataset.namespace",
+                String.format("spanner://%s/%s", projectId, instanceId))
+            .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner");
+    return builder.build();
   }
 }

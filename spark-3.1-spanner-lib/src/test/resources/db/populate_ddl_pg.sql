@@ -79,3 +79,9 @@ CREATE TABLE string_table (
   smallCol character varying(1),
   PRIMARY KEY(id)
 );
+
+CREATE TABLE schemaValidationTestTable (
+  id BIGINT PRIMARY KEY,
+  name VARCHAR,
+  value DOUBLE PRECISION
+);

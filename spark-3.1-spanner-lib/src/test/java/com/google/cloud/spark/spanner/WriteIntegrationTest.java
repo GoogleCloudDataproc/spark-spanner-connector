@@ -19,8 +19,6 @@ import org.junit.Test;
 
 public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
-  private static final String WRITE_TABLE_NAME = "writeTestTable";
-
   @Test
   public void testWriteWithNulls() {
     StructType schema =
@@ -42,7 +40,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
     Map<String, String> props = connectionProperties();
-    props.put("table", WRITE_TABLE_NAME);
+    props.put("table", TestData.WRITE_TABLE_NAME);
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
@@ -72,7 +70,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
     Map<String, String> props = connectionProperties();
-    props.put("table", WRITE_TABLE_NAME);
+    props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("assumeIdempotentWrites", "true");
     props.put("enablePartialRowUpdates", "true");
 
@@ -104,7 +102,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     Dataset<Row> df = spark.createDataFrame(Collections.emptyList(), schema);
 
     Map<String, String> props = connectionProperties();
-    props.put("table", WRITE_TABLE_NAME);
+    props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
     // Get initial count to ensure no new rows are added
@@ -134,7 +132,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
 
     Map<String, String> props = connectionProperties();
-    props.put("table", WRITE_TABLE_NAME);
+    props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
     initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
@@ -185,7 +183,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
 
     Map<String, String> props = connectionProperties();
-    props.put("table", WRITE_TABLE_NAME);
+    props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
     initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
@@ -248,7 +246,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
     Map<String, String> props = connectionProperties();
-    props.put("table", WRITE_TABLE_NAME);
+    props.put("table", TestData.WRITE_TABLE_NAME);
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 

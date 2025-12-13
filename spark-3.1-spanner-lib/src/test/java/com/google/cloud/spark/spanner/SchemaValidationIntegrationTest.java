@@ -19,6 +19,8 @@ import org.junit.Test;
 public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   private final boolean usePg;
+  // ToLower here to work around a bug in PSQL schema loading  code.
+  private final String SCHEMA_VALIDATION_TABLE_NAME = "schemaValidationTestTable".toLowerCase();
 
   public SchemaValidationIntegrationTest() {
     this(false);
@@ -41,7 +43,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
     Map<String, String> props = connectionProperties(usePg);
-    props.put("table", "schemaValidationTestTable");
+    props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
     SpannerConnectorException e =
@@ -64,7 +66,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
     Map<String, String> props = connectionProperties(usePg);
-    props.put("table", "schemaValidationTestTable");
+    props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
     SpannerConnectorException e =
@@ -85,7 +87,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     Dataset<Row> df = spark.createDataFrame(rows, partialSchema);
 
     Map<String, String> props = connectionProperties(usePg);
-    props.put("table", "schemaValidationTestTable");
+    props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     // "enablePartialRowUpdates" is NOT set
 
     // Expect Spark's AnalysisException, not our custom SpannerConnectorException
@@ -119,7 +121,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
     Map<String, String> props = connectionProperties(usePg);
-    props.put("table", "writeTestTable");
+    props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true"); // Must be true to test connector validation.
 
     SpannerConnectorException e =

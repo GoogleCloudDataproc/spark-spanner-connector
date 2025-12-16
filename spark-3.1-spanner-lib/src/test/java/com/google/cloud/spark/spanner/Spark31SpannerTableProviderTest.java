@@ -18,7 +18,7 @@ public class Spark31SpannerTableProviderTest extends SparkSpannerIntegrationTest
     // Arrange
     Spark31SpannerTableProvider provider = new Spark31SpannerTableProvider();
     Map<String, String> props = connectionProperties();
-    props.put("table", "writeTestTable");
+    props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
     StructType partialSchema = new StructType().add("long_col", DataTypes.LongType, false);
@@ -39,7 +39,7 @@ public class Spark31SpannerTableProviderTest extends SparkSpannerIntegrationTest
     // Arrange
     Spark31SpannerTableProvider provider = new Spark31SpannerTableProvider();
     Map<String, String> props = connectionProperties();
-    props.put("table", "writeTestTable");
+    props.put("table", TestData.WRITE_TABLE_NAME);
     // enablePartialRowUpdates is not set.
 
     StructType partialSchema = new StructType().add("long_col", DataTypes.LongType, false);

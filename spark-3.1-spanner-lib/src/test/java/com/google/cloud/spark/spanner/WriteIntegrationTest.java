@@ -19,6 +19,12 @@ import org.junit.Test;
 
 public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
+  private boolean usePostgresSql = false;
+
+  WriteIntegrationTest(boolean usePostgresSql) {
+    this.usePostgresSql = usePostgresSql;
+  }
+
   @Test
   public void testWriteWithNulls() {
     StructType schema =
@@ -39,8 +45,8 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
-    Map<String, String> props = connectionProperties();
-    props.put("table", TestData.WRITE_TABLE_NAME);
+    Map<String, String> props = connectionProperties(usePostgresSql);
+    props.put("table", TestData.WRITE_TABLE_NAME.toLowerCase());
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 

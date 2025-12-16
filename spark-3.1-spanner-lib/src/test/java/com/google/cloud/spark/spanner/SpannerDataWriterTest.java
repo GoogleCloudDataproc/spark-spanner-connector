@@ -1,9 +1,11 @@
 package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.spanner.BatchClient;
@@ -18,8 +20,15 @@ import com.google.rpc.Code;
 import com.google.rpc.Status;
 import com.google.spanner.v1.BatchWriteResponse;
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -101,22 +110,22 @@ public class SpannerDataWriterTest {
   public void testTransactionalWriteFailsImmediately() throws IOException {
     properties.put("assumeIdempotentRows", "false");
     try (SpannerDataWriter writer = createWriter(properties)) {
+      writer.write(CreateInternalRow(1L));
 
       SpannerException immediateError =
           SpannerExceptionFactory.newSpannerException(
               ErrorCode.UNAVAILABLE, "Simulated immediate failure");
 
       when(mockDatabaseClient.write(any())).thenThrow(immediateError);
-      IOException thrown =
-          assertThrows(
-              IOException.class,
-              () -> {
-                writer.write(CreateInternalRow(1L));
-                writer.commit();
-              });
 
-      assertEquals("Failed to commit Spanner partition 0", thrown.getMessage());
-      assertEquals(SpannerException.class, thrown.getCause().getClass());
+      try {
+        writer.commit();
+        throw new AssertionError("Expected exception was not thrown");
+      } catch (Throwable t) {
+        assertThat(t).isInstanceOf(IOException.class);
+        assertThat(t).hasMessageThat().isEqualTo("Failed to commit Spanner partition 0");
+        assertThat(t).hasCauseThat().isInstanceOf(SpannerException.class);
+      }
     }
   }
 
@@ -186,11 +195,13 @@ public class SpannerDataWriterTest {
     // The failed future remains on the list
     // Then, the backpressure `while` loop will run, calling waitForOneWrite.
     // waitForOneWrite will call .get() on the failed future, throwing an exception.
-    RuntimeException thrown =
-        assertThrows(SpannerConnectorException.class, () -> writer.write(CreateInternalRow(1L)));
-
-    // Verify the cause is the original exception from the failed future.
-    assertEquals(permanentError, thrown.getCause());
+    try {
+      writer.write(CreateInternalRow(1L));
+      throw new AssertionError("Expected exception was not thrown");
+    } catch (Throwable t) {
+      assertThat(t).isInstanceOf(SpannerConnectorException.class);
+      assertThat(t.getCause()).isEqualTo(permanentError);
+    }
 
     realExecutor.shutdown();
   }
@@ -213,8 +224,8 @@ public class SpannerDataWriterTest {
     verify(mockScheduledExecutor, times(1)).shutdownNow();
 
     // Verify pending futures were cancelled
-    assertTrue(pendingFuture1.isCancelled());
-    assertTrue(pendingFuture2.isCancelled());
+    assertThat(pendingFuture1.isCancelled()).isTrue();
+    assertThat(pendingFuture2.isCancelled()).isTrue();
 
     // Verify Spanner client is closed
     verify(mockSpanner, times(1)).close();
@@ -255,17 +266,15 @@ public class SpannerDataWriterTest {
         .thenAnswer(invocation -> mockTransientFailureStream()) // Call 4 (Retry 3)
         .thenAnswer(invocation -> mockTransientFailureStream()); // Call 5 (Retry 4, MAX_RETRIES)
 
-    IOException thrown =
-        assertThrows(
-            IOException.class,
-            () -> {
-              writer.write(CreateInternalRow(1L));
-              writer.commit();
-            });
-
-    assertThat(thrown).isNotNull();
-    assertThat(thrown.getCause()).isInstanceOf(IOException.class);
-    assertThat(thrown.getCause().getMessage()).contains("Exhausted retries");
+    try {
+      writer.write(CreateInternalRow(1L));
+      writer.commit();
+      throw new AssertionError("Expected exception was not thrown");
+    } catch (Throwable t) {
+      assertThat(t).isInstanceOf(IOException.class);
+      assertThat(t.getCause()).isInstanceOf(IOException.class);
+      assertThat(t.getCause().getMessage()).contains("Exhausted retries");
+    }
     // We expect MAX_RETRIES + 1 total calls.
     verify(mockDatabaseClient, times(5)).batchWriteAtLeastOnce(any());
   }
@@ -282,15 +291,14 @@ public class SpannerDataWriterTest {
       // Always throw an exception when the client is called
       when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenThrow(permanentError);
 
-      IOException thrown =
-          assertThrows(
-              IOException.class,
-              () -> {
-                writer.write(CreateInternalRow(1L));
-                writer.commit();
-              });
-
-      assertEquals(permanentError, thrown.getCause());
+      try {
+        writer.write(CreateInternalRow(1L));
+        writer.commit();
+        throw new AssertionError("Expected exception was not thrown");
+      } catch (Throwable t) {
+        assertThat(t).isInstanceOf(IOException.class);
+        assertThat(t.getCause()).isEqualTo(permanentError);
+      }
     }
     // We expect MAX_RETRIES + 1 total calls.
     verify(mockDatabaseClient, times(5)).batchWriteAtLeastOnce(any());
@@ -316,16 +324,16 @@ public class SpannerDataWriterTest {
   public void testMissingTablePropertyThrowsException() {
     properties.remove("table"); // Make sure 'table' property is missing
 
-    SpannerConnectorException thrown =
-        assertThrows(
-            SpannerConnectorException.class,
-            () -> {
-              // This should fail because the 'table' property is missing.
-              createWriter(properties);
-            });
-
-    assertThat(thrown.getErrorCode()).isEqualTo(SpannerErrorCode.INVALID_ARGUMENT);
-    assertThat(thrown.getMessage()).contains("Option 'table' property must be set");
+    try {
+      // This should fail because the 'table' property is missing.
+      createWriter(properties);
+      throw new AssertionError("Expected exception was not thrown");
+    } catch (Throwable t) {
+      assertThat(t).isInstanceOf(SpannerConnectorException.class);
+      assertThat(((SpannerConnectorException) t).getErrorCode())
+          .isEqualTo(SpannerErrorCode.INVALID_ARGUMENT);
+      assertThat(t.getMessage()).contains("Option 'table' property must be set");
+    }
   }
 
   private InternalRow CreateInternalRow(long i) {

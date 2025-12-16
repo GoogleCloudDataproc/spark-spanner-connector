@@ -122,7 +122,7 @@ public class SpannerWriterUtils {
       BigDecimal bd = row.getDecimal(index, dt.precision(), dt.scale()).toJavaBigDecimal();
       return Value.numeric(bd);
     }
-
+    // TODO handle Array and Struct here.
     // unsupported type
     throw new UnsupportedOperationException("Unsupported Spark DataType: " + type);
   }

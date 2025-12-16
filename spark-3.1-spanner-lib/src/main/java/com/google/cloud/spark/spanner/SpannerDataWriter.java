@@ -34,7 +34,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   private final int partitionId;
   private final long taskId;
-  final String tableName; // Made package-private for testing
+  private final String tableName;
   private final StructType schema;
 
   // Limits
@@ -174,13 +174,13 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   private void dispatchWriteAtLeastOnceRecursive(
       List<MutationGroup> currentBatch, int attempt, CompletableFuture<Void> lifecycle) {
-    // Submit the heavy I/O to the worker thread (don't run on scheduler thread)
+
+    // Submit I/O to the worker thread
     executor.submit(
         () -> {
           try {
             List<MutationGroup> failedGroups = new ArrayList<>();
 
-            // --- SPANNER CALL (Blocking I/O) ---
             ServerStream<BatchWriteResponse> stream =
                 this.batchClient.databaseClient.batchWriteAtLeastOnce(currentBatch);
 
@@ -191,44 +191,62 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
                 }
               }
             }
-            // -----------------------------------
 
             if (failedGroups.isEmpty()) {
-              // SUCCESS: Mark the lifecycle as complete
+              // SUCCESS
               lifecycle.complete(null);
             } else {
-              // FAILURE: Check if we can retry
-              if (attempt >= MAX_RETRIES) {
-                lifecycle.completeExceptionally(
-                    new IOException("Exhausted retries for " + failedGroups.size() + " items."));
-              } else {
-                // NON-BLOCKING BACKOFF:
-                // specific delay calculation
-                long delayMs = (long) Math.pow(2, attempt) * 1000 + (long) (Math.random() * 500);
-
-                log.info("Partial failure. Scheduling retry {} in {}ms", attempt + 1, delayMs);
-
-                // Schedule the NEXT attempt. This thread terminates immediately.
-                scheduler.schedule(
-                    () -> dispatchWriteAtLeastOnceRecursive(failedGroups, attempt + 1, lifecycle),
-                    delayMs,
-                    TimeUnit.MILLISECONDS);
-              }
+              // PARTIAL FAILURE: Attempt to retry specific items
+              scheduleRetryOrComplete(failedGroups, attempt, lifecycle, null);
             }
 
           } catch (Exception e) {
-            // Handle fatal transport errors by scheduling a retry of the whole batch
-            if (attempt < MAX_RETRIES) {
-              long delayMs = (long) Math.pow(2, attempt) * 1000 + (long) (Math.random() * 500);
-              scheduler.schedule(
-                  () -> dispatchWriteAtLeastOnceRecursive(currentBatch, attempt + 1, lifecycle),
-                  delayMs,
-                  TimeUnit.MILLISECONDS);
-            } else {
-              lifecycle.completeExceptionally(e);
-            }
+            // TRANSPORT/TOTAL FAILURE: Attempt to retry the whole batch
+            scheduleRetryOrComplete(currentBatch, attempt, lifecycle, e);
           }
         });
+  }
+
+  /**
+   * * Handles the decision to retry or fail the lifecycle based on max retries. Encapsulates the
+   * delay calculation and scheduler interaction.
+   */
+  private void scheduleRetryOrComplete(
+      List<MutationGroup> batchToRetry,
+      int currentAttempt,
+      CompletableFuture<Void> lifecycle,
+      Throwable cause) {
+
+    if (currentAttempt >= MAX_RETRIES) {
+      // Fail the future if limit exceeded
+      Throwable finalException =
+          (cause != null)
+              ? cause
+              : new IOException("Exhausted retries for " + batchToRetry.size() + " items.");
+
+      lifecycle.completeExceptionally(finalException);
+      return;
+    }
+
+    // Calculate Delay (Exponential Backoff + Jitter)
+    long delayMs = calculateBackoffDelay(currentAttempt);
+
+    log.info(
+        "Failure detected. Scheduling retry {} in {}ms. Items: {}",
+        currentAttempt + 1,
+        delayMs,
+        batchToRetry.size());
+
+    // Schedule the recursive call
+    scheduler.schedule(
+        () -> dispatchWriteAtLeastOnceRecursive(batchToRetry, currentAttempt + 1, lifecycle),
+        delayMs,
+        TimeUnit.MILLISECONDS);
+  }
+
+  /** Function to calculate retry delay -- 2^attempt * 1000 + random_jitter(0-500) */
+  private long calculateBackoffDelay(int attempt) {
+    return (long) Math.pow(2, attempt) * 1000 + (long) (Math.random() * 500);
   }
 
   /**
@@ -255,6 +273,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
           }
         });
   }
+
   // Helper to keep the queue clean
   private void cleanUpFinishedWrites() {
     // Only remove futures that completed successfully.
@@ -324,21 +343,19 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     return size;
   }
 
-  /** Recursive helper to estimate size of ANY Spark value */
+  /** Helper to estimate size of ANY Spark value */
   private long estimateValueSize(Object val, DataType type) {
     if (val == null) return 0;
 
-    // 1. Strings (Most common heavy hitter)
+    // Strings
     if (type instanceof StringType) {
       return ((UTF8String) val).numBytes();
     }
-
-    // 5. Binary
+    // Binary
     else if (type instanceof BinaryType) {
       return ((byte[]) val).length;
     }
-
-    // 6. Primitives (Fixed Width) - Safe to use constant
+    // Primitives (Fixed Width) - Safe to use constant
     else {
       return type.defaultSize();
     }

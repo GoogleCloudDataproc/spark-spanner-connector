@@ -125,6 +125,7 @@ public class SpannerUtilsTest {
     assertTrue(
         exception
             .getMessage()
-            .contains("DataFrame has type decimal(38,10) but Spanner table expects type decimal(38,9)"));
+            .contains(
+                "DataFrame has type decimal(38,10) but Spanner table expects type decimal(38,9)"));
   }
 }

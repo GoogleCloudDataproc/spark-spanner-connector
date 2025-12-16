@@ -21,7 +21,7 @@ public class SpannerTableSchema {
   private static final String GOOGLESQL_SCHEMA =
       QUERY_PREFIX + "UPPER(TABLE_NAME)=UPPER(@tableName)" + QUERY_SUFFIX;
   private static final String POSTGRESQL_SCHEMA =
-      QUERY_PREFIX + "columns.table_name=$1" + QUERY_SUFFIX;
+      QUERY_PREFIX + "UPPER(columns.table_name)=UPPER($1)" + QUERY_SUFFIX;
 
   private final Map<String, StructField> columns;
 

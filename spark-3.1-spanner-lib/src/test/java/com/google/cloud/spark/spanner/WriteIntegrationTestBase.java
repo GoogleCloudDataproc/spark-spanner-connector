@@ -22,7 +22,6 @@ import org.apache.spark.SparkException;
 import org.apache.spark.sql.DataFrameWriter;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SaveMode;
 import org.junit.Test;
 
 public class WriteIntegrationTestBase extends SparkSpannerIntegrationTestBase {

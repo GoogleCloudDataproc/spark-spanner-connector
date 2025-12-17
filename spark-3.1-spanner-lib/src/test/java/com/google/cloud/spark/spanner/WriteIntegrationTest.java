@@ -92,7 +92,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
-    Map<String, String> props = connectionProperties();
+    Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("assumeIdempotentWrites", "true");
     props.put("enablePartialRowUpdates", "true");
@@ -124,7 +124,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
     Dataset<Row> df = spark.createDataFrame(Collections.emptyList(), schema);
 
-    Map<String, String> props = connectionProperties();
+    Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
@@ -154,7 +154,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
             RowFactory.create(202L, "original twenty-two"));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
 
-    Map<String, String> props = connectionProperties();
+    Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
@@ -205,7 +205,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     List<Row> initialRows = Collections.singletonList(RowFactory.create(20L, "originalValue"));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
 
-    Map<String, String> props = connectionProperties();
+    Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
@@ -268,7 +268,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
-    Map<String, String> props = connectionProperties();
+    Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();

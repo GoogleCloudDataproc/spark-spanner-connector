@@ -103,7 +103,7 @@ CREATE TABLE valueLimitsTable (
 ) PRIMARY KEY(A);
 
 
-CREATE TABLE writeTestTable (
+CREATE TABLE write_test_table (
     long_col INT64,
     string_col STRING(MAX),
     bool_col BOOL,
@@ -114,7 +114,7 @@ CREATE TABLE writeTestTable (
     numeric_col NUMERIC
     ) PRIMARY KEY(long_col);
 
-CREATE TABLE schemaValidationTestTable (
+CREATE TABLE schema_test_table (
   id INT64 NOT NULL,
   name STRING(MAX),
   value FLOAT64

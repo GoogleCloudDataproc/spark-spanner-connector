@@ -26,7 +26,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public final class TestData {
-  static final String WRITE_TABLE_NAME = "writeTestTable";
+  static final String WRITE_TABLE_NAME = "write_test_table";
   public static List<String> initialDDL = createInitialDDL("/db/populate_ddl.sql");
   public static List<String> initialDDLPg = createInitialDDL("/db/populate_ddl_pg.sql");
   public static List<String> initialDDLGraph = createInitialDDL("/db/populate_ddl_graph.sql");

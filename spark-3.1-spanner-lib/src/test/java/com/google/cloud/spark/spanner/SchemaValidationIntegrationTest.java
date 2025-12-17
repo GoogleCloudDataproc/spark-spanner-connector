@@ -33,8 +33,7 @@ import org.junit.Test;
 public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   private final boolean usePg;
-  // ToLower here to work around a bug in PSQL schema loading  code.
-  private final String SCHEMA_VALIDATION_TABLE_NAME = "schemaValidationTestTable".toLowerCase();
+  private final String SCHEMA_VALIDATION_TABLE_NAME = "schema_test_table";
 
   public SchemaValidationIntegrationTest() {
     this(false);

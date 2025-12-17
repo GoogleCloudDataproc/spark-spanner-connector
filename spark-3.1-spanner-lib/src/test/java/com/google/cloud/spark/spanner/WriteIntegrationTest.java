@@ -35,7 +35,10 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   private boolean usePostgresSql = false;
 
-  WriteIntegrationTest(boolean usePostgresSql) {
+  public WriteIntegrationTest() {}
+
+  protected WriteIntegrationTest(boolean usePostgresSql) {
+    super();
     this.usePostgresSql = usePostgresSql;
   }
 
@@ -60,7 +63,7 @@ public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", TestData.WRITE_TABLE_NAME.toLowerCase());
+    props.put("table", TestData.WRITE_TABLE_NAME);
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 

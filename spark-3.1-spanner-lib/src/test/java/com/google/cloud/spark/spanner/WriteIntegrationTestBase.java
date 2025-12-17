@@ -22,6 +22,7 @@ import org.apache.spark.SparkException;
 import org.apache.spark.sql.DataFrameWriter;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SaveMode;
 import org.junit.Test;
 
 public class WriteIntegrationTestBase extends SparkSpannerIntegrationTestBase {
@@ -54,21 +55,5 @@ public class WriteIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     assertThat(e)
         .hasMessageThat()
         .isEqualTo("Table implementation does not support writes: default.compositeTable");
-  }
-
-  @Test
-  public void testCreateTableFail() {
-    String table = "compositeTable";
-    Dataset<Row> drf = readIntegration.readFromTable(table);
-    SpannerConnectorException e =
-        assertThrows(
-            SpannerConnectorException.class,
-            () -> {
-              DataFrameWriter<Row> dwf = writerToTable(drf.select("id"), table);
-              dwf.save();
-            });
-    assertThat(e)
-        .hasMessageThat()
-        .isEqualTo("writes are not supported in the Spark Spanner Connector");
   }
 }

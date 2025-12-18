@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -30,14 +31,21 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
+@RunWith(Parameterized.class)
 public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
-  private boolean usePostgresSql = false;
+  private final boolean usePostgresSql;
 
-  public WriteIntegrationTest() {}
+  @Parameters
+  public static Collection<Object[]> usePostgresSqlValues() {
+    return Arrays.asList(new Object[][] {{false}, {true}});
+  }
 
-  protected WriteIntegrationTest(boolean usePostgresSql) {
+  public WriteIntegrationTest(boolean usePostgresSql) {
     super();
     this.usePostgresSql = usePostgresSql;
   }

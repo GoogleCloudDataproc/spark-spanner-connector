@@ -1,3 +1,4 @@
+
 name: Build and Verify
 on:
   push:
@@ -6,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  build-spark-31:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,58 +27,9 @@ jobs:
       - name: Build with Spark 3.1
         run: |
           mvn -B -e install -P3.1 -DskipTests
-      - name: Upload Maven repository
-        uses: actions/upload-artifact@v4
-        with:
-          name: maven-repository
-          path: ~/.m2/repository
-
-  build-spark-32:
-    needs: build-spark-31
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up JDK 8
-        uses: actions/setup-java@v4
-        with:
-          java-version: '8'
-          distribution: 'temurin'
-      - name: Download Maven repository
-        uses: actions/download-artifact@v4
-        with:
-          name: maven-repository
-          path: ~/.m2/repository
       - name: Build with Spark 3.2
         run: |
           mvn -B -e install -P3.2 -DskipTests
-      - name: Upload Maven repository
-        uses: actions/upload-artifact@v4
-        with:
-          name: maven-repository
-          path: ~/.m2/repository
-
-  build-spark-33:
-    needs: build-spark-32
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up JDK 8
-        uses: actions/setup-java@v4
-        with:
-          java-version: '8'
-          distribution: 'temurin'
-      - name: Download Maven repository
-        uses: actions/download-artifact@v4
-        with:
-          name: maven-repository
-          path: ~/.m2/repository
       - name: Build with Spark 3.3
         run: |
           mvn -B -e install -P3.3 -DskipTests
-      - name: Upload Maven repository
-        uses: actions/upload-artifact@v4
-        with:
-          name: maven-repository
-          path: ~/.m2/repository

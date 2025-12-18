@@ -7,12 +7,6 @@ The connector supports reading
 and
 [GraphFrames](https://graphframes.github.io/graphframes/docs/_site/user-guide.html).
 
-## Unreleased Changes
-
-This Readme may include documentation for changes that haven't been released yet.  The latest release's documentation and source code are found here.
-
-https://github.com/GoogleCloudDataproc/spark-spanner-connector/blob/master/README.md
-
 ## Requirements
 
 ### Enable the Cloud Spanner API
@@ -35,7 +29,7 @@ If you run a Spark job on the Dataproc cluster, you'll have to assign correspond
 
 ## Downloading and Using the Connector
 
-You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-1.1.0.jar` directly.
+You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-1.1.1.jar` directly.
 
 ### Connector to Spark Compatibility Matrix
 | Connector \ Spark                     | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     |
@@ -57,7 +51,7 @@ You can use the standard `--jars` or `--packages` (or alternatively, the `spark.
 
 ```shell
 gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
-    --jars=gs://spark-lib/spanner/spark-3.1-spanner-1.1.0.jar \
+    --jars=gs://spark-lib/spanner/spark-3.1-spanner-1.1.1.jar \
     --region us-central1 examples/SpannerSpark.py
 ```
 ## Usage

@@ -17,6 +17,8 @@ package com.google.cloud.spark.spanner;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -29,19 +31,24 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
+@RunWith(Parameterized.class)
 public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTestBase {
 
-  private final boolean usePg;
+  private final boolean usePostgreSql;
   private final String SCHEMA_VALIDATION_TABLE_NAME = "schema_test_table";
 
-  public SchemaValidationIntegrationTest() {
-    this(false);
+  @Parameters
+  public static Collection<Object[]> data() {
+    return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
-  protected SchemaValidationIntegrationTest(boolean usePg) {
+  public SchemaValidationIntegrationTest(boolean usePostgreSql) {
     super();
-    this.usePg = usePg;
+    this.usePostgreSql = usePostgreSql;
   }
 
   @Test
@@ -55,7 +62,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     List<Row> rows = Collections.singletonList(RowFactory.create(1L, "some_string"));
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
-    Map<String, String> props = connectionProperties(usePg);
+    Map<String, String> props = connectionProperties(usePostgreSql);
     props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
@@ -78,7 +85,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     List<Row> rows = Collections.singletonList(RowFactory.create("not_a_long"));
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
-    Map<String, String> props = connectionProperties(usePg);
+    Map<String, String> props = connectionProperties(usePostgreSql);
     props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
@@ -99,7 +106,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     List<Row> rows = Collections.singletonList(RowFactory.create(1L));
     Dataset<Row> df = spark.createDataFrame(rows, partialSchema);
 
-    Map<String, String> props = connectionProperties(usePg);
+    Map<String, String> props = connectionProperties(usePostgreSql);
     props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     // "enablePartialRowUpdates" is NOT set
 
@@ -115,7 +122,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
 
   @Test
   public void testNumericScaleMismatchFailsInGoogleSql() {
-    if (usePg) {
+    if (usePostgreSql) {
       // This validation is specific to GoogleSQL's strict NUMERIC(38,9) type.
       // PostgreSQL's NUMERIC is more flexible and this write may not fail.
       return;
@@ -133,7 +140,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
             RowFactory.create(999L, new java.math.BigDecimal("123.1234567890")));
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
-    Map<String, String> props = connectionProperties(usePg);
+    Map<String, String> props = connectionProperties(usePostgreSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true"); // Must be true to test connector validation.
 

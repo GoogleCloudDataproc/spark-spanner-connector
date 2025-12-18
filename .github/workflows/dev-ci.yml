@@ -23,13 +23,13 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Build with Spark 3.1
+      - name: Build for Spark 3.1
         run: |
           mvn -B -e install -P3.1 -DskipTests
-      - name: Build with Spark 3.2
+      - name: Build for Spark 3.2
         run: |
           mvn -B -e install -P3.2 -DskipTests
-      - name: Build with Spark 3.3
+      - name: Build for Spark 3.3
         run: |
           mvn -B -e install -P3.3 -DskipTests
       - name: Get short commit hash

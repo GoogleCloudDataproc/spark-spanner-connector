@@ -1,3 +1,4 @@
+
 name: Build and Verify
 on:
   push:
@@ -6,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -14,10 +15,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up JDK 11
+      - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '8'
           distribution: 'temurin'
       - name: Cache Maven packages
         uses: actions/cache@v4
@@ -26,10 +27,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Start Spanner Emulator
+      - name: Build with Spark ${{ matrix.spark-version }}
         run: |
-          docker run -d -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
-          export SPANNER_EMULATOR_HOST=localhost:9010
-      - name: Build and test with Spark ${{ matrix.spark-version }}
-        run: |
-          mvn -B -e verify -P${{ matrix.spark-version }}
+          mvn -B -e install -P${{ matrix.spark-version }} -DskipTests

@@ -1,6 +1,6 @@
 # Release Notes
 
-## Next
+## 1.1.1 - 2025-12-18
 
 *   Prefix column names with table name to avoid ambiguity
 *   Make table name lookup case-insensitive for GoogleSQL

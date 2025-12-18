@@ -1,5 +1,4 @@
-
-name: Build and Verify
+name: Build and Publish
 on:
   push:
     branches:
@@ -33,3 +32,11 @@ jobs:
       - name: Build with Spark 3.3
         run: |
           mvn -B -e install -P3.3 -DskipTests
+      - name: Upload Shaded JARs
+        uses: actions/upload-artifact@v4
+        with:
+          name: shaded-spark-spanner-jars
+          path: |
+            spark-3.1-spanner/target/spark-3.1-spanner-*.jar
+            spark-3.2-spanner/target/spark-3.2-spanner-*.jar
+            spark-3.3-spanner/target/spark-3.3-spanner-*.jar

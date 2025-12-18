@@ -32,11 +32,20 @@ jobs:
       - name: Build with Spark 3.3
         run: |
           mvn -B -e install -P3.3 -DskipTests
+      - name: Get short commit hash
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Stage artifacts
+        run: |
+          mkdir shaded-jars
+          for file in spark-3.*/target/spark-3.*.jar; do
+            if [[ "$file" == *"lib"* || "$file" == *"original"* ]]; then
+              continue
+            fi
+            cp "$file" shaded-jars/
+          done
       - name: Upload Shaded JARs
         uses: actions/upload-artifact@v4
         with:
-          name: shaded-spark-spanner-jars
-          path: |
-            spark-3.1-spanner/target/spark-3.1-spanner-*.jar
-            spark-3.2-spanner/target/spark-3.2-spanner-*.jar
-            spark-3.3-spanner/target/spark-3.3-spanner-*.jar
+          name: shaded-spark-spanner-jars-${{ steps.vars.outputs.sha_short }}
+          path: shaded-jars/

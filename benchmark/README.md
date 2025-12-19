@@ -11,6 +11,16 @@ Before you begin, make sure you have the following tools installed:
 - Google Cloud SDK (`gcloud`)
 - Databricks CLI (if using Databricks)
 
+## Authentication
+
+The benchmark authenticates to Google Cloud Spanner using the service account of the Dataproc cluster's VM instances.
+
+When the Dataproc cluster is created using the `createDataprocCluster` task, it is configured with the `https://www.googleapis.com/auth/cloud-platform` scope. This scope grants the cluster's service account broad access to Google Cloud APIs, including Spanner.
+
+This means that as long as the service account has the necessary IAM permissions for Spanner (e.g., `roles/spanner.databaseUser`), the benchmark will be able to authenticate and write to the Spanner table.
+
+There is no need to configure any additional authentication credentials (like service account keys) in the benchmark code or options.
+
 ## Workflow
 
 The benchmark is designed to be run against a locally built version of the Spark Spanner Connector. This allows you to test changes you've made to the connector before creating a pull request.
@@ -46,6 +56,34 @@ The benchmark is configured to be packaged as a self-contained "fat JAR" that in
 ### Step 3: Run the Benchmark
 
 You can run the benchmark on either Google Cloud Dataproc or Databricks. The `build.sbt` file provides convenient tasks for this.
+
+#### Creating a Dataproc Cluster
+
+The `createDataprocCluster` task can be used to create a new Dataproc cluster for running the benchmark.
+
+**Configuration:**
+
+This task uses the following environment variables:
+- `SPANNER_DATAPROC_BUCKET`: The GCS bucket to be associated with the cluster.
+- `SPANNER_PROJECT_ID`: Your Google Cloud project ID.
+- `SPANNER_DATAPROC_REGION` (optional): The region for the cluster (defaults to `us-central1`). This can be overridden by the `--region` argument.
+
+**Command:**
+
+The task accepts the following arguments:
+- `--clusterName`: The name for the new cluster (required).
+- `--region`: The region for the cluster (optional, overrides the environment variable).
+- `--numWorkers`: The number of worker nodes (optional, defaults to 2).
+- `--masterMachineType`: The machine type for the master node (optional, defaults to `n2-standard-4`).
+- `--workerMachineType`: The machine type for the worker nodes (optional, defaults to `n2-standard-4`).
+- `--imageVersion`: The Dataproc image version (optional, defaults to `2.1-debian11`).
+
+```bash
+# Example from the benchmark directory
+export SPANNER_DATAPROC_BUCKET="<your-bucket-name>"
+export SPANNER_PROJECT_ID="<your-project-id>"
+sbt "createDataprocCluster --clusterName my-benchmark-cluster --numWorkers 4"
+```
 
 #### Running on Google Cloud Dataproc
 

@@ -16,34 +16,21 @@ package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
 import java.util.Map;
-import javax.annotation.Nullable;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
-import org.apache.spark.sql.sources.BaseRelation;
-import org.apache.spark.sql.sources.CreatableRelationProvider;
 import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public class Spark31SpannerTableProvider
-    implements DataSourceRegister, TableProvider, CreatableRelationProvider {
-
-  private @Nullable Table table;
+public class Spark31SpannerTableProvider implements DataSourceRegister, TableProvider {
 
   /*
    * Infers the schema of the table identified by the given options.
    */
   @Override
   public StructType inferSchema(CaseInsensitiveStringMap options) {
-    if (table == null) {
-      table = getTable(options);
-    }
-    return table.schema();
+    return getTable(options).schema();
   }
 
   /*
@@ -53,10 +40,24 @@ public class Spark31SpannerTableProvider
   @Override
   public Table getTable(
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
-    if (table == null) {
-      table = getTable(properties);
+    boolean enablePartialRowUpdates =
+        Boolean.parseBoolean(properties.getOrDefault("enablePartialRowUpdates", "false"));
+
+    boolean hasTable = properties.containsKey("table");
+    boolean hasGraph = properties.containsKey("graph");
+    if (hasTable && !hasGraph) {
+      if (enablePartialRowUpdates) {
+        return new SpannerTable(properties, schema);
+      } else {
+        return new SpannerTable(properties);
+      }
+    } else if (!hasTable && hasGraph) {
+      return SpannerGraphBuilder.build(properties);
+    } else {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "properties must contain one of \"table\" or \"graph\"");
     }
-    return table;
   }
 
   /*
@@ -65,7 +66,7 @@ public class Spark31SpannerTableProvider
    */
   @Override
   public boolean supportsExternalMetadata() {
-    return false;
+    return true;
   }
 
   /*
@@ -77,18 +78,6 @@ public class Spark31SpannerTableProvider
     return "cloud-spanner";
   }
 
-  /** Creation of Database is not supported by the Spark Spanner Connector. */
-  @Override
-  public BaseRelation createRelation(
-      SQLContext sqlContext,
-      SaveMode mode,
-      scala.collection.immutable.Map<String, String> parameters,
-      Dataset<Row> data) {
-    throw new SpannerConnectorException(
-        SpannerErrorCode.WRITES_NOT_SUPPORTED,
-        "writes are not supported in the Spark Spanner Connector");
-  }
-
   private Table getTable(Map<String, String> properties) {
     boolean hasTable = properties.containsKey("table");
     boolean hasGraph = properties.containsKey("graph");
@@ -97,7 +86,9 @@ public class Spark31SpannerTableProvider
     } else if (!hasTable && hasGraph) {
       return SpannerGraphBuilder.build(properties);
     } else {
-      throw new SpannerConnectorException("properties must contain one of \"table\" or \"graph\"");
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "properties must contain one of \"table\" or \"graph\"");
     }
   }
 }

@@ -101,3 +101,21 @@ CREATE TABLE valueLimitsTable (
   D DATE,
   E TIMESTAMP,
 ) PRIMARY KEY(A);
+
+
+CREATE TABLE write_test_table (
+    long_col INT64,
+    string_col STRING(MAX),
+    bool_col BOOL,
+    double_col FLOAT64,
+    timestamp_col TIMESTAMP,
+    date_col DATE,
+    bytes_col BYTES(MAX),
+    numeric_col NUMERIC
+    ) PRIMARY KEY(long_col);
+
+CREATE TABLE schema_test_table (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  value FLOAT64
+) PRIMARY KEY(id);

@@ -79,3 +79,21 @@ CREATE TABLE string_table (
   smallCol character varying(1),
   PRIMARY KEY(id)
 );
+
+CREATE TABLE write_test_table (
+  long_col BIGINT,
+  string_col TEXT,
+  bool_col BOOLEAN,
+  double_col DOUBLE PRECISION,
+  timestamp_col TIMESTAMPTZ,
+  date_col DATE,
+  bytes_col BYTEA,
+  numeric_col NUMERIC,
+  PRIMARY KEY(long_col)
+);
+
+CREATE TABLE schema_test_table (
+  id BIGINT PRIMARY KEY,
+  name VARCHAR,
+  value DOUBLE PRECISION
+);

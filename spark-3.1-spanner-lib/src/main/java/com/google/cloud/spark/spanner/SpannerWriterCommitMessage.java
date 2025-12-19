@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,27 +14,22 @@
 
 package com.google.cloud.spark.spanner;
 
-public enum SpannerErrorCode {
-  SPANNER_FAILED_TO_EXECUTE_QUERY(0),
-  SPANNER_FAILED_TO_PARSE_OPTIONS(1),
-  COLUMNAR_READS_NOT_SUPPORTED(2),
-  WRITES_NOT_SUPPORTED(3),
-  RESOURCE_EXHAUSTED_ON_SPANNER(4),
-  DATABASE_DIALECT_NOT_SUPPORTED(5),
-  DECIMAL_OUT_OF_RANGE(6),
-  INVALID_ARGUMENT(7),
-  SCHEMA_VALIDATION_ERROR(8),
-  // Should be last
-  UNSUPPORTED(9998),
-  UNKNOWN(9999);
+import org.apache.spark.sql.connector.write.WriterCommitMessage;
 
-  final int code;
+public class SpannerWriterCommitMessage implements WriterCommitMessage {
+  private final int partitionId;
+  private final long taskId;
 
-  SpannerErrorCode(int code) {
-    this.code = code;
+  public SpannerWriterCommitMessage(int partitionId, long taskId) {
+    this.partitionId = partitionId;
+    this.taskId = taskId;
   }
 
-  public int getCode() {
-    return code;
+  public int getPartitionId() {
+    return partitionId;
+  }
+
+  public long getTaskId() {
+    return taskId;
   }
 }

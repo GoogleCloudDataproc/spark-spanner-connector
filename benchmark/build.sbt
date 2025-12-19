@@ -110,7 +110,7 @@ runDataproc := {
   val cluster = sys.env.getOrElse("SPANNER_DATAPROC_CLUSTER", throw new RuntimeException("SPANNER_DATAPROC_CLUSTER environment variable not set."))
   val region = sys.env.getOrElse("SPANNER_DATAPROC_REGION", throw new RuntimeException("SPANNER_DATAPROC_REGION environment variable not set."))
   val bucketName = sys.env.getOrElse("SPANNER_DATAPROC_BUCKET", throw new RuntimeException("SPANNER_DATAPROC_BUCKET environment variable not set."))
-  val projectId = sys.env.getOrElse("SPANNER_PROJECT_ID", throw new RuntimeException("SPANNER_GCP_PROJECT_ID environment variable not set."))
+  val projectId = sys.env.getOrElse("SPANNER_PROJECT_ID", throw new RuntimeException("SPANNER_PROJECT_ID environment variable not set."))
   val bucketUri = s"gs://$bucketName"
 
   // 3. Create a unique upload directory for this run
@@ -122,7 +122,10 @@ runDataproc := {
   println(s"Uploading ${appJar.getAbsolutePath} to $dest")
   s"gcloud storage cp ${appJar.getAbsolutePath} $dest".!
 
-  // 5. Construct the gcloud dataproc command
+  // 5. Construct the benchmark arguments
+  val benchmarkArgs = mainClassArgs ++ Seq(projectId)
+
+  // 6. Construct the gcloud dataproc command
   val command = Seq(
     "gcloud", "dataproc", "jobs", "submit", "spark",
     s"--cluster=$cluster",
@@ -131,7 +134,7 @@ runDataproc := {
     s"--class=$mc",
     s"--jars=$dest",
     "--"
-  ) ++ mainClassArgs
+  ) ++ benchmarkArgs
 
   println(s"Submitting Dataproc job: ${command.mkString(" ")}")
   command.!

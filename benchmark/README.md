@@ -102,11 +102,16 @@ Before running, you must set the following environment variables:
 The benchmark accepts the following arguments, which you pass to the `runDataproc` task:
 - `numRecords`: The number of records to write.
 - `writeTable`: The name of the Spanner table to write to.
+- `databaseId`: The Spanner database ID.
+- `instanceId`: The Spanner instance ID.
 - `mutationsPerTransaction` (optional): The number of mutations per transaction (default: 5000).
+
+The `runDataproc` task reads the `SPANNER_PROJECT_ID` environment variable and passes it as an argument to the Spark job.
 
 ```bash
 # Example from the benchmark directory
-sbt "runDataproc 1000000 my_test_table"
+export SPANNER_PROJECT_ID="my-gcp-project"
+sbt "runDataproc 1000000 my_test_table my-spanner-database my-spanner-instance"
 ```
 
 #### Running on Databricks

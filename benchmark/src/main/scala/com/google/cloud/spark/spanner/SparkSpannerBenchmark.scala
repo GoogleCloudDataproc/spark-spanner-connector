@@ -32,22 +32,23 @@ object SparkSpannerBenchmark {
       |}
       |""".stripMargin
   def main(args: Array[String]): Unit = {
-    // Expected arguments: numRecords, writeTable, [mutationsPerTransaction]
-    if (args.length < 2) {
-      println("Usage: DatabricksCorrectnessTest <numRecords> <write_table> [mutationsPerTransaction]")
+    // Expected arguments: numRecords, writeTable, databaseId, instanceId, projectId, [mutationsPerTransaction]
+    if (args.length < 5) {
+      println("Usage: SparkSpannerBenchmark <numRecords> <writeTable> <databaseId> <instanceId> <projectId> [mutationsPerTransaction]")
       sys.exit(1)
     }
     val numRecords = args(0).toLong
     val writeTable = args(1)
-    val mutationsPerTransaction = if (args.length > 2) Try(args(2).toInt).getOrElse(5000) else 5000
+    val databaseId = args(2)
+    val instanceId = args(3)
+    val projectId = args(4)
+    val mutationsPerTransaction = if (args.length > 5) Try(args(5).toInt).getOrElse(5000) else 5000
 
     val spark = SparkSession.builder().appName("DatabricksSpannerTests").getOrCreate()
 
     // UDF to generate random UUIDs for the primary key
     val generateUUID = udf(() => UUID.randomUUID().toString)
     
-    val (projectId, instanceId, databaseId) = ("improvingvancouver", "mksyunz-spark-dev", "mini-test-gsql")
-
     try {
       println("Test: Writing data with new schema...")
       
@@ -83,7 +84,7 @@ object SparkSpannerBenchmark {
       val startTime = System.nanoTime()
       dfPartitioned
         .write
-        .format("com.google.cloud.spark.spanner")
+        .format("com.google.cloud.spark.spanner.Spark33SpannerTableProvider")
         .option("mutationsPerTransaction", mutationsPerTransaction)
         .option("bytesPerTransaction", (3*1024*1024).toString)
         .option("projectId", projectId)

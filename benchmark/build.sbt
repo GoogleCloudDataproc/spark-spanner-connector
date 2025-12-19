@@ -30,7 +30,7 @@ lazy val root = (project in file("."))
         MergeStrategy.first
     },
 
-    Compile / mainClass := Some("com.google.cloud.spark.spanner.SparkSpannerBenchmark")
+    Compile / mainClass := Some("com.google.cloud.spark.spanner.SparkSpannerWriteBenchmark")
   )
 
 lazy val createSpannerInstance = inputKey[Unit]("Creates a spanner instance")

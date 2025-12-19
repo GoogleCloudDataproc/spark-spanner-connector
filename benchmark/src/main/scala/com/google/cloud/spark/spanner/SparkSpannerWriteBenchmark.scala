@@ -7,7 +7,7 @@ import java.util.UUID
 import scala.io.Source
 import scala.util.Try
 
-object SparkSpannerBenchmark {
+object SparkSpannerWriteBenchmark {
   val payload_sample =
     """
       |{

@@ -83,7 +83,7 @@ object SparkSpannerBenchmark {
       val startTime = System.nanoTime()
       dfPartitioned
         .write
-        .format("cloud-spanner")
+        .format("com.google.cloud.spark.spanner")
         .option("mutationsPerTransaction", mutationsPerTransaction)
         .option("bytesPerTransaction", (3*1024*1024).toString)
         .option("projectId", projectId)

@@ -107,10 +107,11 @@ runDataproc := {
   val mainClassArgs = Def.spaceDelimited("<arg>").parsed
 
   // 2. Get Dataproc configuration from environment variables
-  val cluster = "mksyunz-mini-test"
-  val region = "us-central1"
-  val bucketUri = "gs://mksyunz-sparkly-bucket"
-  val projectId = "imporvingvancouver"
+  val cluster = sys.env.getOrElse("SPANNER_DATAPROC_CLUSTER", throw new RuntimeException("SPANNER_DATAPROC_CLUSTER environment variable not set."))
+  val region = sys.env.getOrElse("SPANNER_DATAPROC_REGION", throw new RuntimeException("SPANNER_DATAPROC_REGION environment variable not set."))
+  val bucketName = sys.env.getOrElse("SPANNER_DATAPROC_BUCKET", throw new RuntimeException("SPANNER_DATAPROC_BUCKET environment variable not set."))
+  val projectId = sys.env.getOrElse("SPANNER_PROJECT_ID", throw new RuntimeException("SPANNER_GCP_PROJECT_ID environment variable not set."))
+  val bucketUri = s"gs://$bucketName"
 
   // 3. Create a unique upload directory for this run
   val runId = java.util.UUID.randomUUID().toString.take(8)
@@ -126,6 +127,7 @@ runDataproc := {
     "gcloud", "dataproc", "jobs", "submit", "spark",
     s"--cluster=$cluster",
     s"--region=$region",
+    s"--project=$projectId",
     s"--class=$mc",
     s"--jars=$dest",
     "--"
@@ -144,12 +146,12 @@ createDataprocCluster := {
   val args: Seq[String] = Def.spaceDelimited("<arg>").parsed
   
   var clusterName: Option[String] = None
-  var region: Option[String] = Some("us-central1")
+  var region: Option[String] = None
   var numWorkers: Int = 2 // Default value
   var masterMachineType: String = "n2-standard-4" // Default value
   var workerMachineType: String = "n2-standard-4" // Default value
   var imageVersion: String = "2.1-debian11" // Default value
-  var bucket="mksyunz-sparkly-bucket"
+  
   val argsIterator = args.iterator
   while (argsIterator.hasNext) {
     val arg = argsIterator.next()
@@ -170,17 +172,19 @@ createDataprocCluster := {
     }
   }
 
-  (clusterName, region) match {
-    case (Some(name), Some(r)) =>
-      val projectId = "gcloud config get-value project".!!.trim
+  val regionToUse = region.getOrElse(sys.env.getOrElse("SPANNER_DATAPROC_REGION", "us-central1"))
+  val bucketName = sys.env.getOrElse("SPANNER_DATAPROC_BUCKET", throw new RuntimeException("SPANNER_DATAPROC_BUCKET environment variable not set."))
+  val projectId = sys.env.getOrElse("SPANNER_PROJECT_ID", "gcloud config get-value project".!!.trim)
 
-      println(s"Attempting to create Dataproc cluster '$name' in project '$projectId' region '$r'...")
+  clusterName match {
+    case Some(name) =>
+      println(s"Attempting to create Dataproc cluster '$name' in project '$projectId' region '$regionToUse'...")
       // TODO be able to create the cluster with sdd
       val command = Seq(
         "gcloud", "dataproc", "clusters", "create", name,
         s"--project=$projectId",
-        s"--region=$r",
-        s"--bucket=$bucket",
+        s"--region=$regionToUse",
+        s"--bucket=$bucketName",
         s"--no-address",
         s"--num-workers=$numWorkers",
         s"--image-version=$imageVersion",
@@ -203,10 +207,8 @@ createDataprocCluster := {
         println(s"Successfully initiated creation of Dataproc cluster '$name'.")
       }
 
-    case (None, _) =>
+    case None =>
       sys.error("Error: --clusterName is required.")
-    case (_, None) =>
-      sys.error("Error: --region is required.")
   }
 }
 
@@ -219,7 +221,7 @@ runDatabricks := {
   val appJar = (assembly).value
 
   val mc = (Compile / mainClass).value.getOrElse(throw new RuntimeException("mainClass not found"))
-  val clusterId = sys.env.getOrElse("DATABRICKS_CLUSTER_ID", throw new RuntimeException("DATABRICKS_CLUSTER_ID environment variable not set."))
+  val clusterId = sys.env.getOrElse("SPANNER_DATABRICKS_CLUSTER_ID", throw new RuntimeException("SPANNER_DATABRICKS_CLUSTER_ID environment variable not set."))
   val mainClassArgs = Def.spaceDelimited("<arg>").parsed
 
   // 2. Create a unique upload directory for this run

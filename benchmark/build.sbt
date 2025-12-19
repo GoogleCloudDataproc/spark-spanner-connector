@@ -8,13 +8,12 @@ ThisBuild / scalaVersion := "2.12.15"
 lazy val root = (project in file("."))
   .settings(
     name := "spanner-spark-benchmark",
+    resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
     libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-sql" % "3.3.2" % "provided",
-      "org.scalatest" %% "scalatest" % "3.2.11" % "test",
+      "com.google.cloud.spark.spanner" % "spark-3.3-spanner" % "0.0.1-SNAPSHOT",
+      "org.apache.spark" %% "spark-sql" % "3.3.2" % "provided"
     ),
     Test / parallelExecution := false,
-    // Add the unmanaged JAR directly to the classpath
-    Compile / unmanagedJars += (ThisBuild / baseDirectory).value / "../spark-3.3-spanner-lib/target/spark-3.3-spanner-lib-0.0.1-SNAPSHOT.jar",
     // sbt-assembly settings
     assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("com.google.common.**" -> "com.google.cloud.spark.spanner.shaded.com.google.common.@1").inAll,
@@ -93,82 +92,16 @@ createSpannerInstance := {
 
 
 
-// Define a new task to copy necessary JARs locally
-lazy val copyDependencies = taskKey[Seq[File]]("Copies required JARs to the target directory.")
-
-copyDependencies := {
-  val connectorSource = (ThisBuild / baseDirectory).value / "../spark-3.3-spanner-lib/target/spark-3.3-spanner-lib-0.0.1-SNAPSHOT.jar"
-  val connectorDest = (Compile / target).value / "spark-3.3-spanner-lib-0.0.1-SNAPSHOT.jar"
-  IO.copyFile(connectorSource, connectorDest)
-
-  Seq(connectorDest)
-}
-
 // Define a new task to build the databricks test JAR
 lazy val buildBenchmarkJar = taskKey[File]("Builds the spanner test suite JAR.")
-buildBenchmarkJar := {
-  // Ensure the JARs are copied before assembly
-  copyDependencies.value
-  (assembly).value
-}
-
-
-// Define a new input task to run the job locally with spark-submit
-lazy val runLocal = inputKey[Unit]("Runs the spark job locally using spark-submit")
-
-runLocal := {
-  val appJar = buildBenchmarkJar.value
-  val mc = (Compile / mainClass).value.getOrElse(throw new RuntimeException("mainClass not found"))
-  val projectRoot = (ThisBuild / baseDirectory).value.getAbsolutePath
-
-  val adcPath = s"${System.getProperty("user.home")}/.config/gcloud/application_default_credentials.json"
-  val adcFile = new java.io.File(adcPath)
-  if (!adcFile.exists()) {
-    throw new RuntimeException(s"GCP Application Default Credentials not found at '$adcPath'. Please run 'gcloud auth application-default login' first.")
-  }
-
-  val relativeAppJarPath = appJar.getAbsolutePath.stripPrefix(projectRoot).stripPrefix("/")
-  val connectorJarName = "spark-3.3-spanner-lib-0.0.1-SNAPSHOT.jar"
-  val targetDir = "target/scala-2.12"
-
-  val jarsForSpark = s"./$targetDir/$connectorJarName"
-  
-  val mainClassArgs = Def.spaceDelimited("<arg>").parsed
-  
-  val javaOptionsWithGrpc = s"$javaOptions -Dgrpc.lb.policy=round_robin"
-
-  val dockerRunBase = Seq(
-    "docker", "run", "--rm",
-    "-v", s"$projectRoot:/app",
-    "-v", s"${adcFile.getAbsolutePath}:/gcp-creds/adc.json",
-    "-e", "GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds/adc.json",
-    "-e", s"_JAVA_OPTIONS=$javaOptionsWithGrpc",
-    "-w", "/app",
-    "apache/spark:v3.3.2"
-  )
-
-  val sparkSubmitBase = Seq(
-    "/opt/spark/bin/spark-submit",
-    "--class", mc,
-    //"--conf", "spark.executor.memoryOverhead=2048",
-    "--jars", jarsForSpark,
-    "--driver-java-options", "-Dgrpc.lb.policy=round_robin",
-    s"./$relativeAppJarPath"
-  )
-
-  val command = dockerRunBase ++ sparkSubmitBase ++ mainClassArgs
-  println(s"Running command: ${command.mkString(" ")}")
-  command.!
-}
+buildBenchmarkJar := (assembly).value
 
 // Define a new input task to run the job on Dataproc
 lazy val runDataproc = inputKey[Unit]("Runs the spark job on Google Cloud Dataproc")
 
 runDataproc := {
-  // 1. Build and get paths for all necessary JARs
-  val appJar = buildBenchmarkJar.value
-  val copiedJars = copyDependencies.value
-  val allJars = appJar +: copiedJars
+  // 1. Build the fat JAR
+  val appJar = (assembly).value
 
   val mc = (Compile / mainClass).value.getOrElse(throw new RuntimeException("mainClass not found"))
   val mainClassArgs = Def.spaceDelimited("<arg>").parsed
@@ -183,24 +116,18 @@ runDataproc := {
   val runId = java.util.UUID.randomUUID().toString.take(8)
   val gcsPath = s"$bucketUri/connector-test-$runId"
   
-  // 4. Upload all JARs to GCS
-  allJars.foreach { jar =>
-    val dest = s"$gcsPath/${jar.getName}"
-    println(s"Uploading ${jar.getAbsolutePath} to $dest")
-    s"gcloud storage cp ${jar.getAbsolutePath} $dest".!
-  }
+  // 4. Upload the fat JAR to GCS
+  val dest = s"$gcsPath/${appJar.getName}"
+  println(s"Uploading ${appJar.getAbsolutePath} to $dest")
+  s"gcloud storage cp ${appJar.getAbsolutePath} $dest".!
 
   // 5. Construct the gcloud dataproc command
-  val allJarsGcs = allJars.map(jar => s"$gcsPath/${jar.getName}").mkString(",")
-  val jobArgsStr = mainClassArgs.mkString(" ")
-
   val command = Seq(
     "gcloud", "dataproc", "jobs", "submit", "spark",
     s"--cluster=$cluster",
     s"--region=$region",
     s"--class=$mc",
-    s"--jars=$allJarsGcs",
- //   "--driver-log-levels", "root=INFO,com.google.cloud.spanner=DEBUG,io.grpc=INFO",
+    s"--jars=$dest",
     "--"
   ) ++ mainClassArgs
 
@@ -288,11 +215,8 @@ createDataprocCluster := {
 lazy val runDatabricks = inputKey[Unit]("Runs the spark job on Databricks")
 
 runDatabricks := {
-  // 1. Build and get paths for all necessary JARs
-  val appJar = buildBenchmarkJar.value
-  val copiedJars = copyDependencies.value
-  // The main app JAR is already in the target dir, so we just need the copied dependencies
-  val allJarsForUpload = appJar +: copiedJars.filterNot(_.getName == appJar.getName)
+  // 1. Build the fat JAR
+  val appJar = (assembly).value
 
   val mc = (Compile / mainClass).value.getOrElse(throw new RuntimeException("mainClass not found"))
   val clusterId = sys.env.getOrElse("DATABRICKS_CLUSTER_ID", throw new RuntimeException("DATABRICKS_CLUSTER_ID environment variable not set."))
@@ -303,13 +227,11 @@ runDatabricks := {
   val dbfsPath = s"dbfs:/FileStore/sbt-runs/$runId"
   s"databricks fs mkdirs $dbfsPath".!
 
-  // 3. Upload all JARs
-  val dbfsJarPaths = allJarsForUpload.map { jar =>
-    val dest = s"$dbfsPath/${jar.getName}"
-    println(s"Uploading ${jar.getAbsolutePath} to $dest")
-    s"databricks fs cp ${jar.getAbsolutePath} $dest".!
-    s"""{"jar": "$dest"}"""
-  }.mkString(",")
+  // 3. Upload the fat JAR
+  val dest = s"$dbfsPath/${appJar.getName}"
+  println(s"Uploading ${appJar.getAbsolutePath} to $dest")
+  s"databricks fs cp ${appJar.getAbsolutePath} $dest".!
+  val dbfsJarPath = s"""{"jar": "$dest"}"""
 
   // 4. Construct the job submission JSON manually
   val parametersJson = mainClassArgs.map(arg => s""""$arg"""").mkString(",")
@@ -321,7 +243,7 @@ runDatabricks := {
       "main_class_name": "$mc",
       "parameters": [$parametersJson]
     },
-    "libraries": [$dbfsJarPaths]
+    "libraries": [$dbfsJarPath]
   }
   """
 
@@ -456,55 +378,6 @@ createClusterNoPool := {
     sys.error(s"Failed to create Databricks cluster '$clusterName'. It may already exist.")
   } else {
     println(s"Successfully initiated creation of cluster '$clusterName'.")
-  }
-}
-
-lazy val addSpannerSplitsGuid_v4 = inputKey[Unit]("Adds splits to a Spanner table for a GUID v4 PK.")
-
-addSpannerSplitsGuid_v4 := {
-  val args: Seq[String] = Def.spaceDelimited("<arg>").parsed
-  
-  var instanceId: Option[String] = None
-  var databaseId: Option[String] = None
-  var tableName: Option[String] = None
-  var columnName: Option[String] = None // For clarity, though not used in the DDL directly
-
-  val argsIterator = args.iterator
-  while (argsIterator.hasNext) {
-    val arg = argsIterator.next()
-    arg match {
-      case "--instanceId" if argsIterator.hasNext => instanceId = Some(argsIterator.next())
-      case "--databaseId" if argsIterator.hasNext => databaseId = Some(argsIterator.next())
-      case "--tableName" if argsIterator.hasNext => tableName = Some(argsIterator.next())
-      case "--columnName" if argsIterator.hasNext => columnName = Some(argsIterator.next())
-      case other if other.startsWith("--") => sys.error(s"Unknown option: $other")
-      case _ => // Ignore non-option arguments
-    }
-  }
-
-  (instanceId, databaseId, tableName, columnName) match {
-    case (Some(inst), Some(db), Some(table), Some(col)) =>
-      val splits = "('1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f')"
-      val ddl = s"ALTER TABLE $table SPLIT ON $splits"
-
-      val command = Seq(
-        "gcloud", "spanner", "databases", "ddl", "update", db,
-        s"--instance=$inst",
-        s"--ddl=$ddl"
-      )
-
-      println(s"Adding splits to table '$table' in database '$db' on instance '$inst' for column '$col'.")
-      println(s"Running command: ${command.mkString(" ")}")
-      
-      val exitCode = command.!
-      if (exitCode != 0) {
-        sys.error(s"Failed to add splits to table '$table'.")
-      } else {
-        println(s"Successfully initiated adding splits to table '$table'.")
-      }
-
-    case _ =>
-      sys.error("Error: --instanceId, --databaseId, --tableName, and --columnName are all required.")
   }
 }
 

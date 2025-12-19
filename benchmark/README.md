@@ -113,23 +113,3 @@ The `runDataproc` task reads the `SPANNER_PROJECT_ID` environment variable and p
 export SPANNER_PROJECT_ID="my-gcp-project"
 sbt "runDataproc 1000000 my_test_table my-spanner-database my-spanner-instance"
 ```
-
-#### Running on Databricks
-
-NOTE: This is work in progress.
-
-The `runDatabricks` task submits the benchmark job to a Databricks cluster.
-
-**Configuration:**
-
-- You must set the `SPANNER_DATABRICKS_CLUSTER_ID` environment variable to the ID of your Databricks cluster.
-
-**Command:**
-
-The benchmark arguments are the same as for Dataproc.
-
-```bash
-# Example from the benchmark directory
-export SPANNER_DATABRICKS_CLUSTER_ID="<your-cluster-id>"
-sbt "runDatabricks 1000000 my_test_table"
-```

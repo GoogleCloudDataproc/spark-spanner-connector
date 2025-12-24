@@ -1,1 +1,1 @@
-com.google.cloud.spark.spanner.Spark35SpannerTableProvider
+com.google.cloud.spark.spanner.Spark31SpannerTableProvider

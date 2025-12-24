@@ -81,10 +81,10 @@
       <id>3.5</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <modules>
-          <module>spark-3.2-spanner-lib</module>
-          <module>spark-3.2-spanner</module>
-          <module>spark-3.3-spanner-lib</module>
-          <module>spark-3.3-spanner</module>
+<!--          <module>spark-3.2-spanner-lib</module>-->
+<!--          <module>spark-3.2-spanner</module>-->
+<!--          <module>spark-3.3-spanner-lib</module>-->
+<!--          <module>spark-3.3-spanner</module>-->
           <module>spark-3.5-spanner-lib</module>
           <module>spark-3.5-spanner</module>
       </modules>

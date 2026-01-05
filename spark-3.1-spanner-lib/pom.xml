@@ -10,8 +10,8 @@
   </parent>
 
   <artifactId>spark-3.1-spanner-lib</artifactId>
-  <version>${revision}</version>
   <name>Connector code for spanner DataSource v2 for Spark 3.1</name>
+
   <properties>
     <spark.version>3.1.0</spark.version>
     <shade.skip>true</shade.skip>
@@ -24,6 +24,12 @@
     </license>
   </licenses>
   <dependencies>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.version}</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-spanner</artifactId>
@@ -51,22 +57,18 @@
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>spark-base-spanner-lib</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>spark-base-spanner-lib</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>3.3.0</version>
-        <executions>
-            <execution>
-                <goals>
-                    <goal>test-jar</goal>
-                </goals>
-            </execution>
-        </executions>
-      </plugin>
-  </plugins>
-</build>
 
 </project>

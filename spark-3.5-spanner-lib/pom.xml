@@ -25,32 +25,23 @@
   </licenses>
   <dependencies>
     <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.version}</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>spark-3.1-spanner</artifactId>
+      <artifactId>spark-base-spanner-lib</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>spark-3.1-spanner-lib</artifactId>
+      <artifactId>spark-base-spanner-lib</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-<!--    <dependency>-->
-<!--      <groupId>${project.groupId}</groupId>-->
-<!--      <artifactId>spark-3.3-spanner</artifactId>-->
-<!--      <version>${project.version}</version>-->
-<!--    </dependency>-->
-<!--    <dependency>-->
-<!--      <groupId>${project.groupId}</groupId>-->
-<!--      <artifactId>spark-3.3-spanner-lib</artifactId>-->
-<!--      <version>${project.version}</version>-->
-<!--    </dependency>-->
-<!--    <dependency>-->
-<!--      <groupId>com.google.cloud</groupId>-->
-<!--      <artifactId>google-cloud-spanner</artifactId>-->
-<!--    </dependency>-->
-
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-dataproc</artifactId>

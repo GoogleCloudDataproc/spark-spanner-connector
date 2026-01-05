@@ -13,7 +13,7 @@
   <version>${revision}</version>
   <name>spanner DataSource v2 for Spark 3.3</name>
   <properties>
-    <spark.version>3.3.0</spark.version>
+    <spark.version>3.3.4</spark.version>
     <shade.skip>false</shade.skip>
   </properties>
   <licenses>

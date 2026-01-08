@@ -8,11 +8,10 @@ import java.io.OutputStreamWriter
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-import scala.io.Source
 import scala.util.Try
 
 object SparkSpannerWriteBenchmark {
-  val payload_sample =
+  private val payloadSample =
     """
       |{
       |  "data": [
@@ -49,130 +48,127 @@ object SparkSpannerWriteBenchmark {
     val buildSparkVersion = args(6)
     val mutationsPerTransaction = if (args.length > 7) Try(args(7).toInt).getOrElse(5000) else 5000
 
-    val spark = SparkSession.builder().appName("DatabricksSpannerTests").getOrCreate()
+    val spark = SparkSession.builder().appName("SparkSpannerWriteBenchmark").getOrCreate()
     import spark.implicits._
 
     // UDF to generate random UUIDs for the primary key
     val generateUUID = udf(() => UUID.randomUUID().toString)
     
-    try {
-      println("Test: Writing data with new schema...")
-      
-      // Generate DataFrame with the new schema
-      val dfWrite = spark
-        .range(numRecords)
-        .select(
-          coalesce(generateUUID(), lit("0")).as("id"), // Only generate UUID for ID
-          lit(payload_sample).as("json_payload"), // Use JSON from file
-          lit("short_label_constant").as("short_label"),                     // Constant string
-          lit(UUID.nameUUIDFromBytes("related_guid_constant".getBytes).toString).as("related_guid"), // Constant GUID
-          lit("A").as("status_flag"),                                       // Constant single char
-          current_timestamp().as("created_at"),                             // Current timestamp
-          current_timestamp().as("updated_at")                              // Current timestamp
-        )
+    println("Test: Writing data with new schema...")
 
-      val targetSizeMb = 200
-      // size per record is arbitrary guess
-      val averageRowSizeBytes = 1085L
-      val sizeInBytes = averageRowSizeBytes * numRecords
-      val sizeMb = sizeInBytes / (1024 * 1024)
-      val workerCount = 5;
-      val coreCount = 4;
-      val numPartitions = workerCount * coreCount * 2;
-      println(s"Estimated job size: $sizeMb MB")
-      println(f"Average row size: $averageRowSizeBytes%.2f bytes")
-      println(s"Number of partitions: $numPartitions")
+    // Generate DataFrame with the new schema
+    val dfWrite = spark
+      .range(numRecords)
+      .select(
+        coalesce(generateUUID(), lit("0")).as("id"), // Only generate UUID for ID
+        lit(payloadSample).as("json_payload"), // Use JSON from file
+        lit("short_label_constant").as("short_label"),                     // Constant string
+        lit(UUID.nameUUIDFromBytes("related_guid_constant".getBytes).toString).as("related_guid"), // Constant GUID
+        lit("A").as("status_flag"),                                       // Constant single char
+        current_timestamp().as("created_at"),                             // Current timestamp
+        current_timestamp().as("updated_at")                              // Current timestamp
+      )
 
-      val dfPartitioned = dfWrite.repartitionByRange(numPartitions.toInt, col("id")).sortWithinPartitions(col("id"))
+    val targetSizeMb = 200
+    // size per record is arbitrary guess
+    val averageRowSizeBytes = 1085L
+    val sizeInBytes = averageRowSizeBytes * numRecords
+    val sizeMb = sizeInBytes / (1024 * 1024)
+    val workerCount = 5;
+    val coreCount = 4;
+    val numPartitions = workerCount * coreCount * 2;
+    println(s"Estimated job size: $sizeMb MB")
+    println(f"Average row size: $averageRowSizeBytes%.2f bytes")
+    println(s"Number of partitions: $numPartitions")
 
-      val bytesPerTransaction = 3*1024*1024
-      val numWriteThreads = 4
-      val maxPendingTransactions = 5
-      val assumeIdempotentRows = true
+    val dfPartitioned = dfWrite.repartitionByRange(numPartitions.toInt, col("id")).sortWithinPartitions(col("id"))
 
-      println(s"Beginning write to table '$writeTable' with mutationsPerTransaction: $mutationsPerTransaction")
-      val startTime = System.nanoTime()
-      val provider = s"com.google.cloud.spark.spanner.Spark${buildSparkVersion.replace(".", "")}SpannerTableProvider"
-      dfPartitioned
-        .write
-        .format(provider)
-        .option("mutationsPerTransaction", mutationsPerTransaction)
-        .option("bytesPerTransaction", bytesPerTransaction.toString)
-        .option("projectId", projectId)
-        .option("instanceId", instanceId)
-        .option("databaseId", databaseId)
-        .option("numWriteThreads", numWriteThreads)
-        .option("assumeIdempotentRows", assumeIdempotentRows.toString)
-        .option("maxPendingTransactions", maxPendingTransactions.toString)
-        .option("table", writeTable)
-        .mode(SaveMode.Append)
-        .save()
-      val endTime = System.nanoTime()
-      val durationSeconds = (endTime - startTime) / 1e9
-      val throughput = sizeMb / durationSeconds
+    val bytesPerTransaction = 3*1024*1024
+    val numWriteThreads = 4
+    val maxPendingTransactions = 5
+    val assumeIdempotentRows = true
 
-      println("Ending write")
-      println(s"Write operation took: $durationSeconds seconds")
-      println(f"Throughput: $throughput%.2f MB/s")
+    println(s"Beginning write to table '$writeTable' with mutationsPerTransaction: $mutationsPerTransaction")
+    val startTime = System.nanoTime()
+    val provider = s"com.google.cloud.spark.spanner.Spark${buildSparkVersion.replace(".", "")}SpannerTableProvider"
+    dfPartitioned
+      .write
+      .format(provider)
+      .option("mutationsPerTransaction", mutationsPerTransaction)
+      .option("bytesPerTransaction", bytesPerTransaction.toString)
+      .option("projectId", projectId)
+      .option("instanceId", instanceId)
+      .option("databaseId", databaseId)
+      .option("numWriteThreads", numWriteThreads)
+      .option("assumeIdempotentRows", assumeIdempotentRows.toString)
+      .option("maxPendingTransactions", maxPendingTransactions.toString)
+      .option("table", writeTable)
+      .mode(SaveMode.Append)
+      .save()
+    val endTime = System.nanoTime()
+    val durationSeconds = (endTime - startTime) / 1e9
+    val throughput = sizeMb / durationSeconds
 
-      val runId = UUID.randomUUID().toString.take(8)
-      val runTimestamp = java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.now())
-      val sparkVersion = spark.version
-      val connectorVersion = "0.1.0" // TODO: Get this from the build
-      
-      val json = s"""
-      {
-        "runId": "$runId",
-        "runTimestamp": "$runTimestamp",
-        "benchmarkName": "SparkSpannerWriteBenchmark",
-        "clusterSparkVersion": "$sparkVersion",
-        "connectorVersion": "$connectorVersion",
-        "spannerConfig": {
-          "projectId": "$projectId",
-          "instanceId": "$instanceId",
-          "databaseId": "$databaseId",
-          "table": "$writeTable"
-        },
-        "benchmarkParameters": {
-          "numRecords": $numRecords,
-          "mutationsPerTransaction": $mutationsPerTransaction,
-          "bytesPerTransaction": $bytesPerTransaction,
-          "numWriteThreads": $numWriteThreads,
-          "maxPendingTransactions": $maxPendingTransactions,
-          "assumeIdempotentRows": $assumeIdempotentRows
-        },
-        "performanceMetrics": {
-          "durationSeconds": $durationSeconds,
-          "throughputMbPerSec": $throughput,
-          "totalSizeMb": $sizeMb,
-          "recordCount": $numRecords
-        },
-        "sparkConfig": {
-          "numPartitions": $numPartitions,
-          "workerCount": $workerCount,
-          "coreCount": $coreCount
-        }
+    println("Ending write")
+    println(s"Write operation took: $durationSeconds seconds")
+    println(f"Throughput: $throughput%.2f MB/s")
+
+    val runId = UUID.randomUUID().toString.take(8)
+    val runTimestamp = java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.now())
+    val sparkVersion = spark.version
+    val connectorVersion = "0.1.0" // TODO: Get this from the build
+
+    val json = s"""
+    {
+      "runId": "$runId",
+      "runTimestamp": "$runTimestamp",
+      "benchmarkName": "SparkSpannerWriteBenchmark",
+      "clusterSparkVersion": "$sparkVersion",
+      "connectorVersion": "$connectorVersion",
+      "spannerConfig": {
+        "projectId": "$projectId",
+        "instanceId": "$instanceId",
+        "databaseId": "$databaseId",
+        "table": "$writeTable"
+      },
+      "benchmarkParameters": {
+        "numRecords": $numRecords,
+        "mutationsPerTransaction": $mutationsPerTransaction,
+        "bytesPerTransaction": $bytesPerTransaction,
+        "numWriteThreads": $numWriteThreads,
+        "maxPendingTransactions": $maxPendingTransactions,
+        "assumeIdempotentRows": $assumeIdempotentRows
+      },
+      "performanceMetrics": {
+        "durationSeconds": $durationSeconds,
+        "throughputMbPerSec": $throughput,
+        "totalSizeMb": $sizeMb,
+        "recordCount": $numRecords
+      },
+      "sparkConfig": {
+        "numPartitions": $numPartitions,
+        "workerCount": $workerCount,
+        "coreCount": $coreCount
       }
-      """
-      
-      val resultsPath = s"gs://$resultsBucket/SparkSpannerWriteBenchmark/${runTimestamp}_$runId.json"
-      println(s"Writing results to $resultsPath")
-
-      val resultsURI = new URI(resultsPath)
-      val fs = FileSystem.get(resultsURI, spark.sparkContext.hadoopConfiguration)
-      val outputPath = new Path(resultsPath)
-      val os = fs.create(outputPath, true) // true to overwrite
-      val writer = new OutputStreamWriter(os, StandardCharsets.UTF_8)
-      try {
-        writer.write(json)
-      } finally {
-        writer.close()
-        os.close()
-      }
-
-      println("Finished writing results.")
-
-    } finally {
     }
+    """
+
+    val resultsPath = s"gs://$resultsBucket/SparkSpannerWriteBenchmark/${runTimestamp}_$runId.json"
+    println(s"Writing results to $resultsPath")
+
+    val resultsURI = new URI(resultsPath)
+    val fs = FileSystem.get(resultsURI, spark.sparkContext.hadoopConfiguration)
+    val outputPath = new Path(resultsPath)
+    val os = fs.create(outputPath, true) // true to overwrite
+    val writer = new OutputStreamWriter(os, StandardCharsets.UTF_8)
+    try {
+      writer.write(json)
+    } finally {
+      writer.close()
+      os.close()
+    }
+
+    println("Finished writing results.")
+
   }
 }

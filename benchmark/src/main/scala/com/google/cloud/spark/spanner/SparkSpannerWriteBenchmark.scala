@@ -1,8 +1,12 @@
 package com.google.cloud.spark.spanner
 
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.functions.{coalesce, col, current_timestamp, lit, udf}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
+import java.io.OutputStreamWriter
+import java.net.URI
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import scala.io.Source
 import scala.util.Try
@@ -32,9 +36,8 @@ object SparkSpannerWriteBenchmark {
       |}
       |""".stripMargin
   def main(args: Array[String]): Unit = {
-    // Expected arguments: numRecords, writeTable, databaseId, instanceId, projectId, [mutationsPerTransaction]
-    if (args.length < 5) {
-      println("Usage: SparkSpannerBenchmark <numRecords> <writeTable> <databaseId> <instanceId> <projectId> [mutationsPerTransaction]")
+    if (args.length < 7) {
+      println("Usage: SparkSpannerBenchmark <numRecords> <writeTable> <databaseId> <instanceId> <projectId> <resultsBucket> <buildSparkVersion> [mutationsPerTransaction]")
       sys.exit(1)
     }
     val numRecords = args(0).toLong
@@ -42,9 +45,12 @@ object SparkSpannerWriteBenchmark {
     val databaseId = args(2)
     val instanceId = args(3)
     val projectId = args(4)
-    val mutationsPerTransaction = if (args.length > 5) Try(args(5).toInt).getOrElse(5000) else 5000
+    val resultsBucket = args(5)
+    val buildSparkVersion = args(6)
+    val mutationsPerTransaction = if (args.length > 7) Try(args(7).toInt).getOrElse(5000) else 5000
 
     val spark = SparkSession.builder().appName("DatabricksSpannerTests").getOrCreate()
+    import spark.implicits._
 
     // UDF to generate random UUIDs for the primary key
     val generateUUID = udf(() => UUID.randomUUID().toString)
@@ -70,7 +76,6 @@ object SparkSpannerWriteBenchmark {
       val averageRowSizeBytes = 1085L
       val sizeInBytes = averageRowSizeBytes * numRecords
       val sizeMb = sizeInBytes / (1024 * 1024)
-      //val numPartitions = (sizeMb + targetSizeMb - 1) / targetSizeMb
       val workerCount = 5;
       val coreCount = 4;
       val numPartitions = workerCount * coreCount * 2;
@@ -80,19 +85,25 @@ object SparkSpannerWriteBenchmark {
 
       val dfPartitioned = dfWrite.repartitionByRange(numPartitions.toInt, col("id")).sortWithinPartitions(col("id"))
 
+      val bytesPerTransaction = 3*1024*1024
+      val numWriteThreads = 4
+      val maxPendingTransactions = 5
+      val assumeIdempotentRows = true
+
       println(s"Beginning write to table '$writeTable' with mutationsPerTransaction: $mutationsPerTransaction")
       val startTime = System.nanoTime()
+      val provider = s"com.google.cloud.spark.spanner.Spark${buildSparkVersion.replace(".", "")}SpannerTableProvider"
       dfPartitioned
         .write
-        .format("com.google.cloud.spark.spanner.Spark33SpannerTableProvider")
+        .format(provider)
         .option("mutationsPerTransaction", mutationsPerTransaction)
-        .option("bytesPerTransaction", (3*1024*1024).toString)
+        .option("bytesPerTransaction", bytesPerTransaction.toString)
         .option("projectId", projectId)
         .option("instanceId", instanceId)
         .option("databaseId", databaseId)
-        .option("numWriteThreads", 4)
-        .option("assumeIdempotentRows", "true")
-        .option("maxPendingTransactions", "5")
+        .option("numWriteThreads", numWriteThreads)
+        .option("assumeIdempotentRows", assumeIdempotentRows.toString)
+        .option("maxPendingTransactions", maxPendingTransactions.toString)
         .option("table", writeTable)
         .mode(SaveMode.Append)
         .save()
@@ -103,6 +114,64 @@ object SparkSpannerWriteBenchmark {
       println("Ending write")
       println(s"Write operation took: $durationSeconds seconds")
       println(f"Throughput: $throughput%.2f MB/s")
+
+      val runId = UUID.randomUUID().toString.take(8)
+      val runTimestamp = java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.now())
+      val sparkVersion = spark.version
+      val connectorVersion = "0.1.0" // TODO: Get this from the build
+      
+      val json = s"""
+      {
+        "runId": "$runId",
+        "runTimestamp": "$runTimestamp",
+        "benchmarkName": "SparkSpannerWriteBenchmark",
+        "clusterSparkVersion": "$sparkVersion",
+        "connectorVersion": "$connectorVersion",
+        "spannerConfig": {
+          "projectId": "$projectId",
+          "instanceId": "$instanceId",
+          "databaseId": "$databaseId",
+          "table": "$writeTable"
+        },
+        "benchmarkParameters": {
+          "numRecords": $numRecords,
+          "mutationsPerTransaction": $mutationsPerTransaction,
+          "bytesPerTransaction": $bytesPerTransaction,
+          "numWriteThreads": $numWriteThreads,
+          "maxPendingTransactions": $maxPendingTransactions,
+          "assumeIdempotentRows": $assumeIdempotentRows
+        },
+        "performanceMetrics": {
+          "durationSeconds": $durationSeconds,
+          "throughputMbPerSec": $throughput,
+          "totalSizeMb": $sizeMb,
+          "recordCount": $numRecords
+        },
+        "sparkConfig": {
+          "numPartitions": $numPartitions,
+          "workerCount": $workerCount,
+          "coreCount": $coreCount
+        }
+      }
+      """
+      
+      val resultsPath = s"gs://$resultsBucket/SparkSpannerWriteBenchmark/${runTimestamp}_$runId.json"
+      println(s"Writing results to $resultsPath")
+
+      val resultsURI = new URI(resultsPath)
+      val fs = FileSystem.get(resultsURI, spark.sparkContext.hadoopConfiguration)
+      val outputPath = new Path(resultsPath)
+      val os = fs.create(outputPath, true) // true to overwrite
+      val writer = new OutputStreamWriter(os, StandardCharsets.UTF_8)
+      try {
+        writer.write(json)
+      } finally {
+        writer.close()
+        os.close()
+      }
+
+      println("Finished writing results.")
+
     } finally {
     }
   }

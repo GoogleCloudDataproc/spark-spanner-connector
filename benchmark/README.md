@@ -55,7 +55,9 @@ The benchmark is configured to be packaged as a self-contained "fat JAR" that in
 
 ### Step 3: Run the Benchmark
 
-You can run the benchmark on either Google Cloud Dataproc or Databricks. The `build.sbt` file provides convenient tasks for this.
+You can run the benchmark on Google Cloud Dataproc. The `build.sbt` file provides convenient tasks for this.
+
+Before running, you need to configure your environment in `benchmark.json`. This file contains all the settings for your GCP project, Spanner instance, Dataproc cluster, and benchmark parameters.
 
 #### Creating a Dataproc Cluster
 
@@ -63,27 +65,43 @@ The `createDataprocCluster` task can be used to create a new Dataproc cluster fo
 
 **Configuration:**
 
-This task uses the following environment variables:
-- `SPANNER_DATAPROC_BUCKET`: The GCS bucket to be associated with the cluster.
-- `SPANNER_PROJECT_ID`: Your Google Cloud project ID.
-- `SPANNER_DATAPROC_REGION` (optional): The region for the cluster (defaults to `us-central1`). This can be overridden by the `--region` argument.
+This task reads the following properties from `benchmark.json`:
+- `dataprocCluster`: The name for the new cluster.
+- `dataprocRegion`: The region for the cluster.
+- `dataprocBucket`: The GCS bucket to be associated with the cluster.
+- `projectId`: Your Google Cloud project ID.
 
 **Command:**
 
-The task accepts the following arguments:
-- `--clusterName`: The name for the new cluster (required).
-- `--region`: The region for the cluster (optional, overrides the environment variable).
-- `--numWorkers`: The number of worker nodes (optional, defaults to 2).
-- `--masterMachineType`: The machine type for the master node (optional, defaults to `n2-standard-4`).
-- `--workerMachineType`: The machine type for the worker nodes (optional, defaults to `n2-standard-4`).
-- `--imageVersion`: The Dataproc image version (optional, defaults to `2.1-debian11`).
+The task accepts the following optional arguments to override the values in `benchmark.json`:
+- `--numWorkers`: The number of worker nodes.
+- `--masterMachineType`: The machine type for the master node.
+- `--workerMachineType`: The machine type for the worker nodes.
+- `--imageVersion`: The Dataproc image version.
 
 ```bash
 # Example from the benchmark directory
-export SPANNER_DATAPROC_BUCKET="<your-bucket-name>"
-export SPANNER_PROJECT_ID="<your-project-id>"
-sbt "createDataprocCluster --clusterName my-benchmark-cluster --numWorkers 4"
+sbt "createDataprocCluster --numWorkers 4"
 ```
+
+#### Creating the Results Bucket
+
+The `createResultsBucket` task creates a GCS bucket to store the JSON results from benchmark runs.
+
+**Configuration:**
+
+This task reads the following properties from `benchmark.json`:
+- `resultsBucket`: The name of the GCS bucket to create.
+- `projectId`: Your Google Cloud project ID.
+- `dataprocRegion`: The location for the bucket (e.g., `us-central1`).
+
+**Command:**
+
+```bash
+# From the benchmark directory
+sbt createResultsBucket
+```
+This command will create the bucket if it does not already exist.
 
 #### Running on Google Cloud Dataproc
 
@@ -91,25 +109,43 @@ The `runDataproc` task submits the benchmark job to a Dataproc cluster.
 
 **Configuration:**
 
-Before running, you must set the following environment variables:
-- `SPANNER_DATAPROC_CLUSTER`: The name of your Dataproc cluster.
-- `SPANNER_DATAPROC_REGION`: The region of your cluster.
-- `SPANNER_DATAPROC_BUCKET`: The GCS bucket name for staging the JARs (not the full gs:// URI).
-- `SPANNER_PROJECT_ID`: Your Google Cloud project ID.
+This task reads all the necessary configuration from `benchmark.json`, including:
+- `dataprocCluster`, `dataprocRegion`, `dataprocBucket`, `projectId`
+- `resultsBucket`
+- `instanceId`, `databaseId`, `writeTable`
+- `numRecords`, `mutationsPerTransaction`
 
 **Command:**
 
-The benchmark accepts the following arguments, which you pass to the `runDataproc` task:
-- `numRecords`: The number of records to write.
-- `writeTable`: The name of the Spanner table to write to.
-- `databaseId`: The Spanner database ID.
-- `instanceId`: The Spanner instance ID.
-- `mutationsPerTransaction` (optional): The number of mutations per transaction (default: 5000).
-
-The `runDataproc` task reads the `SPANNER_PROJECT_ID` environment variable and passes it as an argument to the Spark job.
+The `runDataproc` task can accept arguments to override the values in `benchmark.json`. The arguments are passed to the Spark job.
+- `numRecords`
+- `writeTable`
+- `databaseId`
+- `instanceId`
+- `mutationsPerTransaction` (optional)
 
 ```bash
-# Example from the benchmark directory
-export SPANNER_PROJECT_ID="my-gcp-project"
-sbt "runDataproc 1000000 my_test_table my-spanner-database my-spanner-instance"
+# Example from the benchmark directory, using settings from benchmark.json
+sbt runDataproc
+
+# Example overriding some parameters
+sbt "runDataproc 1000000 my_test_table"
 ```
+
+## Benchmark Results
+
+After a benchmark run is complete, the results are stored as a JSON file in a GCS bucket.
+
+### Location
+
+You can find the results in the bucket specified by the `resultsBucket` property in your `benchmark.json` file.
+
+The directory structure and file naming convention is as follows:
+- **Bucket:** `gs://<results_bucket_name>/`
+- **Directory:** `/<benchmark_name>/`
+- **File:** `/<run_id>.json`
+
+For example:
+`gs://my-spark-spanner-bench-results/SparkSpannerWriteBenchmark/2026-01-07T12-00-00Z_a1b2c3d4.json`
+
+Each JSON file contains detailed information about the run, including performance metrics, configuration parameters, and versions. For the detailed schema, see `RESULTS_SCHEMA.md`.

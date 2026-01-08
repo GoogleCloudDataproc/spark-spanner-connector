@@ -12,6 +12,7 @@ object CustomTasks {
   lazy val buildBenchmarkJar = taskKey[File]("Builds the spanner test suite JAR.")
   lazy val runDataproc = inputKey[Unit]("Runs the spark job on Google Cloud Dataproc")
   lazy val createDataprocCluster = inputKey[Unit]("Creates a Google Cloud Dataproc cluster.")
+  lazy val createResultsBucket = inputKey[Unit]("Creates a GCS bucket for benchmark results.")
   lazy val createSpannerTable = inputKey[Unit]("Creates a Spanner table.")
 
   private def loadBenchmarkConfig(file: File): JsValue = {
@@ -110,6 +111,7 @@ object CustomTasks {
       val region = (config \ "dataprocRegion").asOpt[String].getOrElse(sys.error("dataprocRegion not found in config"))
       val bucketName = (config \ "dataprocBucket").as[String]
       val projectId = (config \ "projectId").as[String]
+      val resultsBucket = (config \ "resultsBucket").asOpt[String].getOrElse(sys.error("resultsBucket not found in config"))
       val bucketUri = s"gs://$bucketName"
 
       val runId = java.util.UUID.randomUUID().toString.take(8)
@@ -119,7 +121,30 @@ object CustomTasks {
       println(s"Uploading ${appJar.getAbsolutePath} to $dest")
       s"gcloud storage cp ${appJar.getAbsolutePath} $dest".!
 
-      val benchmarkArgs = mainClassArgs ++ Seq(projectId)
+      val numRecords = (config \ "numRecords").as[Long]
+      val writeTable = (config \ "writeTable").as[String]
+      val databaseId = (config \ "databaseId").as[String]
+      val instanceId = (config \ "instanceId").as[String]
+      val mutationsPerTransaction = (config \ "mutationsPerBatch").asOpt[Int].getOrElse(5000)
+
+      val finalNumRecords = mainClassArgs.lift(0).getOrElse(numRecords.toString)
+      val finalWriteTable = mainClassArgs.lift(1).getOrElse(writeTable)
+      val finalDatabaseId = mainClassArgs.lift(2).getOrElse(databaseId)
+      val finalInstanceId = mainClassArgs.lift(3).getOrElse(instanceId)
+      val finalMutations = mainClassArgs.lift(4).getOrElse(mutationsPerTransaction.toString)
+
+      val sparkVersion = sys.props.get("spark.version").getOrElse("3.3")
+
+      val benchmarkArgs = Seq(
+        finalNumRecords,
+        finalWriteTable,
+        finalDatabaseId,
+        finalInstanceId,
+        projectId,
+        resultsBucket,
+        sparkVersion,
+        finalMutations
+      )
 
       val command = Seq(
         "gcloud", "dataproc", "jobs", "submit", "spark",
@@ -196,6 +221,32 @@ object CustomTasks {
         sys.error(s"Failed to create Dataproc cluster '$clusterName'. It may already exist or you lack permissions.")
       } else {
         println(s"Successfully initiated creation of Dataproc cluster '$clusterName'.")
+      }
+    },
+
+    createResultsBucket := {
+      val args = Def.spaceDelimited("<arg>").parsed
+      val configFile = args.headOption.map(file).getOrElse(baseDirectory.value / "benchmark.json")
+      val config = loadBenchmarkConfig(configFile)
+
+      val resultsBucket = (config \ "resultsBucket").asOpt[String].getOrElse(sys.error("resultsBucket not found in config"))
+      val projectId = (config \ "projectId").as[String]
+      val location = (config \ "dataprocRegion").asOpt[String].getOrElse("us-central1")
+
+      val command = Seq(
+        "gcloud", "storage", "buckets", "create", s"gs://$resultsBucket",
+        s"--project=$projectId",
+        s"--location=$location",
+        "--uniform-bucket-level-access"
+      )
+
+      println(s"Running command: ${command.mkString(" ")}")
+      // Don't fail if the bucket already exists
+      val exitCode = command.!(ProcessLogger(_ => ()))
+      if (exitCode != 0) {
+        println(s"Could not create bucket '$resultsBucket'. It may already exist.")
+      } else {
+        println(s"Successfully created GCS bucket '$resultsBucket'.")
       }
     },
     

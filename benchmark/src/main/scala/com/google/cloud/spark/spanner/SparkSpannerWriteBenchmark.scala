@@ -39,7 +39,12 @@ object SparkSpannerWriteBenchmark {
       println("Usage: SparkSpannerBenchmark <numRecords> <writeTable> <databaseId> <instanceId> <projectId> <resultsBucket> <buildSparkVersion> [mutationsPerTransaction]")
       sys.exit(1)
     }
-    val numRecords = args(0).toLong
+    val numRecords = Try(args(0).toLong) match {
+      case scala.util.Success(value) => value
+      case scala.util.Failure(_) =>
+        println(s"Error: <numRecords> must be a valid number, but got '${args(0)}'.")
+        sys.exit(1)
+    }
     val writeTable = args(1)
     val databaseId = args(2)
     val instanceId = args(3)

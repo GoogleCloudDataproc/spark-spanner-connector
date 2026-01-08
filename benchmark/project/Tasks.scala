@@ -157,7 +157,7 @@ object CustomTasks {
       ) ++ benchmarkArgs
 
       println(s"Submitting Dataproc job: ${command.mkString(" ")}")
-      command.!
+      command.!(ProcessLogger(line => println(line)))
     },
 
     createDataprocCluster := {

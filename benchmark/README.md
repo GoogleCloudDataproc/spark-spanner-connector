@@ -2,6 +2,106 @@
 
 This benchmark is designed to test the performance of the Spark Spanner Connector, particularly for write operations. It can be run on Google Cloud Dataproc or Databricks.
 
+## Getting Started
+
+This guide walks through setting up your Google Cloud environment to run the Spark Spanner Connector benchmarks.
+
+### 1. Configure Your Environment
+
+The benchmark runner and supporting sbt task read a JSON file in the `benchmark` directory to configure your GCP project, Spanner instance, Dataproc cluster, and benchmark parameters. 
+Each task accepts one parameter -- path to the JSON file. If it's missing,  `benchmark.json` is used.
+
+Create a `benchmark.json` file with the following structure. You will fill in the values in the next steps.
+
+```json
+{
+  "projectId": "your-gcp-project-id",
+  "instanceId": "your-spanner-instance-id",
+  "databaseId": "your-spanner-database-id",
+  "writeTable": "your-spanner-table-name",
+  "spannerRegion": "your-gcp-region",
+  "dataprocCluster": "spark-spanner-benchmark-cluster",
+  "dataprocRegion": "your-gcp-region",
+  "dataprocBucket": "your-dataproc-staging-bucket",
+  "resultsBucket": "your-benchmark-results-bucket",
+  "numRecords": 100000,
+  "mutationsPerTransaction": 1000
+}
+```
+
+### 2. Set up Your GCP Project
+
+Make sure you have the Google Cloud SDK (`gcloud`) installed and authenticated.
+
+```bash
+# Set your project ID
+gcloud config set project your-gcp-project-id
+
+# Set your region (matching spannerRegion and dataprocRegion)
+gcloud config set compute/region your-gcp-region
+```
+
+You'll also need to enable the Spanner and Dataproc APIs:
+```bash
+gcloud services enable spanner.googleapis.com
+gcloud services enable dataproc.googleapis.com
+```
+
+### 3. Create Spanner Resources
+
+Use the provided sbt tasks to create the Spanner instance, database, and table. These tasks read their configuration from `benchmark.json`.
+
+```bash
+# Create a Spanner instance (ensure spannerRegion is set in benchmark.json or use --region argument)
+# Example: sbt "createSpannerInstance --region us-central1"
+sbt createSpannerInstance
+
+# Create a Spanner database
+sbt createSpannerDatabase
+
+# Create the table for the write benchmark
+sbt createSpannerTable
+```
+*Note: The `createSpannerTable` task will read the DDL from `./ddl/create_test_table.sql` and replace "TransferTest" with the `writeTable` value from your `benchmark.json`.*
+
+### 4. Create GCS Buckets
+
+The benchmark requires two GCS buckets:
+*   A staging bucket for Dataproc.
+*   A bucket to store benchmark results.
+
+You can create these using `gsutil`:
+```bash
+gsutil mb -p your-gcp-project-id -l your-gcp-region gs://your-dataproc-staging-bucket/
+gsutil mb -p your-gcp-project-id -l your-gcp-region gs://your-benchmark-results-bucket/
+```
+Alternatively, the `createResultsBucket` sbt task can create the results bucket for you.
+
+```bash
+# Create the GCS bucket for benchmark results
+sbt createResultsBucket
+```
+
+### 5. Service Account and Permissions
+
+The benchmarks run on Dataproc and authenticate to Spanner using the VM's service account. This service account needs permissions to access Spanner and GCS.
+
+By default, Dataproc clusters use the project's default Compute Engine service account. For simplicity, you can grant this service account the required roles.
+
+```bash
+# Get your project number
+PROJECT_NUMBER=$(gcloud projects describe your-gcp-project-id --format="value(projectNumber)")
+
+# Get your default Compute Engine service account email
+SERVICE_ACCOUNT_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+# Grant roles
+# These roles are generally sufficient for the benchmark to run.
+gcloud projects add-iam-policy-binding your-gcp-project-id --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" --role="roles/spanner.databaseUser"
+gcloud projects add-iam-policy-binding your-gcp-project-id --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" --role="roles/spanner.databaseAdmin"
+gcloud projects add-iam-policy-binding your-gcp-project-id --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" --role="roles/storage.objectAdmin"
+```
+
 ## Prerequisites
 
 Before you begin, make sure you have the following tools installed:
@@ -134,7 +234,7 @@ sbt "runDataproc 1000000 my_test_table"
 
 ## Benchmark Results
 
-After a benchmark run is complete, the results are stored as a JSON file in a GCS bucket.
+After a benchmark run is complete, the results are stored as a JSON file in the results GCS bucket.
 
 ### Location
 

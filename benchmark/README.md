@@ -8,10 +8,10 @@ This guide walks through setting up your Google Cloud environment to run the Spa
 
 ### 1. Configure Your Environment
 
-The benchmark runner and supporting sbt task read a JSON file in the `benchmark` directory to configure your GCP project, Spanner instance, Dataproc cluster, and benchmark parameters. 
-Each task accepts one parameter -- path to the JSON file. If it's missing,  `benchmark.json` is used.
+The benchmark runner and supporting sbt tasks read a JSON file to configure your GCP project, Spanner instance, Dataproc cluster, and benchmark parameters. 
+Each task accepts an optional parameter specifying the path to the JSON file. If omitted, it defaults to `benchmark.json`.
 
-Create a `benchmark.json` file with the following structure. You will fill in the values in the next steps.
+Create a `benchmark.json` file with the following structure, filling in the values for your environment.
 
 ```json
 {
@@ -25,7 +25,12 @@ Create a `benchmark.json` file with the following structure. You will fill in th
   "dataprocBucket": "your-dataproc-staging-bucket",
   "resultsBucket": "your-benchmark-results-bucket",
   "numRecords": 100000,
-  "mutationsPerTransaction": 1000
+  "numPartitions": 40,
+  "mutationsPerTransaction": 5000,
+  "bytesPerTransaction": 3145728,
+  "numWriteThreads": 4,
+  "maxPendingTransactions": 5,
+  "assumeIdempotentRows": true
 }
 ```
 
@@ -70,14 +75,12 @@ The benchmark requires two GCS buckets:
 *   A staging bucket for Dataproc.
 *   A bucket to store benchmark results.
 
-You can create these using `gsutil`:
-```bash
-gsutil mb -p your-gcp-project-id -l your-gcp-region gs://your-dataproc-staging-bucket/
-gsutil mb -p your-gcp-project-id -l your-gcp-region gs://your-benchmark-results-bucket/
-```
-Alternatively, the `createResultsBucket` sbt task can create the results bucket for you.
+You can create the results bucket using the `createResultsBucket` sbt task. You'll need to create the Dataproc staging bucket manually.
 
 ```bash
+# Create the Dataproc staging bucket
+gsutil mb -p your-gcp-project-id -l your-gcp-region gs://your-dataproc-staging-bucket/
+
 # Create the GCS bucket for benchmark results
 sbt createResultsBucket
 ```
@@ -205,31 +208,18 @@ This command will create the bucket if it does not already exist.
 
 #### Running on Google Cloud Dataproc
 
-The `runDataproc` task submits the benchmark job to a Dataproc cluster.
-
-**Configuration:**
-
-This task reads all the necessary configuration from `benchmark.json`, including:
-- `dataprocCluster`, `dataprocRegion`, `dataprocBucket`, `projectId`
-- `resultsBucket`
-- `instanceId`, `databaseId`, `writeTable`
-- `numRecords`, `mutationsPerTransaction`
+The `runDataproc` task submits the benchmark job to a Dataproc cluster. All configuration for the benchmark is read from `benchmark.json`.
 
 **Command:**
-
-The `runDataproc` task can accept arguments to override the values in `benchmark.json`. The arguments are passed to the Spark job.
-- `numRecords`
-- `writeTable`
-- `databaseId`
-- `instanceId`
-- `mutationsPerTransaction` (optional)
 
 ```bash
 # Example from the benchmark directory, using settings from benchmark.json
 sbt runDataproc
+```
 
-# Example overriding some parameters
-sbt "runDataproc 1000000 my_test_table"
+You can also specify a different configuration file as an argument:
+```bash
+sbt "runDataproc my_benchmark_config.json"
 ```
 
 ## Benchmark Results

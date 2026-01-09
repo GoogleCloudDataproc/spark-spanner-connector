@@ -23,7 +23,8 @@ lazy val root = (project in file("."))
     resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository",
     libraryDependencies ++= Seq(
       "com.google.cloud.spark.spanner" % s"spark-$sparkVersion-spanner" % "0.0.1-SNAPSHOT",
-      "org.apache.spark" %% "spark-sql" % sparkSqlVersion % "provided"
+      "org.apache.spark" %% "spark-sql" % sparkSqlVersion % "provided",
+      "com.typesafe.play" %% "play-json" % "2.9.2"
     ),
     Test / parallelExecution := false,
     // sbt-assembly settings

@@ -105,13 +105,11 @@ object CustomTasks {
       val configFile = args.headOption.map(file).getOrElse(baseDirectory.value / "benchmark.json")
       val config = loadBenchmarkConfig(configFile)
 
-      val mainClassArgs = args.drop(1) // Drop config file path
+      val mainClassArgs = args.drop(1)
 
       val cluster = (config \ "dataprocCluster").asOpt[String].getOrElse(sys.error("dataprocCluster not found in config"))
       val region = (config \ "dataprocRegion").asOpt[String].getOrElse(sys.error("dataprocRegion not found in config"))
       val bucketName = (config \ "dataprocBucket").as[String]
-      val projectId = (config \ "projectId").as[String]
-      val resultsBucket = (config \ "resultsBucket").asOpt[String].getOrElse(sys.error("resultsBucket not found in config"))
       val bucketUri = s"gs://$bucketName"
 
       val runId = java.util.UUID.randomUUID().toString.take(8)
@@ -120,32 +118,13 @@ object CustomTasks {
       val dest = s"$gcsPath/${appJar.getName}"
       println(s"Uploading ${appJar.getAbsolutePath} to $dest")
       s"gcloud storage cp ${appJar.getAbsolutePath} $dest".!
-
-      val numRecords = (config \ "numRecords").as[Long]
-      val writeTable = (config \ "writeTable").as[String]
-      val databaseId = (config \ "databaseId").as[String]
-      val instanceId = (config \ "instanceId").as[String]
-      val mutationsPerTransaction = (config \ "mutationsPerBatch").asOpt[Int].getOrElse(5000)
-
-      val finalNumRecords = mainClassArgs.lift(0).getOrElse(numRecords.toString)
-      val finalWriteTable = mainClassArgs.lift(1).getOrElse(writeTable)
-      val finalDatabaseId = mainClassArgs.lift(2).getOrElse(databaseId)
-      val finalInstanceId = mainClassArgs.lift(3).getOrElse(instanceId)
-      val finalMutations = mainClassArgs.lift(4).getOrElse(mutationsPerTransaction.toString)
-
+      
       val sparkVersion = sys.props.get("spark.version").getOrElse("3.3")
+      val updatedConfig = config.as[JsObject] + ("buildSparkVersion" -> Json.toJson(sparkVersion))
+      val benchmarkArgs = Seq(Json.stringify(updatedConfig))
 
-      val benchmarkArgs = Seq(
-        finalNumRecords,
-        finalWriteTable,
-        finalDatabaseId,
-        finalInstanceId,
-        projectId,
-        resultsBucket,
-        sparkVersion,
-        finalMutations
-      )
-
+      val projectId = (config \ "projectId").as[String]
+      
       val command = Seq(
         "gcloud", "dataproc", "jobs", "submit", "spark",
         s"--cluster=$cluster",
@@ -256,9 +235,9 @@ object CustomTasks {
       val config = loadBenchmarkConfig(configFile)
 
       val tableName = (config \ "writeTable").as[String]
-      val ddlFile = (baseDirectory.value / "ddl" / "create_test_table.sql")
+      val ddlFile = baseDirectory.value / "ddl" / "create_test_table.sql"
       val ddlContent = IO.read(ddlFile).replace("TransferTest", tableName)
-      
+
       val instanceId = (config \ "instanceId").as[String]
       val databaseId = (config \ "databaseId").as[String]
       val projectId = (config \ "projectId").as[String]

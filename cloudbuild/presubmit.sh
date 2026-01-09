@@ -23,7 +23,7 @@ cd /workspace
 case $STEP in
   # Download maven and all the dependencies
   init)
-    $MVN install -DskipTests -P3.1
+    $MVN install -DskipTests -P3.1,3.2,3.3
     exit
     ;;
 

@@ -58,6 +58,8 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   public SpannerTable(Map<String, String> properties) {
     this.properties = properties;
+    log.info("SpannerTable properties: {}", properties);
+
     this.tableName = SpannerUtils.getRequiredOption(properties, "table");
     this.projectId = SpannerUtils.getRequiredOption(properties, "projectId");
     this.instanceId = SpannerUtils.getRequiredOption(properties, "instanceId");

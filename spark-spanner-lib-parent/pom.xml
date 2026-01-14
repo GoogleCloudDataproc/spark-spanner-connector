@@ -13,9 +13,6 @@
   <version>${revision}</version>
   <packaging>pom</packaging>
   <name>Common Spark Spanner library setting</name>
-  <properties>
-    <scala.version>2.12</scala.version>
-  </properties>
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>

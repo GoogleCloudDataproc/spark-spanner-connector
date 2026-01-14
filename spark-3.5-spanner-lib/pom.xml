@@ -12,10 +12,6 @@
   <artifactId>spark-3.5-spanner-lib</artifactId>
   <version>${revision}</version>
   <name>Connector code for spanner DataSource v2 for Spark 3.5</name>
-  <properties>
-    <spark.version>3.5.7</spark.version>
-    <shade.skip>true</shade.skip>
-  </properties>
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
@@ -27,17 +23,16 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_${scala.version}</artifactId>
-      <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>spark-base-spanner-lib</artifactId>
+      <artifactId>spanner-core</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>spark-base-spanner-lib</artifactId>
+      <artifactId>spanner-core</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

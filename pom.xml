@@ -1,17 +1,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>com.google.cloud.spark.spanner</groupId>
-    <artifactId>spark-spanner-parent</artifactId>
-    <version>${revision}</version>
-    <relativePath>spark-spanner-parent</relativePath>
-  </parent>
-
+  <groupId>com.google.cloud.spark.spanner</groupId>
   <artifactId>spark-spanner-reactor</artifactId>
+  <version>${revision}</version>
   <packaging>pom</packaging>
   <name>Spark Spanner Connector Reactor</name>
+  <url>https://github.com/GoogleCloudDataproc/spark-spanner-connector</url>
 
   <licenses>
     <license>
@@ -44,25 +40,61 @@
       https://github.com/GoogleCloudDataproc/spark-spanner-connector/issues
     </url>
   </issueManagement>
+  <properties>
+    <scala.version>2.12</scala.version>
+  </properties>
 
   <modules>
     <module>spark-spanner-parent</module>
     <module>spark-spanner-lib-parent</module>
-    <module>spark-base-spanner-lib</module>
+    <module>spanner-core</module>
   </modules>
 
   <profiles>
     <profile>
       <id>3.1</id>
-      <activation><activeByDefault>false</activeByDefault></activation>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <spark.version>3.1.1</spark.version>
+        <shade.skip>true</shade.skip>
+      </properties>
+      <dependencyManagement>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+            <scope>provided</scope>
+          </dependency>
+        </dependencies>
+      </dependencyManagement>
       <modules>
+        <module>spanner-spark-common</module>
         <module>spark-3.1-spanner</module>
         <module>spark-3.1-spanner-lib</module>
       </modules>
     </profile>
     <profile>
       <id>3.2</id>
-      <activation><activeByDefault>false</activeByDefault></activation>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <spark.version>3.2.0</spark.version>
+        <shade.skip>true</shade.skip>
+      </properties>
+      <dependencyManagement>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+            <scope>provided</scope>
+          </dependency>
+        </dependencies>
+      </dependencyManagement>
       <modules>
         <module>spark-3.2-spanner-lib</module>
         <module>spark-3.2-spanner</module>
@@ -70,7 +102,23 @@
     </profile>
     <profile>
       <id>3.3</id>
-      <activation><activeByDefault>false</activeByDefault></activation>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <spark.version>3.3.4</spark.version>
+        <shade.skip>true</shade.skip>
+      </properties>
+      <dependencyManagement>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+            <scope>provided</scope>
+          </dependency>
+        </dependencies>
+      </dependencyManagement>
       <modules>
         <module>spark-3.3-spanner-lib</module>
         <module>spark-3.3-spanner</module>
@@ -78,10 +126,26 @@
     </profile>
     <profile>
       <id>3.5</id>
-      <activation><activeByDefault>false</activeByDefault></activation>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <spark.version>3.5.7</spark.version>
+        <shade.skip>true</shade.skip>
+      </properties>
+      <dependencyManagement>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+            <scope>provided</scope>
+          </dependency>
+        </dependencies>
+      </dependencyManagement>
       <modules>
-          <module>spark-3.5-spanner-lib</module>
-          <module>spark-3.5-spanner</module>
+        <module>spark-3.5-spanner-lib</module>
+        <module>spark-3.5-spanner</module>
       </modules>
     </profile>
   </profiles>

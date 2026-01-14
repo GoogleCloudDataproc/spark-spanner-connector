@@ -2,18 +2,19 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>com.google.cloud.spark.spanner</groupId>
-        <artifactId>spark-spanner-lib-parent</artifactId>
-        <version>${revision}</version>
-        <relativePath>../spark-spanner-lib-parent</relativePath>
-    </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+      <groupId>com.google.cloud.spark.spanner</groupId>
+      <artifactId>spark-spanner-lib-parent</artifactId>
+      <version>${revision}</version>
+      <relativePath>../spark-spanner-lib-parent</relativePath>
+  </parent>
 
-    <artifactId>spark-base-spanner-lib</artifactId>
-    <name>spanner libraryDataSource v2 for all Spark versions</name>
+  <artifactId>spanner-core</artifactId>
+  <name>Spanner core library</name>
+  <description>This module contains Spanner code and no Spark dependencies.</description>
 
-    <dependencies>
+  <dependencies>
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-spanner</artifactId>

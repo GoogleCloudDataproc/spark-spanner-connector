@@ -2,14 +2,16 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.google.cloud.spark.spanner</groupId>
+    <parent>
+        <groupId>com.google.cloud.spark.spanner</groupId>
+        <artifactId>spark-spanner-reactor</artifactId>
+        <version>${revision}</version>
+    </parent>
     <artifactId>spark-spanner-parent</artifactId>
-    <version>${revision}</version>
     <packaging>pom</packaging>
     <name>Spark Spanner Connector Build Parent</name>
     <description>Parent project for all the Spark SPANNER Connector artifacts
     </description>
-    <url>https://github.com/GoogleCloudDataproc/spark-spanner-connector</url>
 
     <licenses>
         <license>

@@ -5,12 +5,8 @@
   <parent>
     <groupId>com.google.cloud.spark.spanner</groupId>
     <artifactId>spark-spanner-lib-parent</artifactId>
-<!--    <artifactId>spanner-core</artifactId>-->
-<!--    <artifactId>spanner-spark-common</artifactId>-->
     <version>${revision}</version>
     <relativePath>../spark-spanner-lib-parent</relativePath>
-<!--    <relativePath>../spanner-spark-common</relativePath>-->
-<!--    <relativePath>../spanner-core</relativePath>-->
   </parent>
 
   <artifactId>spark-3.1-spanner-lib</artifactId>

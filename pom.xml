@@ -96,6 +96,7 @@
         </dependencies>
       </dependencyManagement>
       <modules>
+        <module>spanner-spark-common</module>
         <module>spark-3.2-spanner-lib</module>
         <module>spark-3.2-spanner</module>
       </modules>
@@ -120,6 +121,7 @@
         </dependencies>
       </dependencyManagement>
       <modules>
+        <module>spanner-spark-common</module>
         <module>spark-3.3-spanner-lib</module>
         <module>spark-3.3-spanner</module>
       </modules>
@@ -144,10 +146,10 @@
         </dependencies>
       </dependencyManagement>
       <modules>
+        <module>spanner-spark-common</module>
         <module>spark-3.5-spanner-lib</module>
         <module>spark-3.5-spanner</module>
       </modules>
     </profile>
   </profiles>
-
 </project>

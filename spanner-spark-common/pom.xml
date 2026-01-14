@@ -11,7 +11,6 @@
   </parent>
 
   <artifactId>spanner-spark-common</artifactId>
-<!--  <packaging>pom</packaging>-->
   <name>Spanner Spark common</name>
   <description>This module contains Spark code that has no hard version coupling.</description>
 

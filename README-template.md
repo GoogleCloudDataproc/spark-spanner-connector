@@ -108,6 +108,75 @@ databaseId|String|The databaseID of the Cloud Spanner database
 table|String|The Table of the Cloud Spanner database that you are reading from
 enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing).
 
+### Writing to Spanner Tables (Preview)
+> Note: Write support is a preview feature. Only "append" save mode is supported.
+
+Here is an example of using Python to write to a Spanner table.
+```python
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName('Spanner Write App').getOrCreate()
+
+columns = ['id', 'name', 'email']
+data = [(1, 'John Doe', 'john.doe@example.com'), (2, 'Jane Doe', 'jane.doe@example.com')]
+df = spark.createDataFrame(data, columns)
+
+df.write.format('cloud-spanner') \
+   .option("projectId", "$YourProjectId") \
+   .option("instanceId", "$YourInstanceId") \
+   .option("databaseId", "$YourDatabaseId") \
+   .option("table", "$YourTable") \
+   .mode("append") \
+   .save()
+```
+
+These are the options supported in the Spark Spanner connector for writing
+tables.
+
+Variable|Validation|Comments
+---|---|---
+projectId|String|The projectID containing the Cloud Spanner database
+instanceId|String|The instanceID of the Cloud Spanner database
+databaseId|String|The databaseID of the Cloud Spanner database
+table|String|The name of the destination Cloud Spanner table
+batchSize|Long|The number of rows to send in a single batch. Default: 1000
+numWriteThreads|Integer|The number of threads to use for writing per Spark worker. This controls the parallelism of the write operation. Default: 8
+assumeIdempotentRows|Boolean|When `true`, the connector uses a higher-throughput 'at-least-once' write mode. See [Spanner documentation](https://docs.cloud.google.com/spanner/docs/batch-write) for use cases and limitations. Default: `false`
+maxPendingTransactions|Integer|The maximum number of concurrent batches that can be in-flight. This is used to control backpressure. Default: 20
+
+#### Data Types
+The connector supports writing the following Spark data types to Spanner.
+
+##### GoogleSQL
+Spark Data Type|Spanner GoogleSql Type
+---|---
+`LongType`|`INT64`
+`StringType`|`STRING`
+`BooleanType`|`BOOL`
+`DoubleType`|`FLOAT64`
+`BinaryType`|`BYTES`
+`TimestampType`|`TIMESTAMP`
+`DateType`|`DATE`
+`DecimalType`|`NUMERIC`
+
+##### PostgreSQL
+Spark Data Type|Spanner PostgreSql Type
+---|---
+`LongType`|`bigint`/`int8`
+`StringType`|`varchar`/`text`/`character varying`
+`BooleanType`|`bool`/`boolean`
+`DoubleType`|`double precision`/`float8`
+`BinaryType`|`bytea`
+`TimestampType`|`timestamptz`/`timestamp with time zone`
+`DateType`|`date`
+`DecimalType`|`numeric`/`decimal`
+
+> Note: `ArrayType`, and `StructType` are not currently supported and pre-existing Google Spanner limitations apply. Specifically:
+> - Column value size is limited to 10MB,
+> - In GoogleSQL, `NUMERIC` type is limited to 9 digits of scale, Spark supports up to 38.
+
+
+
 ### Exporting Spanner Graphs
 
 To export [Spanner Graphs](https://cloud.google.com/spanner/docs/graph/overview),
@@ -201,7 +270,7 @@ Please refer to the API documentation of
 | Option                  | Summary of Purpose                                                                                                    | Default                                            |
 |-------------------------|-----------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
 | data_boost              | Enable [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview)                               | Disabled                                           |
-| partition_size_bytes    | The [partitionSizeBytes](https://cloungd.google.com/spanner/docs/reference/rest/v1/PartitionOptions) hint for Spanner | No hint provided                                   |
+| partition_size_bytes    | The [partitionSizeBytes](https://cloud.google.com/spanner/docs/reference/rest/v1/PartitionOptions) hint for Spanner   | No hint provided                                   |
 | repartition             | Enable repartitioning of node and edge DataFrames and set the target number of partitions                             | No repartitioning                                  |
 | read_timestamp          | The timestamp of the snapshot to read from                                                                            | Read the snapshot at the time when load is called  |
 | symmetrize_graph        | Symmetrizes the output graph by adding reverse edges                                                                  | No symmetrization                                  |

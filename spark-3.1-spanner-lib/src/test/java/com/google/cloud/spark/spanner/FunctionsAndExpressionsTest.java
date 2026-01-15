@@ -72,7 +72,7 @@ public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase
   public static Iterable<Object[]> data() {
     if (SpannerTableTest.emulatorHost != null && !SpannerTableTest.emulatorHost.isEmpty()) {
       System.out.println(
-          "FunctionsAndExpressionsBaseTest is skipped since pg is not supported in Spanner emulator");
+          "FunctionsAndExpressionsTest is skipped since pg is not supported in Spanner emulator");
       return ImmutableList.of(new Object[] {false});
     }
     return ImmutableList.of(new Object[] {false}, new Object[] {true});

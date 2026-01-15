@@ -17,6 +17,7 @@ package com.google.cloud.spark.spanner;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -75,5 +76,22 @@ public class Spark31SpannerTableProviderTest extends SparkSpannerIntegrationTest
             .anyMatch(f -> f.name().equalsIgnoreCase("string_col"));
     assertTrue(
         "Expected full schema containing 'string_col', but it was not found.", foundExtraColumn);
+  }
+
+  @Test
+  public void getTableAllowsLowerCaseProperties() {
+    // Arrange
+    Spark31SpannerTableProvider provider = new Spark31SpannerTableProvider();
+    Map<String, String> props = connectionPropertiesLowerCase(false);
+
+    final StructType partialSchema = new StructType().add("long_col", DataTypes.LongType, false);
+
+    // Act
+    try {
+      Table table = provider.getTable(partialSchema, null, props);
+    } catch (SpannerConnectorException e) {
+      // Assert
+      fail("An unexpected exception was thrown: " + e.getMessage());
+    }
   }
 }

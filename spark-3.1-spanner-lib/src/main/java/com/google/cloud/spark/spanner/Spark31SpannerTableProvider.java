@@ -39,26 +39,26 @@ public class Spark31SpannerTableProvider implements DataSourceRegister, TablePro
    */
   @Override
   public Table getTable(
-          StructType schema, Transform[] partitioning, Map<String, String> properties) {
-      final CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
-      boolean enablePartialRowUpdates =
-              Boolean.parseBoolean(properties.getOrDefault("enablePartialRowUpdates", "false"));
+      StructType schema, Transform[] partitioning, Map<String, String> properties) {
+    final CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
+    boolean enablePartialRowUpdates =
+        Boolean.parseBoolean(properties.getOrDefault("enablePartialRowUpdates", "false"));
 
-      boolean hasTable = options.containsKey("table");
-      boolean hasGraph = options.containsKey("graph");
-      if (hasTable && !hasGraph) {
-          if (enablePartialRowUpdates) {
-              return new SpannerTable(options, schema);
-          } else {
-              return new SpannerTable(options);
-          }
-      } else if (!hasTable && hasGraph) {
-          return SpannerGraphBuilder.build(options);
+    boolean hasTable = options.containsKey("table");
+    boolean hasGraph = options.containsKey("graph");
+    if (hasTable && !hasGraph) {
+      if (enablePartialRowUpdates) {
+        return new SpannerTable(options, schema);
       } else {
-          throw new SpannerConnectorException(
-                  SpannerErrorCode.INVALID_ARGUMENT,
-                  "properties must contain one of \"table\" or \"graph\"");
+        return new SpannerTable(options);
       }
+    } else if (!hasTable && hasGraph) {
+      return SpannerGraphBuilder.build(options);
+    } else {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "properties must contain one of \"table\" or \"graph\"");
+    }
   }
 
   /*

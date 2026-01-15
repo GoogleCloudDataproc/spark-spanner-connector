@@ -9,8 +9,12 @@ import org.apache.spark.sql.DataFrameReader;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class GraphErrorHandlingTest extends GraphReadIntegrationTestBase {
+public abstract class GraphErrorHandlingBaseTest extends GraphReadIntegrationTestBase {
 
+  /**
+   * This class should be extended in the Spark module where DefaultSource is defined to avoid data
+   * source resolution errors.
+   */
   @Test
   public void testDirectQueryNonRootPartitionable() {
     String nodeQuery =

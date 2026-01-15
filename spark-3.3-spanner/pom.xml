@@ -25,5 +25,10 @@
       <artifactId>spark-3.3-spanner-lib</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 </project>

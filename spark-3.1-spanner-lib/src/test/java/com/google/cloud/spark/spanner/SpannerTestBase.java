@@ -231,6 +231,8 @@ class SpannerTestBase {
     if (emulatorHost != null) {
       props.put("emulatorhost", emulatorHost);
     }
+    props.put("enablepartialrowupdates", "true");
+
     return props;
   }
 

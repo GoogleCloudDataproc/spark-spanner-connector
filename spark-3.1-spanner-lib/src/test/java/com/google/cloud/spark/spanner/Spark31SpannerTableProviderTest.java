@@ -76,4 +76,20 @@ public class Spark31SpannerTableProviderTest extends SparkSpannerIntegrationTest
     assertTrue(
         "Expected full schema containing 'string_col', but it was not found.", foundExtraColumn);
   }
+
+  @Test
+  public void getTableAllowsLowerCaseProperties() {
+    // Arrange
+    Spark31SpannerTableProvider provider = new Spark31SpannerTableProvider();
+    Map<String, String> props = connectionPropertiesLowerCase(false);
+
+    final StructType partialSchema = new StructType().add("long_col", DataTypes.LongType, false);
+
+    // Act
+    Table table = provider.getTable(partialSchema, null, props);
+    // Assert
+    assertEquals("ATable", table.name());
+    // enablePartialRowUpdates test.
+    assertEquals(partialSchema, table.schema());
+  }
 }

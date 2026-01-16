@@ -217,6 +217,25 @@ class SpannerTestBase {
     return props;
   }
 
+  protected static Map<String, String> connectionPropertiesLowerCase(boolean usePostgreSql) {
+    Map<String, String> props = new HashMap<>();
+    if (usePostgreSql) {
+      props.put("databaseid", databaseIdPg);
+      props.put("table", tablePg);
+    } else {
+      props.put("databaseid", databaseId);
+      props.put("table", table);
+    }
+    props.put("instanceid", instanceId);
+    props.put("projectid", projectId);
+    if (emulatorHost != null) {
+      props.put("emulatorhost", emulatorHost);
+    }
+    props.put("enablepartialrowupdates", "true");
+
+    return props;
+  }
+
   protected static Map<String, String> connectionProperties() {
     return connectionProperties(false);
   }

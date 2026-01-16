@@ -134,11 +134,12 @@ databricks fs cp ${CONNECTOR_JAR_PATH} ${VOLUME_PATH}/ --overwrite
 
 In some secure Unity Catalog environments, JARs and init scripts must be explicitly allow-listed before they can be used.
 
-If necessary, allowlist the init script and connector JAR. This can be done in Databricks UI by:
-1. Going to Catalog view, clicking the gear button and selecting Metastore from dropdown.
-2. On the metastore screen, select **Allowed JARs/Init Scripts**.
-3. Click the **Add** button to add the init script volume path, and then click the **Add** button in the pop-up dialog to confirm.
-4. Similarly, allow list the connector JAR volume path.
+To edit allowlist in Databricks UI:
+1. Navigate to Catalog view, then click the gear button and select Metastore from dropdown.
+2. Select **Allowed JARs/Init Scripts** tab on the Metastore screen.
+3. Use the **Add** button to add the init script and the connector JAR to the allow-list.
+
+See Databricks [documentation](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/allowlist#how-to-add-items-to-the-allowlist) for more details.
 
 ### 4. Store the GCP Key in Databricks Secrets
 

@@ -40,19 +40,20 @@ public class Spark31SpannerTableProvider implements DataSourceRegister, TablePro
   @Override
   public Table getTable(
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
+    CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
     boolean enablePartialRowUpdates =
-        Boolean.parseBoolean(properties.getOrDefault("enablePartialRowUpdates", "false"));
+        Boolean.parseBoolean(options.getOrDefault("enablePartialRowUpdates", "false"));
 
-    boolean hasTable = properties.containsKey("table");
-    boolean hasGraph = properties.containsKey("graph");
+    boolean hasTable = options.containsKey("table");
+    boolean hasGraph = options.containsKey("graph");
     if (hasTable && !hasGraph) {
       if (enablePartialRowUpdates) {
-        return new SpannerTable(properties, schema);
+        return new SpannerTable(options, schema);
       } else {
-        return new SpannerTable(properties);
+        return new SpannerTable(options);
       }
     } else if (!hasTable && hasGraph) {
-      return SpannerGraphBuilder.build(properties);
+      return SpannerGraphBuilder.build(options);
     } else {
       throw new SpannerConnectorException(
           SpannerErrorCode.INVALID_ARGUMENT,

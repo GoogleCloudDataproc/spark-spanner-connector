@@ -14,8 +14,15 @@
 
 package com.google.cloud.spark.spanner;
 
-public class PgSchemaValidationIntegrationTest extends SchemaValidationIntegrationTest {
-  public PgSchemaValidationIntegrationTest() {
-    super(true);
+import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
+import org.apache.spark.sql.types.StructType;
+
+public class SpannerDataWriter35Test extends SpannerDataWriterTest {
+
+  @Override
+  public ExpressionEncoder<Row> getEncoder(StructType schema) {
+    return (ExpressionEncoder<Row>) Encoders.row(schema);
   }
 }

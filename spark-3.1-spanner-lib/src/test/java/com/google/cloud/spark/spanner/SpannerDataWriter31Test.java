@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,29 +14,15 @@
 
 package com.google.cloud.spark.spanner;
 
-import java.io.IOException;
-import org.apache.spark.sql.connector.read.PartitionReader;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
+import org.apache.spark.sql.catalyst.encoders.RowEncoder;
+import org.apache.spark.sql.types.StructType;
 
-public class SpannerPartitionReader<T> implements PartitionReader<T> {
-
-  private InputPartitionReaderContext<T> context;
-
-  public SpannerPartitionReader(InputPartitionReaderContext<T> context) {
-    this.context = context;
-  }
+public class SpannerDataWriter31Test extends SpannerDataWriterTest {
 
   @Override
-  public boolean next() throws IOException {
-    return this.context.next();
-  }
-
-  @Override
-  public T get() {
-    return this.context.get();
-  }
-
-  @Override
-  public void close() throws IOException {
-    this.context.close();
+  protected ExpressionEncoder<Row> getEncoder(StructType schema) {
+    return RowEncoder.apply(schema);
   }
 }

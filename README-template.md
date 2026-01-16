@@ -133,16 +133,20 @@ df.write.format('cloud-spanner') \
 These are the options supported in the Spark Spanner connector for writing
 tables.
 
-Variable|Validation|Comments
----|---|---
-projectId|String|The projectID containing the Cloud Spanner database
-instanceId|String|The instanceID of the Cloud Spanner database
-databaseId|String|The databaseID of the Cloud Spanner database
-table|String|The name of the destination Cloud Spanner table
-batchSize|Long|The number of rows to send in a single batch. Default: 1000
-numWriteThreads|Integer|The number of threads to use for writing per Spark worker. This controls the parallelism of the write operation. Default: 8
-assumeIdempotentRows|Boolean|When `true`, the connector uses a higher-throughput 'at-least-once' write mode. See [Spanner documentation](https://docs.cloud.google.com/spanner/docs/batch-write) for use cases and limitations. Default: `false`
-maxPendingTransactions|Integer|The maximum number of concurrent batches that can be in-flight. This is used to control backpressure. Default: 20
+Variable| Validation |Comments
+---|------------|---
+projectId| String     |The projectID containing the Cloud Spanner database
+instanceId| String     |The instanceID of the Cloud Spanner database
+databaseId| String     |The databaseID of the Cloud Spanner database
+table| String     |The name of the destination Cloud Spanner table
+mutationsPerTransaction| Integer    |The number of mutations to send in a single transaction. Default: 1000
+bytesPerTransaction | Long |Maximum size of each transaction. Default: 1048576 (1MB)
+numWriteThreads| Integer    |The number of threads to use for writing per Spark worker.  Default: 8
+assumeIdempotentRows| Boolean    |When `true`, the connector uses a higher-throughput 'at-least-once' write mode. See [Spanner documentation](https://docs.cloud.google.com/spanner/docs/batch-write) for use cases and limitations. Default: `false`
+maxPendingTransactions| Integer    |The maximum number of concurrent batches that can be in-flight. This is used to control backpressure. Default: 20
+
+`mutationsPerTransaction` and `bytesPerTransaction` are both used when building a transaction to send to spanner.
+
 
 #### Data Types
 The connector supports writing the following Spark data types to Spanner.

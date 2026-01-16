@@ -42,7 +42,7 @@ public class Spark31SpannerTableProvider implements DataSourceRegister, TablePro
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
     final CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
     boolean enablePartialRowUpdates =
-        Boolean.parseBoolean(properties.getOrDefault("enablePartialRowUpdates", "false"));
+        Boolean.parseBoolean(options.getOrDefault("enablePartialRowUpdates", "false"));
 
     boolean hasTable = options.containsKey("table");
     boolean hasGraph = options.containsKey("graph");

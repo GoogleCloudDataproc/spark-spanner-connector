@@ -19,8 +19,6 @@ echo "Creating directory for ADC file: $ADC_DIR"
 mkdir -p "$ADC_DIR"
 
 echo "Writing credentials to $ADC_FILE"
-cat > "$ADC_FILE" <<EOF
-$GCP_CREDENTIALS_CONTENT
-EOF
+printf "%s" "$GCP_CREDENTIALS_CONTENT" > "$ADC_FILE"
 
 echo "Successfully configured Google Application Default Credentials."

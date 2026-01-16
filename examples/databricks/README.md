@@ -75,7 +75,7 @@ gcloud spanner databases ddl update spark_spanner_db_example \
 
 Create a dedicated service account for Databricks and grant it the necessary permissions.
 
-Note location `gcp-credentials.json` file -- it is necessary to configure
+Note the location of the `gcp-credentials.json` file, as it is used in later steps.
 
 ```bash
 # Create the service account
@@ -102,7 +102,7 @@ A Unity Catalog Volume is the recommended location for storing workspace artifac
 
 ```bash
 # Set names for Unity Catalog assets
-export DATABRICKS_CATALOG="<your-unity-catalog-name>
+export DATABRICKS_CATALOG="<your-unity-catalog-name>"
 export DATABRICKS_SCHEMA="default"
 export DATABRICKS_VOLUME="spanner_connector_assets"
 
@@ -123,11 +123,11 @@ Upload the connector JAR (from Step 2) and the `setup_gcp_credentials.sh` init s
 export VOLUME_PATH="dbfs:/Volumes/$DATABRICKS_CATALOG/$DATABRICKS_SCHEMA/$DATABRICKS_VOLUME"
 
 # Upload the init script
-databricks fs cp ./setup_gcp_credentials.sh ${VOLUME_PATH}/setup_gcp_credentials.sh
+databricks fs cp ./setup_gcp_credentials.sh ${VOLUME_PATH}/setup_gcp_credentials.sh --overwrite
 
 export CONNECTOR_JAR_PATH="<path-to-connector-jar>"
 # Upload the JAR (replace with the actual path to your downloaded JAR)
-databricks fs cp ${CONNECTOR_JAR_PATH} ${VOLUME_PATH}/
+databricks fs cp ${CONNECTOR_JAR_PATH} ${VOLUME_PATH}/ --overwrite
 ```
 
 ### 3. Allow-list the Artifacts (If Required)
@@ -137,7 +137,7 @@ In some secure Unity Catalog environments, JARs and init scripts must be explici
 If necessary, allowlist the init script and connector JAR. This can be done in Databricks UI by:
 1. Going to Catalog view, clicking the gear button and selecting Metastore from dropdown.
 2. On the metastore screen, select **Allowed JARs/Init Scripts**.
-3. Click the **Add** button to add init script volume path and save it but click **Add** button in the pop-up dialog.
+3. Click the **Add** button to add the init script volume path, and then click the **Add** button in the pop-up dialog to confirm.
 4. Similarly, allow list the connector JAR volume path.
 
 ### 4. Store the GCP Key in Databricks Secrets
@@ -146,10 +146,7 @@ Create a Databricks secret scope and securely store the content of the `gcp-cred
 
 ```bash
 databricks secrets create-scope gcp-spanner-secrets
-databricks secrets put-secret \
-  gcp-spanner-secrets \
-  spanner-writer-key \
-  --string-value $(cat ./gcp-credentials.json)
+databricks secrets put-secret gcp-spanner-secrets spanner-writer-key < ./gcp-credentials.json
 ```
 
 ### 5. Create and Configure a Databricks Cluster
@@ -175,7 +172,7 @@ Create a cluster with the following settings:
 
 5.  **Install Library**: Under the **Libraries** tab, install the connector JAR from your Volume.
     *   **Install new** > **Library Source/Volumes**.
-    *   Use the path to the JAR in your Volume, e.g., `/Volumes/main/default/spanner_connector_assets/<connector-jar-filename>`.
+    *   Use the path to the JAR in your Volume, e.g., `/Volumes/${DATABRICKS_CATALOG}/default/spanner_connector_assets/<connector-jar-filename>`.
 
 6.  Start (or restart) the cluster.
 

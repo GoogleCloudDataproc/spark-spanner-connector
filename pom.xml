@@ -133,7 +133,7 @@
       </activation>
       <properties>
         <spark.version>3.5.7</spark.version>
-        <shade.skip>true</shade.skip>
+        <shade.skip>false</shade.skip>
       </properties>
       <dependencyManagement>
         <dependencies>

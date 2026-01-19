@@ -83,7 +83,7 @@
       </activation>
       <properties>
         <spark.version>3.2.0</spark.version>
-        <shade.skip>true</shade.skip>
+        <shade.skip>false</shade.skip>
       </properties>
       <dependencyManagement>
         <dependencies>
@@ -108,7 +108,7 @@
       </activation>
       <properties>
         <spark.version>3.3.4</spark.version>
-        <shade.skip>true</shade.skip>
+        <shade.skip>false</shade.skip>
       </properties>
       <dependencyManagement>
         <dependencies>

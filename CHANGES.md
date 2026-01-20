@@ -1,6 +1,6 @@
 # Release Notes
 
-## Next
+## 1.2.0 - 2026-01-20
 
 *   Add write support to Spanner.
 

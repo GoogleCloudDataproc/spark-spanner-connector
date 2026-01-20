@@ -40,7 +40,7 @@ public class SpannerTableProviderBase implements DataSourceRegister, TableProvid
   @Override
   public Table getTable(
       StructType schema, Transform[] partitioning, Map<String, String> properties) {
-    CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
+    final CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
     boolean enablePartialRowUpdates =
         Boolean.parseBoolean(options.getOrDefault("enablePartialRowUpdates", "false"));
 

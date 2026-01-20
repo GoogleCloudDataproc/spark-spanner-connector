@@ -42,6 +42,7 @@
   </issueManagement>
   <properties>
     <scala.version>2.12</scala.version>
+    <revision>0.0.1-SNAPSHOT</revision>
   </properties>
 
   <modules>

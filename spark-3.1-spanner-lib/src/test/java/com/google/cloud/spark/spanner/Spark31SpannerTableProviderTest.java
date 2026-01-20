@@ -20,4 +20,20 @@ public class Spark31SpannerTableProviderTest
   protected Spark31SpannerTableProvider getInstance() {
     return new Spark31SpannerTableProvider();
   }
+
+  @Test
+  public void getTableAllowsLowerCaseProperties() {
+    // Arrange
+    Spark31SpannerTableProvider provider = new Spark31SpannerTableProvider();
+    Map<String, String> props = connectionPropertiesLowerCase(false);
+
+    final StructType partialSchema = new StructType().add("long_col", DataTypes.LongType, false);
+
+    // Act
+    Table table = provider.getTable(partialSchema, null, props);
+    // Assert
+    assertEquals("ATable", table.name());
+    // enablePartialRowUpdates test.
+    assertEquals(partialSchema, table.schema());
+  }
 }

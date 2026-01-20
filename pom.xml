@@ -164,6 +164,9 @@
               <includes>
                 <include>*.md</include>
                 <include>.gitignore</include>
+                <include>pom.xml</include>
+                <include>*/pom.xml</include>
+                <include>*/*/pom.xml</include>
               </includes>
               <trimTrailingWhitespace/>
               <endWithNewline/>

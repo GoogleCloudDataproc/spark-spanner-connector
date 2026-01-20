@@ -3,7 +3,7 @@ CREATE TABLE game_items (
   item_name STRING(MAX) NOT NULL,
   item_value NUMERIC NOT NULL,
   available_time TIMESTAMP NOT NULL,
-  duration INT64,
+  duration INT64
 ) PRIMARY KEY(itemUUID);
 
 CREATE TABLE games (
@@ -12,7 +12,7 @@ CREATE TABLE games (
   winner STRING(36),
   created TIMESTAMP,
   finished TIMESTAMP,
-  max_date DATE,
+  max_date DATE
 ) PRIMARY KEY(gameUUID);
 
 CREATE TABLE players (
@@ -29,7 +29,7 @@ CREATE TABLE players (
   valid_email BOOL,
   current_game STRING(36),
   dob DATE,
-  FOREIGN KEY(current_game) REFERENCES games(gameUUID),
+  FOREIGN KEY(current_game) REFERENCES games(gameUUID)
 ) PRIMARY KEY(playerUUID);
 
 CREATE TABLE simpleTable(
@@ -60,7 +60,7 @@ CREATE TABLE compositeTable (
   H ARRAY<DATE>,
   I ARRAY<TIMESTAMP>,
   J BYTES(20),
-  K JSON,
+  K JSON
 ) PRIMARY KEY(id);
 
 CREATE TABLE nullsTable (
@@ -78,7 +78,7 @@ CREATE TABLE nullsTable (
   K ARRAY<FLOAT64>,
   M ARRAY<BYTES(8)>,
   N ARRAY<JSON>,
-  O ARRAY<NUMERIC>,
+  O ARRAY<NUMERIC>
 ) PRIMARY KEY(id);
 
 CREATE TABLE Shakespeare (
@@ -86,12 +86,12 @@ CREATE TABLE Shakespeare (
   word STRING(MAX),
   word_count INT64,
   corpus STRING(MAX),
-  corpus_date INT64,
+  corpus_date INT64
 ) PRIMARY KEY(id);
 
 CREATE TABLE bytesTable (
   id INT64,
-  A BYTES(MAX),
+  A BYTES(MAX)
 ) PRIMARY KEY(id);
 
 CREATE TABLE valueLimitsTable (
@@ -99,7 +99,7 @@ CREATE TABLE valueLimitsTable (
   B FLOAT64,
   C NUMERIC,
   D DATE,
-  E TIMESTAMP,
+  E TIMESTAMP
 ) PRIMARY KEY(A);
 
 

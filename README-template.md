@@ -38,14 +38,20 @@ If you run a Spark job on the Dataproc cluster, you'll have to assign correspond
 You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-${next-release-tag}.jar` directly.
 
 ### Connector to Spark Compatibility Matrix
-| Connector \ Spark                     | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     |
-|---------------------------------------|---------|---------------------|---------------------|---------|---------|---------|---------|---------|---------|
-| spark-3.1-spanner                     |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; |
+| Connector \ Spark | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     |
+|-------------------|---------|---------------------|---------------------|---------|---------|---------|---------|---------|---------|
+| spark-3.1-spanner |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; |
+| spark-3.2-spanner |         |                     |                     |         |         | &check; | &check; | &check; | &check; |
+| spark-3.3-spanner |         |                     |                     |         |         |         | &check; | &check; | &check; |
+| spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; |
 
 ### Connector to Dataproc Image Compatibility Matrix
-| Connector \ Dataproc Image            | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | Serverless<br>Image 1.0 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 |
-|---------------------------------------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|
-| spark-3.1-spanner                     |         |         |         | &check; | &check; | &check; | &check;                 | &check;                 | &check;                 |
+| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.2 |
+|----------------------------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|-------------------------|
+| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | &check;                 |                         | &check;                 |                         |
+| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | &check;                 |                         | &check;                 |                         |
+| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | &check;                 |                         | &check;                 |                         |
+| spark-3.5-spanner          |         |         |         |         |         | &check; |                         | &check;                 |                         | &check;                 |
 
 ### Maven / Ivy Package
 

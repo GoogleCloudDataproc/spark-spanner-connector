@@ -19,9 +19,11 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.*;
 
 public class SpannerWriterUtils {
@@ -34,6 +36,7 @@ public class SpannerWriterUtils {
 
   // Create a Registry to map Spark DataTypes to Converters
   private static final Map<DataType, FieldConverter> TYPE_CONVERTERS = new HashMap<>();
+  private static final Map<DataType, FieldConverter> ARRAY_TYPE_CONVERTERS = new HashMap<>();
 
   static {
     // Long
@@ -84,6 +87,21 @@ public class SpannerWriterUtils {
                   localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
         });
 
+    // Long array
+    ARRAY_TYPE_CONVERTERS.put(
+        DataTypes.LongType,
+        (row, i, type) -> row.isNullAt(i) ? Value.int64Array((long[])null) : Value.int64Array(row.getArray(i).toLongArray()));
+
+    // String array
+    ARRAY_TYPE_CONVERTERS.put(
+        DataTypes.StringType,
+        (row, i, type) -> {
+          if (row.isNullAt(i)) return Value.stringArray(null);
+          ArrayData ad = row.getArray(i);
+          String[] a = (String[]) ad.toObjectArray(type);
+          return Value.stringArray(Arrays.asList(a));
+        });
+
     // Note: DecimalType is handled dynamically in the method below
     // because it relies on instanceof checks rather than strict equality.
   }
@@ -122,7 +140,25 @@ public class SpannerWriterUtils {
       BigDecimal bd = row.getDecimal(index, dt.precision(), dt.scale()).toJavaBigDecimal();
       return Value.numeric(bd);
     }
-    // TODO handle Array and Struct here.
+
+    if (type instanceof ArrayType) {
+      ArrayType arrayType = (ArrayType)type;
+      DataType elementType = arrayType.elementType();
+      FieldConverter arrayConverter = ARRAY_TYPE_CONVERTERS.get(elementType);
+      if (arrayConverter != null) {
+        return arrayConverter.convert(row, index, type);
+      }
+
+      if (elementType instanceof DecimalType) {
+        if (row.isNullAt(index)) {
+          return Value.numericArray(null);
+        }
+        ArrayData ad = row.getArray(index);
+        BigDecimal[] a = (BigDecimal[]) ad.toObjectArray(elementType);
+        return Value.numericArray(Arrays.asList(a));
+      }
+    }
+    // TODO handle Struct here.
     // unsupported type
     throw new UnsupportedOperationException("Unsupported Spark DataType: " + type);
   }

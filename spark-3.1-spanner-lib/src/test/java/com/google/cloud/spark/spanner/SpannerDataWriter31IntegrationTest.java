@@ -14,15 +14,15 @@
 
 package com.google.cloud.spark.spanner;
 
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
+import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.StructType;
 
-public class SpannerDataWriter35Test extends SpannerDataWriterTest {
+public class SpannerDataWriter31IntegrationTest extends SpannerDataWriterTest {
 
   @Override
-  public ExpressionEncoder<Row> getEncoder(StructType schema) {
-    return (ExpressionEncoder<Row>) Encoders.row(schema);
+  protected ExpressionEncoder<Row> getEncoder(StructType schema) {
+    return RowEncoder.apply(schema);
   }
 }

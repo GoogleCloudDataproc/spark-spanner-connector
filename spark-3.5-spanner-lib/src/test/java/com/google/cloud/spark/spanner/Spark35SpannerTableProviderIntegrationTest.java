@@ -14,15 +14,10 @@
 
 package com.google.cloud.spark.spanner;
 
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
-import org.apache.spark.sql.catalyst.encoders.RowEncoder;
-import org.apache.spark.sql.types.StructType;
+public class Spark35SpannerTableProviderIntegrationTest
+    extends SpannerTableProviderBaseTest<Spark35SpannerTableProvider> {
 
-public class SpannerDataWriter32Test extends SpannerDataWriterTest {
-
-  @Override
-  protected ExpressionEncoder<Row> getEncoder(StructType schema) {
-    return RowEncoder.apply(schema);
+  protected Spark35SpannerTableProvider getInstance() {
+    return new Spark35SpannerTableProvider();
   }
 }

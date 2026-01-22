@@ -33,7 +33,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase {
+public class FunctionsAndExpressions32IntegrationTest extends SparkSpannerIntegrationTestBase {
 
   private static final Map<String, Collection<String>> FILTER_DATA =
       ImmutableMap.<String, Collection<String>>builder()
@@ -70,9 +70,10 @@ public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase
 
   @Parameterized.Parameters(name = "{index}: isPostgreSql={0}")
   public static Iterable<Object[]> data() {
-    if (SpannerTableTest.emulatorHost != null && !SpannerTableTest.emulatorHost.isEmpty()) {
+    if (SpannerTableIntegrationTest.emulatorHost != null
+        && !SpannerTableIntegrationTest.emulatorHost.isEmpty()) {
       System.out.println(
-          "FunctionsAndExpressionsTest is skipped since pg is not supported in Spanner emulator");
+          "FunctionsAndExpressions32IntegrationTest is skipped since pg is not supported in Spanner emulator");
       return ImmutableList.of(new Object[] {false});
     }
     return ImmutableList.of(new Object[] {false}, new Object[] {true});
@@ -80,7 +81,7 @@ public class FunctionsAndExpressionsTest extends SparkSpannerIntegrationTestBase
 
   private boolean isPostgreSql;
 
-  public FunctionsAndExpressionsTest(boolean isPostgreSql) {
+  public FunctionsAndExpressions32IntegrationTest(boolean isPostgreSql) {
     this.isPostgreSql = isPostgreSql;
   }
 

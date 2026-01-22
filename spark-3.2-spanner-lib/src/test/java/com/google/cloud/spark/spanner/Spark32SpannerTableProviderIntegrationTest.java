@@ -14,10 +14,10 @@
 
 package com.google.cloud.spark.spanner;
 
-public class Spark35SpannerTableProviderTest
-    extends SpannerTableProviderBaseTest<Spark35SpannerTableProvider> {
+public class Spark32SpannerTableProviderIntegrationTest
+    extends SpannerTableProviderBaseTest<Spark32SpannerTableProvider> {
 
-  protected Spark35SpannerTableProvider getInstance() {
-    return new Spark35SpannerTableProvider();
+  protected Spark32SpannerTableProvider getInstance() {
+    return new Spark32SpannerTableProvider();
   }
 }

@@ -36,7 +36,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTestBase {
+public abstract class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   private final boolean usePostgreSql;
   private final String SCHEMA_VALIDATION_TABLE_NAME = "schema_test_table";

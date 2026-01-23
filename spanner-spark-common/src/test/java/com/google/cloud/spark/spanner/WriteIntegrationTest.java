@@ -36,7 +36,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
+public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   private final boolean usePostgresSql;
 

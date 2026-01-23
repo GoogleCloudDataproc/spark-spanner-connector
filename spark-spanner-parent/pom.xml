@@ -2,14 +2,16 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.google.cloud.spark.spanner</groupId>
+    <parent>
+        <groupId>com.google.cloud.spark.spanner</groupId>
+        <artifactId>spark-spanner-reactor</artifactId>
+        <version>${revision}</version>
+    </parent>
     <artifactId>spark-spanner-parent</artifactId>
-    <version>${revision}</version>
     <packaging>pom</packaging>
     <name>Spark Spanner Connector Build Parent</name>
     <description>Parent project for all the Spark SPANNER Connector artifacts
     </description>
-    <url>https://github.com/GoogleCloudDataproc/spark-spanner-connector</url>
 
     <licenses>
         <license>
@@ -49,13 +51,12 @@
 
     <properties>
         <gpg.skip>true</gpg.skip>
-        <revision>0.0.1-SNAPSHOT</revision>
 
         <avro.version>1.11.4</avro.version>
         <arrow.version>12.0.0</arrow.version>
         <gax.version>2.30.0</gax.version>
         <google-cloud-dataproc.version>4.11.0</google-cloud-dataproc.version>
-        <google-cloud-spanner.version>6.50.0</google-cloud-spanner.version>  
+        <google-cloud-spanner.version>6.50.0</google-cloud-spanner.version>
         <google-cloud-storage.version>2.20.2</google-cloud-storage.version>
         <google-truth.version>1.1.3</google-truth.version>
         <grpc.version>1.55.1</grpc.version>
@@ -68,7 +69,7 @@
         <openlineage.version>1.19.0</openlineage.version>
         <deploy.skip>true</deploy.skip>
         <nexus.remote.skip>false</nexus.remote.skip>
-        <shade.skip>true</shade.skip>
+<!--        <shade.skip>true</shade.skip>-->
         <!-- checkstyle
         <checkstyle.header.file>${reactor.project.basedir}/java.header</checkstyle.header.file>
         -->
@@ -267,13 +268,23 @@
                 <version>2.5.2</version>
                 <scope>provided</scope>
             </dependency>
+            <dependency>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-api</artifactId>
+              <version>1.7.16</version>
+              <scope>provided</scope>
+            </dependency>
+            <dependency>
+              <groupId>com.google.code.gson</groupId>
+              <artifactId>gson</artifactId>
+              <version>2.10.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.16</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -371,6 +382,157 @@
                     <configuration>
                         <skip>${deploy.skip}</skip>
                     </configuration>
+                </plugin>
+                <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-shade-plugin</artifactId>
+                  <configuration>
+                    <skip>${shade.skip}</skip>
+                    <shadedArtifactAttached>false</shadedArtifactAttached>
+                    <relocations>
+                      <relocation>
+                        <pattern>com.google.common</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.google.common</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>android</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.android</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>autovalue</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.autovalue</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>avro.shaded</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.avro.shaded</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>com.fasterxml</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.fasterxml</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>com.github</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.github</shadedPattern>
+                        <!-- Need to exclude the zstd library from being repackaged because of https://github.com/luben/zstd-jni#limitations -->
+                        <excludes>
+                          <exclude>com.github.luben.zstd.**</exclude>
+                        </excludes>
+                      </relocation>
+                      <relocation>
+                        <pattern>com.google</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.google</shadedPattern>
+                        <excludes>
+                          <exclude>com.google.cloud.bigquery.connector.common.**</exclude>
+                          <exclude>com.google.cloud.spark.spanner.**</exclude>
+                        </excludes>
+                      </relocation>
+                      <relocation>
+                        <pattern>com.thoughtworks.paranamer</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.thoughtworks.paranamer
+                        </shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>com.typesafe</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.typesafe</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>io.grpc</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.io.grpc</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>io.netty</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.io.netty</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>io.opencensus</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.io.opencensus</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>io.perfmark</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.io.perfmark</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.apache.arrow</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.apache.arrow</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.apache.beam</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.apache.beam</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.apache.commons</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.apache.commons</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.apache.http</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.apache.http</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.checkerframework</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.checkerframework
+                        </shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.codehaus.mojo</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.codehaus.mojo</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.json</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.json</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.threeten</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.threeten</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.tukaani.xz</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.tukaani.xz</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>org.xerial.snappy</pattern>
+                        <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.xerial.snappy</shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>META-INF/native/libio_grpc_netty_shaded_netty</pattern>
+                        <shadedPattern>
+                          META-INF/native/libcom_google_cloud_spark_spanner_repackaged_io_grpc_netty_shaded_io_grpc_netty
+                        </shadedPattern>
+                      </relocation>
+                      <relocation>
+                        <pattern>META-INF/native/io_grpc_netty_shaded_netty</pattern>
+                        <shadedPattern>
+                          META-INF/native/com_google_cloud_spark_spanner_repackaged_io_grpc_netty_shaded_io_grpc_netty
+                        </shadedPattern>
+                      </relocation>
+                    </relocations>
+                    <transformers>
+                      <transformer
+                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                    </transformers>
+                    <filters>
+                      <filter>
+                        <artifact>*:*</artifact>
+                        <artifact>*:*</artifact>
+                        <excludes>
+                          <exclude>module-info.class</exclude>
+                          <exclude>META-INF/*.MF</exclude>
+                          <exclude>META-INF/*.SF</exclude>
+                          <exclude>META-INF/*.DSA</exclude>
+                          <exclude>META-INF/*.RSA</exclude>
+                          <exclude>META-INF/maven/**</exclude>
+                          <exclude>**/*.proto</exclude>
+                        </excludes>
+                      </filter>
+                    </filters>
+                  </configuration>
+                  <executions>
+                    <execution>
+                      <phase>package</phase>
+                      <goals>
+                        <goal>shade</goal>
+                      </goals>
+                    </execution>
+                  </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -488,40 +650,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.diffplug.spotless</groupId>
-                <artifactId>spotless-maven-plugin</artifactId>
-                <version>2.30.0</version>
-                <configuration>
-                    <formats>
-                        <format>
-                            <includes>
-                                <include>*.md</include>
-                                <include>.gitignore</include>
-                            </includes>
-                            <trimTrailingWhitespace/>
-                            <endWithNewline/>
-                        </format>
-                    </formats>
-                    <java>
-                        <toggleOffOn>
-                            <off>fmt:off</off>
-                            <on>fmt:on</on>
-                        </toggleOffOn>
-                        <googleJavaFormat>
-                            <version>1.7</version>
-                        </googleJavaFormat>
-                    </java>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <phase>compile</phase>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
                 <configuration>
@@ -550,150 +678,6 @@
                         <phase>clean</phase>
                         <goals>
                             <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <configuration>
-                    <skip>${shade.skip}</skip>
-                    <shadedArtifactAttached>false</shadedArtifactAttached>
-                    <relocations>
-                        <relocation>
-                            <pattern>android</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.android</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>autovalue</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.autovalue</shadedPattern>
-                        </relocation>
-                       <relocation>
-                            <pattern>avro.shaded</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.avro.shaded</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>com.fasterxml</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.fasterxml</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>com.github</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.github</shadedPattern>
-                            <!-- Need to exclude the zstd library from being repackaged because of https://github.com/luben/zstd-jni#limitations -->
-                            <excludes>
-                                <exclude>com.github.luben.zstd.**</exclude>
-                            </excludes>
-                        </relocation>
-                        <relocation>
-                            <pattern>com.google</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.google</shadedPattern>
-                            <excludes>
-                                <exclude>com.google.cloud.bigquery.connector.common.**</exclude>
-                                <exclude>com.google.cloud.spark.spanner.**</exclude>
-                            </excludes>
-                        </relocation>
-                        <relocation>
-                            <pattern>com.thoughtworks.paranamer</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.thoughtworks.paranamer
-                            </shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>com.typesafe</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.com.typesafe</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>io.grpc</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.io.grpc</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>io.netty</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.io.netty</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>io.opencensus</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.io.opencensus</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>io.perfmark</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.io.perfmark</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.apache.arrow</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.apache.arrow</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.apache.beam</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.apache.beam</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.apache.commons</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.apache.commons</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.apache.http</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.apache.http</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.checkerframework</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.checkerframework
-                            </shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.codehaus.mojo</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.codehaus.mojo</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.json</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.json</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.threeten</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.threeten</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.tukaani.xz</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.tukaani.xz</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>org.xerial.snappy</pattern>
-                            <shadedPattern>com.google.cloud.spark.spanner.repackaged.org.xerial.snappy</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>META-INF/native/libio_grpc_netty_shaded_netty</pattern>
-                            <shadedPattern>META-INF/native/libcom_google_cloud_spark_spanner_repackaged_io_grpc_netty_shaded_io_grpc_netty
-                            </shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>META-INF/native/io_grpc_netty_shaded_netty</pattern>
-                            <shadedPattern>META-INF/native/com_google_cloud_spark_spanner_repackaged_io_grpc_netty_shaded_io_grpc_netty
-                            </shadedPattern>
-                        </relocation>
-                    </relocations>
-                    <transformers>
-                        <transformer
-                                implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                    </transformers>
-                    <filters>
-                        <filter>
-                            <artifact>*:*</artifact>
-                            <excludes>
-                                <exclude>module-info.class</exclude>
-                                <exclude>META-INF/*.MF</exclude>
-                                <exclude>META-INF/*.SF</exclude>
-                                <exclude>META-INF/*.DSA</exclude>
-                                <exclude>META-INF/*.RSA</exclude>
-                                <exclude>META-INF/maven/**</exclude>
-                                <exclude>**/*.proto</exclude>
-                            </excludes>
-                        </filter>
-                    </filters>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
                         </goals>
                     </execution>
                 </executions>

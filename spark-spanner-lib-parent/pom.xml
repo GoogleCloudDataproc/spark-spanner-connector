@@ -13,10 +13,6 @@
   <version>${revision}</version>
   <packaging>pom</packaging>
   <name>Common Spark Spanner library setting</name>
-  <properties>
-    <scala.version>2.12</scala.version>
-    <spark.version>3.1.0</spark.version>
-  </properties>
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
@@ -24,14 +20,6 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
-  <dependencies>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-sql_${scala.version}</artifactId>
-      <version>${spark.version}</version>
-      <scope>provided</scope>
-    </dependency>
-  </dependencies>
   <profiles>
     <profile>
       <id>integration</id>

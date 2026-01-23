@@ -19,9 +19,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.*;
@@ -90,16 +88,79 @@ public class SpannerWriterUtils {
     // Long array
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.LongType,
-        (row, i, type) -> row.isNullAt(i) ? Value.int64Array((long[])null) : Value.int64Array(row.getArray(i).toLongArray()));
+        (row, i, type) ->
+            row.isNullAt(i)
+                ? Value.int64Array((long[]) null)
+                : Value.int64Array(row.getArray(i).toLongArray()));
 
     // String array
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.StringType,
         (row, i, type) -> {
           if (row.isNullAt(i)) return Value.stringArray(null);
-          ArrayData ad = row.getArray(i);
-          String[] a = (String[]) ad.toObjectArray(type);
+          String[] a = (String[]) row.getArray(i).toObjectArray(type);
           return Value.stringArray(Arrays.asList(a));
+        });
+
+    // Boolean
+    ARRAY_TYPE_CONVERTERS.put(
+        DataTypes.BooleanType,
+        (row, i, type) ->
+            row.isNullAt(i)
+                ? Value.boolArray((boolean[]) null)
+                : Value.boolArray(row.getArray(i).toBooleanArray()));
+
+    // Double
+    ARRAY_TYPE_CONVERTERS.put(
+        DataTypes.DoubleType,
+        (row, i, type) ->
+            row.isNullAt(i)
+                ? Value.float64Array((double[]) null)
+                : Value.float64Array(row.getArray(i).toDoubleArray()));
+
+    // Binary
+    ARRAY_TYPE_CONVERTERS.put(
+        DataTypes.BinaryType,
+        (row, i, type) -> {
+          if (row.isNullAt(i)) return Value.bytesArray(null);
+          byte[] bytes = row.getBinary(i);
+          Iterable<ByteArray> result =
+              bytes == null
+                  ? Collections.emptyList()
+                  : Collections.singletonList(ByteArray.copyFrom(bytes));
+          return Value.bytesArray(result);
+        });
+
+    // Timestamp
+    ARRAY_TYPE_CONVERTERS.put(
+        DataTypes.TimestampType,
+        (row, i, type) -> {
+          if (row.isNullAt(i)) return Value.timestampArray(null);
+          long[] micros = row.getArray(i).toLongArray();
+          if (micros == null) return Value.timestampArray(Collections.emptyList());
+          List<Timestamp> timestamps = new ArrayList<>(micros.length);
+          for (long micro : micros) {
+            timestamps.add(Timestamp.ofTimeMicroseconds(micro));
+          }
+          return Value.timestampArray(timestamps);
+        });
+
+    // Date
+    ARRAY_TYPE_CONVERTERS.put(
+        DataTypes.DateType,
+        (row, i, type) -> {
+          if (row.isNullAt(i)) return Value.dateArray(null);
+          int[] days = row.getArray(i).toIntArray();
+          if (days == null) return Value.dateArray(Collections.emptyList());
+          List<Date> dates = new ArrayList<>(days.length);
+
+          for (int day : days) {
+            java.time.LocalDate localDate = java.time.LocalDate.ofEpochDay(day);
+            dates.add(
+                Date.fromYearMonthDay(
+                    localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
+          }
+          return Value.dateArray(dates);
         });
 
     // Note: DecimalType is handled dynamically in the method below
@@ -142,7 +203,7 @@ public class SpannerWriterUtils {
     }
 
     if (type instanceof ArrayType) {
-      ArrayType arrayType = (ArrayType)type;
+      ArrayType arrayType = (ArrayType) type;
       DataType elementType = arrayType.elementType();
       FieldConverter arrayConverter = ARRAY_TYPE_CONVERTERS.get(elementType);
       if (arrayConverter != null) {

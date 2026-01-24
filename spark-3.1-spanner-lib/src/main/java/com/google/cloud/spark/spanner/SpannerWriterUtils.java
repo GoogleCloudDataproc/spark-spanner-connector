@@ -99,7 +99,9 @@ public class SpannerWriterUtils {
         (row, i, type) -> {
           if (row.isNullAt(i)) return Value.stringArray(null);
           String[] a = (String[]) row.getArray(i).toObjectArray(type);
-          return Value.stringArray(Arrays.asList(a));
+          return a == null
+              ? Value.stringArray(Collections.emptyList())
+              : Value.stringArray(Arrays.asList(a));
         });
 
     // Boolean

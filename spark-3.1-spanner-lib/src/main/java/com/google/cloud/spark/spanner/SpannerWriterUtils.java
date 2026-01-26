@@ -125,7 +125,7 @@ public class SpannerWriterUtils {
         DataTypes.BinaryType,
         (row, i, type) -> {
           if (row.isNullAt(i)) return Value.bytesArray(null);
-          byte[] bytes = row.getBinary(i);
+          byte[] bytes = row.getArray(i).toByteArray();
           Iterable<ByteArray> result =
               bytes == null
                   ? Collections.emptyList()

@@ -2,11 +2,13 @@ package com.google.cloud.spark.spanner;
 
 import static org.mockito.Mockito.*;
 
+import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -86,38 +88,52 @@ public class SpannerWriterUtilsTest {
   }
 
   @Test
-  public void testArrayConversion() {
+  public void testScalarArrayConversion() {
     StructType schema =
-        new StructType().add("long_array", DataTypes.createArrayType(DataTypes.LongType));
+        new StructType()
+            .add("long_array", DataTypes.createArrayType(DataTypes.LongType))
+            .add("str_array", DataTypes.createArrayType(DataTypes.StringType))
+            .add("boolean_array", DataTypes.createArrayType(DataTypes.BooleanType))
+            .add("double_array", DataTypes.createArrayType(DataTypes.DoubleType))
+            .add("binary_array", DataTypes.createArrayType(DataTypes.BinaryType));
 
     InternalRow row = mock(InternalRow.class);
     ArrayData arrayData = mock(ArrayData.class);
 
-    long[] data = {1L, 2L, 3L};
+    long[] longData = {1L, 2L, 3L};
     when(row.isNullAt(0)).thenReturn(false);
     when(row.getArray(0)).thenReturn(arrayData);
-    when(arrayData.toLongArray()).thenReturn(data);
+    when(arrayData.toLongArray()).thenReturn(longData);
+
+    String[] stringData = {"A", "B"};
+    when(row.isNullAt(1)).thenReturn(false);
+    when(row.getArray(1)).thenReturn(arrayData);
+    when(arrayData.toObjectArray(isA(DataType.class))).thenReturn(stringData);
+
+    boolean[] booleanData = {true, false};
+    when(row.isNullAt(2)).thenReturn(false);
+    when(row.getArray(2)).thenReturn(arrayData);
+    when(arrayData.toBooleanArray()).thenReturn(booleanData);
+
+    double[] doubleData = {95.5, -10.88};
+    when(row.isNullAt(3)).thenReturn(false);
+    when(row.getArray(3)).thenReturn(arrayData);
+    when(arrayData.toDoubleArray()).thenReturn(doubleData);
+
+    byte[] byteData = {95, -10, 127};
+    when(row.isNullAt(4)).thenReturn(false);
+    when(row.getArray(4)).thenReturn(arrayData);
+    when(arrayData.toByteArray()).thenReturn(byteData);
 
     Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
 
-    Assert.assertEquals(Value.int64Array(data), mutation.asMap().get("long_array"));
-  }
-
-  @Test
-  public void testStringArrayConversion() {
-    StructType schema =
-        new StructType().add("str_array", DataTypes.createArrayType(DataTypes.StringType));
-
-    InternalRow row = mock(InternalRow.class);
-    ArrayData arrayData = mock(ArrayData.class);
-    String[] data = {"A", "B"};
-
-    when(row.isNullAt(0)).thenReturn(false);
-    when(row.getArray(0)).thenReturn(arrayData);
-    when(arrayData.toObjectArray(isA(DataType.class))).thenReturn(data);
-
-    Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
-
-    Assert.assertEquals(Value.stringArray(Arrays.asList(data)), mutation.asMap().get("str_array"));
+    Assert.assertEquals(Value.int64Array(longData), mutation.asMap().get("long_array"));
+    Assert.assertEquals(
+        Value.stringArray(Arrays.asList(stringData)), mutation.asMap().get("str_array"));
+    Assert.assertEquals(Value.boolArray(booleanData), mutation.asMap().get("boolean_array"));
+    Assert.assertEquals(Value.float64Array(doubleData), mutation.asMap().get("double_array"));
+    Assert.assertEquals(
+        Value.bytesArray(Collections.singletonList(ByteArray.copyFrom(byteData))),
+        mutation.asMap().get("binary_array"));
   }
 }

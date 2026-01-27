@@ -60,15 +60,43 @@ public class SpannerWriterUtilsTest {
 
   @Test
   public void testNullHandling() {
-    StructType schema = new StructType().add("nullable_col", DataTypes.StringType);
+    StructType schema =
+        new StructType()
+            .add("long", DataTypes.LongType)
+            .add("string", DataTypes.StringType)
+            .add("boolean", DataTypes.BooleanType)
+            .add("double", DataTypes.DoubleType)
+            .add("binary", DataTypes.BinaryType)
+            .add("timestamp", DataTypes.TimestampType)
+            .add("date", DataTypes.DateType)
+            .add("long_array", DataTypes.createArrayType(DataTypes.LongType))
+            .add("str_array", DataTypes.createArrayType(DataTypes.StringType))
+            .add("boolean_array", DataTypes.createArrayType(DataTypes.BooleanType))
+            .add("double_array", DataTypes.createArrayType(DataTypes.DoubleType))
+            .add("binary_array", DataTypes.createArrayType(DataTypes.BinaryType))
+            .add("timestamp_array", DataTypes.createArrayType(DataTypes.TimestampType))
+            .add("date_array", DataTypes.createArrayType(DataTypes.DateType));
     InternalRow row = mock(InternalRow.class);
 
     // Simulate a null value in Spark
-    when(row.isNullAt(0)).thenReturn(true);
+    when(row.isNullAt(anyInt())).thenReturn(true);
 
     Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
 
-    Assert.assertEquals(Value.string(null), mutation.asMap().get("nullable_col"));
+    Assert.assertEquals(Value.int64(null), mutation.asMap().get("long"));
+    Assert.assertEquals(Value.string(null), mutation.asMap().get("string"));
+    Assert.assertEquals(Value.bool(null), mutation.asMap().get("boolean"));
+    Assert.assertEquals(Value.float64(null), mutation.asMap().get("double"));
+    Assert.assertEquals(Value.bytes(null), mutation.asMap().get("binary"));
+    Assert.assertEquals(Value.timestamp(null), mutation.asMap().get("timestamp"));
+    Assert.assertEquals(Value.date(null), mutation.asMap().get("date"));
+    Assert.assertEquals(Value.int64Array((long[]) null), mutation.asMap().get("long_array"));
+    Assert.assertEquals(Value.stringArray(null), mutation.asMap().get("str_array"));
+    Assert.assertEquals(Value.boolArray((boolean[]) null), mutation.asMap().get("boolean_array"));
+    Assert.assertEquals(Value.float64Array((double[]) null), mutation.asMap().get("double_array"));
+    Assert.assertEquals(Value.bytesArray(null), mutation.asMap().get("binary_array"));
+    Assert.assertEquals(Value.timestampArray(null), mutation.asMap().get("timestamp_array"));
+    Assert.assertEquals(Value.dateArray(null), mutation.asMap().get("date_array"));
   }
 
   @Test

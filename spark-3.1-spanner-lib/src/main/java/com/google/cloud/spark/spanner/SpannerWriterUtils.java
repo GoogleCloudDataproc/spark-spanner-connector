@@ -98,10 +98,13 @@ public class SpannerWriterUtils {
         DataTypes.StringType,
         (row, i, type) -> {
           if (row.isNullAt(i)) return Value.stringArray(null);
-          String[] a = (String[]) row.getArray(i).toObjectArray(type);
-          return a == null
-              ? Value.stringArray(Collections.emptyList())
-              : Value.stringArray(Arrays.asList(a));
+
+          final DataType elementType = ((ArrayType) type).elementType();
+          final Object[] items = (Object[]) row.getArray(i).toObjectArray(elementType);
+          return Value.stringArray(
+              java.util.Arrays.stream(items)
+                  .map(item -> item == null ? null : item.toString())
+                  .collect(java.util.stream.Collectors.toList()));
         });
 
     // Boolean
@@ -125,12 +128,12 @@ public class SpannerWriterUtils {
         DataTypes.BinaryType,
         (row, i, type) -> {
           if (row.isNullAt(i)) return Value.bytesArray(null);
-          byte[] bytes = row.getArray(i).toByteArray();
-          Iterable<ByteArray> result =
-              bytes == null
-                  ? Collections.emptyList()
-                  : Collections.singletonList(ByteArray.copyFrom(bytes));
-          return Value.bytesArray(result);
+          DataType elementType = ((ArrayType) type).elementType();
+          Object[] items = (Object[]) row.getArray(i).toObjectArray(elementType);
+          return Value.bytesArray(
+              java.util.Arrays.stream(items)
+                  .map(item -> item == null ? null : ByteArray.copyFrom((byte[]) item))
+                  .collect(java.util.stream.Collectors.toList()));
         });
 
     // Timestamp

@@ -9,12 +9,10 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Assert;
@@ -112,10 +110,14 @@ public class SpannerWriterUtilsTest {
     when(row.getArray(0)).thenReturn(arrayData);
     when(arrayData.toLongArray()).thenReturn(longData);
 
-    String[] stringData = {"A", "B"};
+    Object[] stringObjectData = {"A", "B"};
+    Iterable<String> stringData =
+        java.util.Arrays.stream(stringObjectData)
+            .map(item -> item == null ? null : item.toString())
+            .collect(java.util.stream.Collectors.toList());
     when(row.isNullAt(1)).thenReturn(false);
     when(row.getArray(1)).thenReturn(arrayData);
-    when(arrayData.toObjectArray(isA(DataType.class))).thenReturn(stringData);
+    when(arrayData.toObjectArray(DataTypes.StringType)).thenReturn(stringObjectData);
 
     boolean[] booleanData = {true, false};
     when(row.isNullAt(2)).thenReturn(false);
@@ -127,21 +129,23 @@ public class SpannerWriterUtilsTest {
     when(row.getArray(3)).thenReturn(arrayData);
     when(arrayData.toDoubleArray()).thenReturn(doubleData);
 
-    byte[] byteData = {95, -10, 127};
+    byte[] byteData = {95, 10, 127};
+    Object[] byteObjectData = new Object[] {byteData, null};
     when(row.isNullAt(4)).thenReturn(false);
     when(row.getArray(4)).thenReturn(arrayData);
-    when(arrayData.toByteArray()).thenReturn(byteData);
+    when(arrayData.toObjectArray(DataTypes.BinaryType)).thenReturn(byteObjectData);
 
+    // Execute
     Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
 
     Assert.assertEquals(Value.int64Array(longData), mutation.asMap().get("long_array"));
-    Assert.assertEquals(
-        Value.stringArray(Arrays.asList(stringData)), mutation.asMap().get("str_array"));
+    Assert.assertEquals(Value.stringArray(stringData), mutation.asMap().get("str_array"));
     Assert.assertEquals(Value.boolArray(booleanData), mutation.asMap().get("boolean_array"));
     Assert.assertEquals(Value.float64Array(doubleData), mutation.asMap().get("double_array"));
-    Assert.assertEquals(
-        Value.bytesArray(Collections.singletonList(ByteArray.copyFrom(byteData))),
-        mutation.asMap().get("binary_array"));
+
+    // Construct expected Spanner Value
+    List<ByteArray> expectedByteList = Arrays.asList(ByteArray.copyFrom(byteData), null);
+    Assert.assertEquals(Value.bytesArray(expectedByteList), mutation.asMap().get("binary_array"));
   }
 
   @Test

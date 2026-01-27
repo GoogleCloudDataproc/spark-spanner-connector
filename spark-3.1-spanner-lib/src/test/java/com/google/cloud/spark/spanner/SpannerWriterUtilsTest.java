@@ -7,8 +7,10 @@ import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -27,10 +29,13 @@ public class SpannerWriterUtilsTest {
     // Define Schema
     StructType schema =
         new StructType()
-            .add("id", DataTypes.LongType)
-            .add("name", DataTypes.StringType)
-            .add("active", DataTypes.BooleanType)
-            .add("score", DataTypes.DoubleType);
+            .add("long", DataTypes.LongType)
+            .add("string", DataTypes.StringType)
+            .add("boolean", DataTypes.BooleanType)
+            .add("double", DataTypes.DoubleType)
+            .add("binary", DataTypes.BinaryType);
+
+    byte[] byteData = {95, -10, 127};
 
     // Mock InternalRow
     InternalRow row = mock(InternalRow.class);
@@ -42,14 +47,17 @@ public class SpannerWriterUtilsTest {
     when(row.getBoolean(2)).thenReturn(true);
     when(row.isNullAt(3)).thenReturn(false);
     when(row.getDouble(3)).thenReturn(95.5);
+    when(row.isNullAt(4)).thenReturn(false);
+    when(row.getBinary(4)).thenReturn(byteData);
 
     Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
     Map<String, Value> values = mutation.asMap();
 
-    Assert.assertEquals(Value.int64(100L), values.get("id"));
-    Assert.assertEquals(Value.string("Hello"), values.get("name"));
-    Assert.assertEquals(Value.bool(true), values.get("active"));
-    Assert.assertEquals(Value.float64(95.5), values.get("score"));
+    Assert.assertEquals(Value.int64(100L), values.get("long"));
+    Assert.assertEquals(Value.string("Hello"), values.get("string"));
+    Assert.assertEquals(Value.bool(true), values.get("boolean"));
+    Assert.assertEquals(Value.float64(95.5), values.get("double"));
+    Assert.assertEquals(Value.bytes(ByteArray.copyFrom(byteData)), values.get("binary"));
   }
 
   @Test
@@ -70,7 +78,6 @@ public class SpannerWriterUtilsTest {
     StructType schema =
         new StructType().add("ts", DataTypes.TimestampType).add("dt", DataTypes.DateType);
 
-    // Note: As of 2026, ensure your logic accounts for modern epoch handling
     long micros = 1704067200000000L; // 2024-01-01 00:00:00
     int days = 19723; // 2024-01-01 in epoch days
 
@@ -135,5 +142,36 @@ public class SpannerWriterUtilsTest {
     Assert.assertEquals(
         Value.bytesArray(Collections.singletonList(ByteArray.copyFrom(byteData))),
         mutation.asMap().get("binary_array"));
+  }
+
+  @Test
+  public void testTimestampAndDateArrays() {
+    StructType schema =
+        new StructType()
+            .add("timestamp_array", DataTypes.createArrayType(DataTypes.TimestampType))
+            .add("date_array", DataTypes.createArrayType(DataTypes.DateType));
+    // Note: As of 2026, ensure your logic accounts for modern epoch handling
+    long[] micros = {1704067200000000L}; // 2024-01-01 00:00:00
+    List<Timestamp> timestamps = new ArrayList<>(micros.length);
+    for (long micro : micros) {
+      timestamps.add(Timestamp.ofTimeMicroseconds(micro));
+    }
+    int[] days = {19723}; // 2024-01-01 in epoch days
+    List<Date> dates = new ArrayList<>(days.length);
+    dates.add(Date.fromYearMonthDay(2024, 1, 1));
+
+    InternalRow row = mock(InternalRow.class);
+    ArrayData arrayData = mock(ArrayData.class);
+
+    when(row.isNullAt(0)).thenReturn(false);
+    when(row.getArray(0)).thenReturn(arrayData);
+    when(arrayData.toLongArray()).thenReturn(micros);
+    when(row.isNullAt(1)).thenReturn(false);
+    when(row.getArray(1)).thenReturn(arrayData);
+    when(arrayData.toIntArray()).thenReturn(days);
+
+    Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
+    Assert.assertEquals(Value.timestampArray(timestamps), mutation.asMap().get("timestamp_array"));
+    Assert.assertEquals(Value.dateArray(dates), mutation.asMap().get("date_array"));
   }
 }

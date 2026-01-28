@@ -9,53 +9,78 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
+import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
+@RunWith(Parameterized.class)
 public class SpannerWriterUtilsTest {
 
   private final String TABLE_NAME = "test_table";
+  private static final byte[] BYTE_DATA = {95, -10, 127};
+
+  // Parameters for each test case: [ColumnName, DataType, MockValue, ExpectedSpannerValue]
+  @Parameters(name = "Testing {0}")
+  public static Collection<Object[]> data() {
+    return Arrays.asList(
+        new Object[][] {
+          {"long", DataTypes.LongType, 100L, Value.int64(100L)},
+          {"string", DataTypes.StringType, "Hello", Value.string("Hello")},
+          {"boolean", DataTypes.BooleanType, true, Value.bool(true)},
+          {"double", DataTypes.DoubleType, 95.5, Value.float64(95.5)},
+          {"binary", DataTypes.BinaryType, BYTE_DATA, Value.bytes(ByteArray.copyFrom(BYTE_DATA))}
+        });
+  }
+
+  @Parameter(0)
+  public String fieldName;
+
+  @Parameter(1)
+  public DataType sparkType;
+
+  @Parameter(2)
+  public Object mockValue;
+
+  @Parameter(3)
+  public Value expectedValue;
 
   @Test
-  public void testScalarTypes() {
-    // Define Schema
-    StructType schema =
-        new StructType()
-            .add("long", DataTypes.LongType)
-            .add("string", DataTypes.StringType)
-            .add("boolean", DataTypes.BooleanType)
-            .add("double", DataTypes.DoubleType)
-            .add("binary", DataTypes.BinaryType);
+  public void testScalarConversion() {
+    // 1. Setup single-column schema for this parameter set
+    StructType schema = new StructType().add(fieldName, sparkType);
 
-    byte[] byteData = {95, -10, 127};
-
-    // Mock InternalRow
+    // 2. Mock InternalRow based on the current parameter's type
     InternalRow row = mock(InternalRow.class);
     when(row.isNullAt(0)).thenReturn(false);
-    when(row.getLong(0)).thenReturn(100L);
-    when(row.isNullAt(1)).thenReturn(false);
-    when(row.getString(1)).thenReturn("Hello");
-    when(row.isNullAt(2)).thenReturn(false);
-    when(row.getBoolean(2)).thenReturn(true);
-    when(row.isNullAt(3)).thenReturn(false);
-    when(row.getDouble(3)).thenReturn(95.5);
-    when(row.isNullAt(4)).thenReturn(false);
-    when(row.getBinary(4)).thenReturn(byteData);
 
-    Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
-    Map<String, Value> values = mutation.asMap();
+    // Setup specific getter based on type
+    if (sparkType == DataTypes.LongType) when(row.getLong(0)).thenReturn((Long) mockValue);
+    else if (sparkType == DataTypes.StringType)
+      when(row.getString(0)).thenReturn((String) mockValue);
+    else if (sparkType == DataTypes.BooleanType)
+      when(row.getBoolean(0)).thenReturn((Boolean) mockValue);
+    else if (sparkType == DataTypes.DoubleType)
+      when(row.getDouble(0)).thenReturn((Double) mockValue);
+    else if (sparkType == DataTypes.BinaryType)
+      when(row.getBinary(0)).thenReturn((byte[]) mockValue);
 
-    Assert.assertEquals(Value.int64(100L), values.get("long"));
-    Assert.assertEquals(Value.string("Hello"), values.get("string"));
-    Assert.assertEquals(Value.bool(true), values.get("boolean"));
-    Assert.assertEquals(Value.float64(95.5), values.get("double"));
-    Assert.assertEquals(Value.bytes(ByteArray.copyFrom(byteData)), values.get("binary"));
+    // 3. Execute
+    com.google.cloud.spanner.Mutation mutation =
+        SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
+
+    // 4. Verify the mapped value
+    Assert.assertEquals(
+        "Value mismatch for column: " + fieldName, expectedValue, mutation.asMap().get(fieldName));
   }
 
   @Test

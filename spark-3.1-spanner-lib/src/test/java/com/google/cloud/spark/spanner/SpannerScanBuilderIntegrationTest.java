@@ -74,8 +74,7 @@ public class SpannerScanBuilderIntegrationTest extends SpannerTestBase {
 
   @Test
   public void readSchemaShouldWorkInSpannerScanBuilderForPg() throws Exception {
-    if (SpannerScanBuilderIntegrationTest.emulatorHost != null
-        && !SpannerScanBuilderIntegrationTest.emulatorHost.isEmpty()) {
+    if (emulatorHost != null && !emulatorHost.isEmpty()) {
       // Spanner emulator doesn't support the PostgreSql dialect interface.
       // If the emulator is set. We return immediately here.
       // TODO: Use logger instead of System out once logger configuration is set.
@@ -190,8 +189,7 @@ public class SpannerScanBuilderIntegrationTest extends SpannerTestBase {
 
   @Test
   public void planInputPartitionsShouldSucceedInSpannerScanBuilderPg() throws Exception {
-    if (SpannerTableIntegrationTest.emulatorHost != null
-        && !SpannerTableIntegrationTest.emulatorHost.isEmpty()) {
+    if (emulatorHost != null && !emulatorHost.isEmpty()) {
       // Spanner emulator doesn't support the PostgreSql dialect interface.
       // If the emulator is set. We return immediately here.
       // TODO: Use logger instead of System out once logger configuration is set.

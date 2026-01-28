@@ -70,8 +70,7 @@ public class FunctionsAndExpressionsIntegrationTest extends SparkSpannerIntegrat
 
   @Parameterized.Parameters(name = "{index}: isPostgreSql={0}")
   public static Iterable<Object[]> data() {
-    if (SpannerTableIntegrationTest.emulatorHost != null
-        && !SpannerTableIntegrationTest.emulatorHost.isEmpty()) {
+    if (emulatorHost != null && !emulatorHost.isEmpty()) {
       System.out.println(
           "FunctionsAndExpressionsIntegrationTest is skipped since pg is not supported in Spanner emulator");
       return ImmutableList.of(new Object[] {false});

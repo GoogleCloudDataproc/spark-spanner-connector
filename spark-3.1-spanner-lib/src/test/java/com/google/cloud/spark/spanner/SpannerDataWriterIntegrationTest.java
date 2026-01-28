@@ -56,7 +56,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-public class SpannerDataWriterTest {
+public class SpannerDataWriterIntegrationTest {
 
   @Mock private Spanner mockSpanner;
   @Mock private DatabaseClient mockDatabaseClient;

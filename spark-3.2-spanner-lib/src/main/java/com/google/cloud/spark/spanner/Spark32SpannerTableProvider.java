@@ -15,4 +15,4 @@
  */
 package com.google.cloud.spark.spanner;
 
-public class Spark32SpannerTableProvider extends Spark31SpannerTableProvider {}
+public class Spark32SpannerTableProvider extends SparkSpannerTableProviderBase {}

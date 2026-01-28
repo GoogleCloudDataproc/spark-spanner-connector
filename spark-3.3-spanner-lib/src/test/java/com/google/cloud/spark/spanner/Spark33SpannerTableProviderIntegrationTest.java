@@ -14,5 +14,5 @@
 
 package com.google.cloud.spark.spanner;
 
-public class Spark31SpannerTableProviderIntegrationTest
+public class Spark33SpannerTableProviderIntegrationTest
     extends SparkSpannerTableProviderIntegrationTestBase {}

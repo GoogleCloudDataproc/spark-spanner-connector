@@ -9,7 +9,7 @@ import org.apache.spark.sql.DataFrameReader;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class GraphErrorHandlingTest extends GraphReadIntegrationTestBase {
+public class GraphErrorHandlingIntegrationTest extends GraphReadIntegrationTestBase {
 
   @Test
   public void testDirectQueryNonRootPartitionable() {

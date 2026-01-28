@@ -27,7 +27,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SpannerTableTest extends SpannerTestBase {
+public class SpannerTableIntegrationTest extends SpannerTestBase {
 
   @Test
   public void querySchemaShouldSuccessInSpannerTable() {
@@ -58,7 +58,7 @@ public class SpannerTableTest extends SpannerTestBase {
 
   @Test
   public void queryPgSchemaShouldSucceedInSpannerTable() {
-    if (SpannerTableTest.emulatorHost != null && !SpannerTableTest.emulatorHost.isEmpty()) {
+    if (emulatorHost != null && !emulatorHost.isEmpty()) {
       // Spanner emulator doesn't support the PostgreSql dialect interface.
       // If the emulator is set. We return immediately here.
       // TODO: Use logger instead of System out once logger configuration is set.

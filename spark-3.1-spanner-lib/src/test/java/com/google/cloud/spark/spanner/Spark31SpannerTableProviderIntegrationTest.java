@@ -25,7 +25,7 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
-public class Spark31SpannerTableProviderTest extends SparkSpannerIntegrationTestBase {
+public class Spark31SpannerTableProviderIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   @Test
   public void getTableForWrite_withenablePartialRowUpdates_returnsTableWithDataFrameSchema() {

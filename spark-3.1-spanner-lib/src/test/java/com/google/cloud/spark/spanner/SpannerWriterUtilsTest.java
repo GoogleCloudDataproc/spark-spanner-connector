@@ -38,7 +38,14 @@ public class SpannerWriterUtilsTest {
           {"string", DataTypes.StringType, "Hello", Value.string("Hello")},
           {"boolean", DataTypes.BooleanType, true, Value.bool(true)},
           {"double", DataTypes.DoubleType, 95.5, Value.float64(95.5)},
-          {"binary", DataTypes.BinaryType, BYTE_DATA, Value.bytes(ByteArray.copyFrom(BYTE_DATA))}
+          {"binary", DataTypes.BinaryType, BYTE_DATA, Value.bytes(ByteArray.copyFrom(BYTE_DATA))},
+          {
+            "ts",
+            DataTypes.TimestampType,
+            1704067200000000L,
+            Value.timestamp(Timestamp.ofTimeMicroseconds(1704067200000000L))
+          },
+          {"dt", DataTypes.DateType, 19723, Value.date(Date.fromYearMonthDay(2024, 1, 1))}
         });
   }
 
@@ -55,7 +62,7 @@ public class SpannerWriterUtilsTest {
   public Value expectedValue;
 
   @Test
-  public void testScalarConversion() {
+  public void testSimpleTypesConversion() {
     // 1. Setup single-column schema for this parameter set
     StructType schema = new StructType().add(fieldName, sparkType);
 
@@ -73,6 +80,9 @@ public class SpannerWriterUtilsTest {
       when(row.getDouble(0)).thenReturn((Double) mockValue);
     else if (sparkType == DataTypes.BinaryType)
       when(row.getBinary(0)).thenReturn((byte[]) mockValue);
+    else if (sparkType == DataTypes.TimestampType)
+      when(row.getLong(0)).thenReturn((long) mockValue);
+    else if (sparkType == DataTypes.DateType) when(row.getInt(0)).thenReturn((int) mockValue);
 
     // 3. Execute
     com.google.cloud.spanner.Mutation mutation =
@@ -122,27 +132,6 @@ public class SpannerWriterUtilsTest {
     Assert.assertEquals(Value.bytesArray(null), mutation.asMap().get("binary_array"));
     Assert.assertEquals(Value.timestampArray(null), mutation.asMap().get("timestamp_array"));
     Assert.assertEquals(Value.dateArray(null), mutation.asMap().get("date_array"));
-  }
-
-  @Test
-  public void testTimestampAndDate() {
-    StructType schema =
-        new StructType().add("ts", DataTypes.TimestampType).add("dt", DataTypes.DateType);
-
-    long micros = 1704067200000000L; // 2024-01-01 00:00:00
-    int days = 19723; // 2024-01-01 in epoch days
-
-    InternalRow row = mock(InternalRow.class);
-    when(row.isNullAt(0)).thenReturn(false);
-    when(row.getLong(0)).thenReturn(micros);
-    when(row.isNullAt(1)).thenReturn(false);
-    when(row.getInt(1)).thenReturn(days);
-
-    Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
-
-    Assert.assertEquals(
-        Value.timestamp(Timestamp.ofTimeMicroseconds(micros)), mutation.asMap().get("ts"));
-    Assert.assertEquals(Value.date(Date.fromYearMonthDay(2024, 1, 1)), mutation.asMap().get("dt"));
   }
 
   @Test

@@ -354,7 +354,7 @@ public class SpannerDataWriterTest {
   }
 
   @Test
-  public void testSilentDataLossOnTopLevelError() throws Exception {
+  public void testNoSilentDataLossOnTopLevelError() throws Exception {
     // --- 1. SETUP MOCKS ---
     BatchClientWithCloser mockBatchClient = mock(BatchClientWithCloser.class);
     DatabaseClient mockDbClient = mock(DatabaseClient.class);
@@ -387,7 +387,6 @@ public class SpannerDataWriterTest {
     // Set low batch size to force immediate flush
     props.put("mutationsPerTransaction", "1");
 
-    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     // --- 3. EXECUTION ---
     try (SpannerDataWriter writer =
@@ -397,8 +396,8 @@ public class SpannerDataWriterTest {
             props,
             new StructType().add("col1", DataTypes.StringType),
             mockBatchClient,
-            Executors.newCachedThreadPool(),
-            scheduler)) {
+            executor,
+            scheduledExecutor)) {
       // Write a dummy row
       InternalRow row = new GenericInternalRow(new Object[] {UTF8String.fromString("data")});
       writer.write(row);

@@ -18,79 +18,85 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(Parameterized.class)
+@RunWith(Enclosed.class)
 public class SpannerWriterUtilsTest {
+  private static final String TABLE_NAME = "test_table";
 
-  private final String TABLE_NAME = "test_table";
-  private static final byte[] BYTE_DATA = {95, -10, 127};
+  @RunWith(Parameterized.class)
+  public static class ScalarTests {
+    private static final byte[] BYTE_DATA = {95, -10, 127};
 
-  // Parameters for each test case: [ColumnName, DataType, MockValue, ExpectedSpannerValue]
-  @Parameters(name = "Testing {0}")
-  public static Collection<Object[]> data() {
-    return Arrays.asList(
-        new Object[][] {
-          {"long", DataTypes.LongType, 100L, Value.int64(100L)},
-          {"string", DataTypes.StringType, "Hello", Value.string("Hello")},
-          {"boolean", DataTypes.BooleanType, true, Value.bool(true)},
-          {"double", DataTypes.DoubleType, 95.5, Value.float64(95.5)},
-          {"binary", DataTypes.BinaryType, BYTE_DATA, Value.bytes(ByteArray.copyFrom(BYTE_DATA))},
-          {
-            "ts",
-            DataTypes.TimestampType,
-            1704067200000000L,
-            Value.timestamp(Timestamp.ofTimeMicroseconds(1704067200000000L))
-          },
-          {"dt", DataTypes.DateType, 19723, Value.date(Date.fromYearMonthDay(2024, 1, 1))}
-        });
-  }
+    // Parameters for each test case: [ColumnName, DataType, MockValue, ExpectedSpannerValue]
+    @Parameters(name = "Testing {0}")
+    public static Collection<Object[]> data() {
+      return Arrays.asList(
+          new Object[][] {
+            {"long", DataTypes.LongType, 100L, Value.int64(100L)},
+            {"string", DataTypes.StringType, "Hello", Value.string("Hello")},
+            {"boolean", DataTypes.BooleanType, true, Value.bool(true)},
+            {"double", DataTypes.DoubleType, 95.5, Value.float64(95.5)},
+            {"binary", DataTypes.BinaryType, BYTE_DATA, Value.bytes(ByteArray.copyFrom(BYTE_DATA))},
+            {
+              "ts",
+              DataTypes.TimestampType,
+              1704067200000000L,
+              Value.timestamp(Timestamp.ofTimeMicroseconds(1704067200000000L))
+            },
+            {"dt", DataTypes.DateType, 19723, Value.date(Date.fromYearMonthDay(2024, 1, 1))}
+          });
+    }
 
-  @Parameter(0)
-  public String fieldName;
+    @Parameter(0)
+    public String fieldName;
 
-  @Parameter(1)
-  public DataType sparkType;
+    @Parameter(1)
+    public DataType sparkType;
 
-  @Parameter(2)
-  public Object mockValue;
+    @Parameter(2)
+    public Object mockValue;
 
-  @Parameter(3)
-  public Value expectedValue;
+    @Parameter(3)
+    public Value expectedValue;
 
-  @Test
-  public void testSimpleTypesConversion() {
-    // 1. Setup single-column schema for this parameter set
-    StructType schema = new StructType().add(fieldName, sparkType);
+    @Test
+    public void testScalarConversion() {
+      // 1. Setup single-column schema for this parameter set
+      StructType schema = new StructType().add(fieldName, sparkType);
 
-    // 2. Mock InternalRow based on the current parameter's type
-    InternalRow row = mock(InternalRow.class);
-    when(row.isNullAt(0)).thenReturn(false);
+      // 2. Mock InternalRow based on the current parameter's type
+      InternalRow row = mock(InternalRow.class);
+      when(row.isNullAt(0)).thenReturn(false);
 
-    // Setup specific getter based on type
-    if (sparkType == DataTypes.LongType) when(row.getLong(0)).thenReturn((Long) mockValue);
-    else if (sparkType == DataTypes.StringType)
-      when(row.getString(0)).thenReturn((String) mockValue);
-    else if (sparkType == DataTypes.BooleanType)
-      when(row.getBoolean(0)).thenReturn((Boolean) mockValue);
-    else if (sparkType == DataTypes.DoubleType)
-      when(row.getDouble(0)).thenReturn((Double) mockValue);
-    else if (sparkType == DataTypes.BinaryType)
-      when(row.getBinary(0)).thenReturn((byte[]) mockValue);
-    else if (sparkType == DataTypes.TimestampType)
-      when(row.getLong(0)).thenReturn((long) mockValue);
-    else if (sparkType == DataTypes.DateType) when(row.getInt(0)).thenReturn((int) mockValue);
+      // Setup specific getter based on type
+      if (sparkType == DataTypes.LongType) when(row.getLong(0)).thenReturn((Long) mockValue);
+      else if (sparkType == DataTypes.StringType)
+        when(row.getString(0)).thenReturn((String) mockValue);
+      else if (sparkType == DataTypes.BooleanType)
+        when(row.getBoolean(0)).thenReturn((Boolean) mockValue);
+      else if (sparkType == DataTypes.DoubleType)
+        when(row.getDouble(0)).thenReturn((Double) mockValue);
+      else if (sparkType == DataTypes.BinaryType)
+        when(row.getBinary(0)).thenReturn((byte[]) mockValue);
+      else if (sparkType == DataTypes.TimestampType)
+        when(row.getLong(0)).thenReturn((long) mockValue);
+      else if (sparkType == DataTypes.DateType) when(row.getInt(0)).thenReturn((int) mockValue);
 
-    // 3. Execute
-    com.google.cloud.spanner.Mutation mutation =
-        SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
+      // 3. Execute
+      com.google.cloud.spanner.Mutation mutation =
+          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
 
-    // 4. Verify the mapped value
-    Assert.assertEquals(
-        "Value mismatch for column: " + fieldName, expectedValue, mutation.asMap().get(fieldName));
+      // 4. Verify the mapped value
+      Assert.assertEquals(
+          "Value mismatch for column: " + fieldName,
+          expectedValue,
+          mutation.asMap().get(fieldName));
+    }
   }
 
   @Test

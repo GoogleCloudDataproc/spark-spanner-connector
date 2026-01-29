@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -48,9 +49,11 @@ import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -347,6 +350,70 @@ public class SpannerDataWriterTest {
       assertThat(((SpannerConnectorException) t).getErrorCode())
           .isEqualTo(SpannerErrorCode.INVALID_ARGUMENT);
       assertThat(t.getMessage()).contains("Option 'table' property must be set");
+    }
+  }
+
+  @Test
+  public void testNoSilentDataLossOnTopLevelError() throws Exception {
+    // --- 1. SETUP MOCKS ---
+    BatchClientWithCloser mockBatchClient = mock(BatchClientWithCloser.class);
+    DatabaseClient mockDbClient = mock(DatabaseClient.class);
+    mockBatchClient.databaseClient = mockDbClient;
+
+    // Create the "Toxic" Response
+    Status errorStatus =
+        Status.newBuilder()
+            .setCode(Code.UNAVAILABLE.getNumber())
+            .setMessage("Server is overloaded")
+            .build();
+
+    BatchWriteResponse.Builder toxicResponseBuilder =
+        BatchWriteResponse.newBuilder().setStatus(errorStatus).clearIndexes();
+
+    // Create a Mock object for ServerStream
+    ServerStream<BatchWriteResponse> mockStream = mock(ServerStream.class);
+
+    // Configure the mock to return an iterator over our list
+    when(mockStream.iterator())
+        .thenAnswer(i -> Collections.singletonList(toxicResponseBuilder.build()).iterator());
+
+    // Return this mock stream when the client is called
+    when(mockDbClient.batchWriteAtLeastOnce(any())).thenReturn(mockStream);
+    // --- 2. CONFIGURE WRITER ---
+    Map<String, String> props = new HashMap<>();
+    props.put("table", "test_table");
+    // ENABLE the buggy path
+    props.put("assumeIdempotentRows", "true");
+    // Set low batch size to force immediate flush
+    props.put("mutationsPerTransaction", "1");
+
+    // --- 3. EXECUTION ---
+    try (SpannerDataWriter writer =
+        new SpannerDataWriter(
+            0,
+            1L,
+            props,
+            new StructType().add("col1", DataTypes.StringType),
+            mockBatchClient,
+            executor,
+            scheduledExecutor)) {
+      // Write a dummy row
+      InternalRow row = new GenericInternalRow(new Object[] {UTF8String.fromString("data")});
+      writer.write(row);
+
+      // Commit triggers the flush and waits for results
+      try {
+        writer.commit();
+        // If we reach here, there is a bug.
+        // The writer saw "Unavailable" error, ignored it because indexes were empty,
+        // and reported success.
+        fail("The writer silently swallowed the Spanner error and reported success!");
+      } catch (IOException e) {
+        // Correct behavior: an exception was thrown.
+        // Let's also verify it's the right kind of exception.
+        assertThat(e).hasCauseThat().isInstanceOf(SpannerConnectorException.class);
+        assertThat(e.getCause().getMessage()).contains("Spanner BatchWrite failed with status");
+      }
     }
   }
 

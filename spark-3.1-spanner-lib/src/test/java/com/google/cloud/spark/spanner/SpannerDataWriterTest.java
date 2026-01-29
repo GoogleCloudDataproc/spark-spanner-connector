@@ -387,7 +387,6 @@ public class SpannerDataWriterTest {
     // Set low batch size to force immediate flush
     props.put("mutationsPerTransaction", "1");
 
-
     // --- 3. EXECUTION ---
     try (SpannerDataWriter writer =
         new SpannerDataWriter(

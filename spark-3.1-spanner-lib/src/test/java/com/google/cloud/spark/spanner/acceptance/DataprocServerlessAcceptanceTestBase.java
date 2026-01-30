@@ -55,7 +55,6 @@ import org.junit.Test;
  * requireOsLogin disabled, otherwise an org policy violation error will be thrown.
  */
 public class DataprocServerlessAcceptanceTestBase {
-  public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.1-spanner/target";
   public static final String REGION = "us-central1";
   public static final String DATAPROC_ENDPOINT = REGION + "-dataproc.googleapis.com:443";
   public static final String PROJECT_ID =
@@ -96,9 +95,12 @@ public class DataprocServerlessAcceptanceTestBase {
           testId, generateClusterName(testId), testBaseGcsDir, connectorJarUri);
 
   private final String s8sImageVersion;
+  private final String connectorJarDirectory;
   private final String connectorJarPrefix;
 
-  public DataprocServerlessAcceptanceTestBase(String connectorJarPrefix, String s8sImageVersion) {
+  public DataprocServerlessAcceptanceTestBase(
+      String connectorJarDirectory, String connectorJarPrefix, String s8sImageVersion) {
+    this.connectorJarDirectory = connectorJarDirectory;
     this.connectorJarPrefix = connectorJarPrefix;
     this.s8sImageVersion = s8sImageVersion;
   }
@@ -106,7 +108,7 @@ public class DataprocServerlessAcceptanceTestBase {
   @Before
   public void createBatchControllerClient() throws Exception {
     AcceptanceTestUtils.uploadConnectorJar(
-        CONNECTOR_JAR_DIRECTORY, connectorJarPrefix, context.connectorJarUri);
+        connectorJarDirectory, connectorJarPrefix, context.connectorJarUri);
     createSpannerDataset();
 
     batchController =

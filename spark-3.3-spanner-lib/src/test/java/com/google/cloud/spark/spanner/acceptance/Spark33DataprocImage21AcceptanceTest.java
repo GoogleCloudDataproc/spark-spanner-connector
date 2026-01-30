@@ -14,21 +14,31 @@
 
 package com.google.cloud.spark.spanner.acceptance;
 
+import com.google.common.collect.ImmutableList;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * The acceptance test on the Dataproc Serverless. The test have to be running on the project with
- * requireOsLogin disabled, otherwise an org policy violation error will be thrown.
- */
 @RunWith(JUnit4.class)
-public final class DataprocServerlessImage21AcceptanceTest
-    extends DataprocServerlessAcceptanceTestBase {
+public final class Spark33DataprocImage21AcceptanceTest extends DataprocAcceptanceTestBase {
 
   private static AcceptanceTestContext context;
-  public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.1-spanner/target";
+  public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.3-spanner/target";
 
-  public DataprocServerlessImage21AcceptanceTest() {
-    super(CONNECTOR_JAR_DIRECTORY, "spark-3.1-spanner", "2.1");
+  public Spark33DataprocImage21AcceptanceTest() {
+    super(context);
+  }
+
+  @BeforeClass
+  public static void setup() throws Exception {
+    context =
+        DataprocAcceptanceTestBase.setup(
+            "2.1-debian11", CONNECTOR_JAR_DIRECTORY, "spark-3.3-spanner", ImmutableList.of());
+  }
+
+  @AfterClass
+  public static void tearDown() throws Exception {
+    DataprocAcceptanceTestBase.tearDown(context);
   }
 }

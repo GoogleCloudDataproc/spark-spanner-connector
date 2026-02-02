@@ -35,17 +35,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <configuration>
-          <filters>
-            <filter>
-              <artifact>*:*</artifact>
-              <excludes>
-                <exclude>com/google/cloud/spark/spanner/Spark31SpannerTableProvider.class</exclude>
-                <exclude>com/google/cloud/spark/spanner/Spark32SpannerTableProvider.class</exclude>
-              </excludes>
-            </filter>
-          </filters>
-        </configuration>
       </plugin>
     </plugins>
   </build>

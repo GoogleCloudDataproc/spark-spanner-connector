@@ -1,6 +1,6 @@
 package com.google.cloud.spark.spanner.graph;
 
-import com.google.cloud.spark.spanner.SparkSpannerIntegrationTestBase;
+import com.google.cloud.spark.spanner.integration.SparkSpannerIntegrationTestBase;
 import com.google.gson.Gson;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Dataset;

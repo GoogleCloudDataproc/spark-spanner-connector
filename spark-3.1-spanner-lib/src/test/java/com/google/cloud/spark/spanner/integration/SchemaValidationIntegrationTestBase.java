@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.integration;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
+import com.google.cloud.spark.spanner.TestData;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,7 +39,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTestBase {
+public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
   private final boolean usePostgreSql;
   private final String SCHEMA_VALIDATION_TABLE_NAME = "schema_test_table";
@@ -46,7 +49,7 @@ public class SchemaValidationIntegrationTest extends SparkSpannerIntegrationTest
     return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
-  public SchemaValidationIntegrationTest(boolean usePostgreSql) {
+  public SchemaValidationIntegrationTestBase(boolean usePostgreSql) {
     super();
     this.usePostgreSql = usePostgreSql;
   }

@@ -47,7 +47,6 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
-import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -56,7 +55,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-public class SpannerDataWriterTest {
+public abstract class SpannerDataWriterTestBase {
 
   @Mock private Spanner mockSpanner;
   @Mock private DatabaseClient mockDatabaseClient;
@@ -85,12 +84,20 @@ public class SpannerDataWriterTest {
               DataTypes.createStructField("string_col", DataTypes.StringType, true),
             });
 
-    ExpressionEncoder<Row> encoder = RowEncoder.apply(schema);
+    ExpressionEncoder<Row> encoder = getEncoder(schema);
     serializer = encoder.createSerializer();
     properties = new HashMap<>();
     properties.put("table", "testTable");
     properties.put("mutationsPerBatch", "2"); // Use a small batch size for tests
   }
+
+  /**
+   * Gets an ExpressionEncoder, the implementation of which depends on the version of Spark used.
+   *
+   * @param struct used to determine the Encoder.
+   * @return The ExpressionEncoder.
+   */
+  protected abstract ExpressionEncoder<Row> getEncoder(StructType struct);
 
   private SpannerDataWriter createWriter(Map<String, String> props) {
     return new SpannerDataWriter(

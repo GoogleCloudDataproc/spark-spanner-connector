@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.integration;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.spark.spanner.SpannerConnectorException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,7 @@ import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.junit.Test;
 
-public class ReadIntegrationTestPg extends SparkSpannerIntegrationTestBase {
+public abstract class ReadPgIntegrationTestBase extends SparkSpannerIntegrationTestBase {
   private static Encoder<String> STRING_ENCODER = Encoders.STRING();
   private static int ROW_NUM_COMPOSITE_TABLE = 10;
 

@@ -1,4 +1,4 @@
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.integration;
 
 import static com.google.common.truth.Truth.assertThat;
 

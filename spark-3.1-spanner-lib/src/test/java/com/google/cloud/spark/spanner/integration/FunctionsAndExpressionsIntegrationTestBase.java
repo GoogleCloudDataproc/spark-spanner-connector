@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.integration;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -33,7 +33,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class FunctionsAndExpressionsIntegrationTest extends SparkSpannerIntegrationTestBase {
+public abstract class FunctionsAndExpressionsIntegrationTestBase
+    extends SparkSpannerIntegrationTestBase {
 
   private static final Map<String, Collection<String>> FILTER_DATA =
       ImmutableMap.<String, Collection<String>>builder()
@@ -80,7 +81,7 @@ public class FunctionsAndExpressionsIntegrationTest extends SparkSpannerIntegrat
 
   private boolean isPostgreSql;
 
-  public FunctionsAndExpressionsIntegrationTest(boolean isPostgreSql) {
+  public FunctionsAndExpressionsIntegrationTestBase(boolean isPostgreSql) {
     this.isPostgreSql = isPostgreSql;
   }
 

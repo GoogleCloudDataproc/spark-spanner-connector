@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.integration;
 
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
@@ -27,6 +27,10 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spark.spanner.SpannerTable;
+import com.google.cloud.spark.spanner.SpannerTestUtils;
+import com.google.cloud.spark.spanner.SpannerUtils;
+import com.google.cloud.spark.spanner.TestData;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.micrometer.observation.Observation.CheckedRunnable;

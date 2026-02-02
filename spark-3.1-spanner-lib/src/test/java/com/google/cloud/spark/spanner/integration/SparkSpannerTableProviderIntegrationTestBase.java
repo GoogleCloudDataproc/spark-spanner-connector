@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.integration;
 
 import static org.junit.Assert.*;
 
+import com.google.cloud.spark.spanner.Spark31SpannerTableProvider;
+import com.google.cloud.spark.spanner.TestData;
 import java.util.Arrays;
 import java.util.Map;
 import org.apache.spark.sql.connector.catalog.Table;

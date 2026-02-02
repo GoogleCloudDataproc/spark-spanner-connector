@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.integration;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.spark.spanner.SpannerTable;
+import com.google.cloud.spark.spanner.SpannerUtils;
 import java.util.Arrays;
 import java.util.Map;
 import org.apache.spark.sql.types.DataTypes;
@@ -27,7 +29,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SpannerTableIntegrationTest extends SpannerTestBase {
+public abstract class SpannerTableIntegrationTestBase extends SpannerTestBase {
 
   @Test
   public void querySchemaShouldSuccessInSpannerTable() {

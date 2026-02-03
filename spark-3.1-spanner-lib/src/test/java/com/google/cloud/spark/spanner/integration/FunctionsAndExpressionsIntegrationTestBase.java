@@ -31,10 +31,15 @@ import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(Parameterized.class)
 public abstract class FunctionsAndExpressionsIntegrationTestBase
     extends SparkSpannerIntegrationTestBase {
+
+  private static final Logger logger =
+      LoggerFactory.getLogger(FunctionsAndExpressionsIntegrationTestBase.class);
 
   private static final Map<String, Collection<String>> FILTER_DATA =
       ImmutableMap.<String, Collection<String>>builder()
@@ -72,7 +77,7 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
   @Parameterized.Parameters(name = "{index}: isPostgreSql={0}")
   public static Iterable<Object[]> data() {
     if (emulatorHost != null && !emulatorHost.isEmpty()) {
-      System.out.println(
+      logger.info(
           "FunctionsAndExpressionsIntegrationTest is skipped since pg is not supported in Spanner emulator");
       return ImmutableList.of(new Object[] {false});
     }

@@ -26,10 +26,6 @@
   <dependencies>
     <dependency>
       <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-spanner</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-dataproc</artifactId>
       <scope>test</scope>
     </dependency>
@@ -45,11 +41,6 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-<!--    <dependency>-->
-<!--      <groupId>${project.groupId}</groupId>-->
-<!--      <artifactId>spark-3.1-spanner-lib</artifactId>-->
-<!--      <version>${project.version}</version>-->
-<!--    </dependency>-->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>spark-3.2-spanner-lib</artifactId>

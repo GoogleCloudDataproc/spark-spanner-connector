@@ -16,7 +16,7 @@ package com.google.cloud.spark.spanner.integration;
 
 import static org.junit.Assert.*;
 
-import com.google.cloud.spark.spanner.Spark31SpannerTableProvider;
+import com.google.cloud.spark.spanner.SparkSpannerTableProviderBase;
 import com.google.cloud.spark.spanner.TestData;
 import java.util.Arrays;
 import java.util.Map;
@@ -25,12 +25,16 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
-public class SparkSpannerTableProviderIntegrationTestBase extends SparkSpannerIntegrationTestBase {
+public abstract class SparkSpannerTableProviderIntegrationTestBase<
+        T extends SparkSpannerTableProviderBase>
+    extends SparkSpannerIntegrationTestBase {
+
+  protected abstract T getInstance();
 
   @Test
   public void getTableForWrite_withenablePartialRowUpdates_returnsTableWithDataFrameSchema() {
     // Arrange
-    Spark31SpannerTableProvider provider = new Spark31SpannerTableProvider();
+    T provider = getInstance();
     Map<String, String> props = connectionProperties();
     props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
@@ -51,7 +55,7 @@ public class SparkSpannerTableProviderIntegrationTestBase extends SparkSpannerIn
   @Test
   public void getTableForWrite_withoutenablePartialRowUpdates_returnsTableWithFullSchema() {
     // Arrange
-    Spark31SpannerTableProvider provider = new Spark31SpannerTableProvider();
+    T provider = getInstance();
     Map<String, String> props = connectionProperties();
     props.put("table", TestData.WRITE_TABLE_NAME);
     // enablePartialRowUpdates is not set.
@@ -80,7 +84,7 @@ public class SparkSpannerTableProviderIntegrationTestBase extends SparkSpannerIn
   @Test
   public void getTableAllowsLowerCaseProperties() {
     // Arrange
-    Spark31SpannerTableProvider provider = new Spark31SpannerTableProvider();
+    T provider = getInstance();
     Map<String, String> props = connectionPropertiesLowerCase(false);
 
     final StructType partialSchema = new StructType().add("long_col", DataTypes.LongType, false);

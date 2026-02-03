@@ -14,5 +14,12 @@
 
 package com.google.cloud.spark.spanner.integration;
 
+import com.google.cloud.spark.spanner.Spark32SpannerTableProvider;
+
 public class Spark32SpannerTableProviderIntegrationTest
-    extends SparkSpannerTableProviderIntegrationTestBase {}
+    extends SparkSpannerTableProviderIntegrationTestBase<Spark32SpannerTableProvider> {
+
+  protected Spark32SpannerTableProvider getInstance() {
+    return new Spark32SpannerTableProvider();
+  }
+}

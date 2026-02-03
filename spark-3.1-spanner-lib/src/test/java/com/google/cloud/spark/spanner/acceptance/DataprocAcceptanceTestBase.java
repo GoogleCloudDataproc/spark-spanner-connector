@@ -283,7 +283,7 @@ public class DataprocAcceptanceTestBase {
       throws Exception {
     String clusterName = generateClusterName(testId);
     logger.info(
-        "createClusterIfNeeded clusterName: %s, testId: %s, dataprocImageVersion: %s, connectorJarUri: %s, PROJECT_ID: %s, REGION: %s%n",
+        "createClusterIfNeeded clusterName: %s, testId: %s, dataprocImageVersion: %s, connectorJarUri: %s, PROJECT_ID: %s, REGION: %s",
         clusterName, testId, dataprocImageVersion, connectorJarUri, PROJECT_ID, REGION);
     cluster(
         client ->

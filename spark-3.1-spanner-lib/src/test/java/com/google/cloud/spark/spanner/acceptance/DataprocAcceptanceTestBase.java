@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 
 public class DataprocAcceptanceTestBase {
 
-  public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.1-spanner/target";
   public static final String REGION = "us-central1";
   public static final String DATAPROC_ENDPOINT = REGION + "-dataproc.googleapis.com:443";
   public static final String PROJECT_ID =
@@ -164,6 +163,7 @@ public class DataprocAcceptanceTestBase {
 
   protected static AcceptanceTestContext setup(
       String dataprocImageVersion,
+      String connectorJarDirectory,
       String connectorJarPrefix,
       List<ClusterProperty> clusterProperties)
       throws Exception {
@@ -186,7 +186,7 @@ public class DataprocAcceptanceTestBase {
     String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
     String connectorJarUri = testBaseGcsDir + "/connector.jar";
     AcceptanceTestUtils.uploadConnectorJar(
-        CONNECTOR_JAR_DIRECTORY, connectorJarPrefix, connectorJarUri);
+        connectorJarDirectory, connectorJarPrefix, connectorJarUri);
 
     String clusterName =
         createClusterIfNeeded(dataprocImageVersion, testId, properties, connectorJarUri);
@@ -282,6 +282,14 @@ public class DataprocAcceptanceTestBase {
       String connectorJarUri)
       throws Exception {
     String clusterName = generateClusterName(testId);
+    logger.info(
+        "createClusterIfNeeded clusterName: {}, testId: {}, dataprocImageVersion: {}, connectorJarUri: {}, PROJECT_ID: {}, REGION: {}",
+        clusterName,
+        testId,
+        dataprocImageVersion,
+        connectorJarUri,
+        PROJECT_ID,
+        REGION);
     cluster(
         client ->
             client

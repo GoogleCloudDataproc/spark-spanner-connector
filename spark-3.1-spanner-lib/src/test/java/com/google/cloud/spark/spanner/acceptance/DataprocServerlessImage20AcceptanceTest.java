@@ -26,8 +26,9 @@ public final class DataprocServerlessImage20AcceptanceTest
     extends DataprocServerlessAcceptanceTestBase {
 
   private static AcceptanceTestContext context;
+  public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.1-spanner/target";
 
   public DataprocServerlessImage20AcceptanceTest() {
-    super("spark-3.1-spanner", "2.0");
+    super(CONNECTOR_JAR_DIRECTORY, "spark-3.1-spanner", "2.0");
   }
 }

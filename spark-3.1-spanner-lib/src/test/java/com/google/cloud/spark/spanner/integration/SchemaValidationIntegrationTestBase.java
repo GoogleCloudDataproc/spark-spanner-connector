@@ -41,8 +41,8 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
-  private final boolean usePostgreSql;
-  private final String SCHEMA_VALIDATION_TABLE_NAME = "schema_test_table";
+  protected final boolean usePostgreSql;
+  protected final String SCHEMA_VALIDATION_TABLE_NAME = "schema_test_table";
 
   @Parameters
   public static Collection<Object[]> data() {

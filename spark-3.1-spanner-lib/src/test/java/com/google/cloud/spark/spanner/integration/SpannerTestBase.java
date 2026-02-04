@@ -19,12 +19,14 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.InstanceAdminClient;
 import com.google.cloud.spanner.InstanceConfigId;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.InstanceInfo;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spark.spanner.SpannerTable;
@@ -167,13 +169,23 @@ class SpannerTestBase {
 
     // Create the instance.
     InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
+
+    // Check if the instance already exists first to avoid hitting createInstance quota.
     InstanceInfo instanceInfo =
         InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
             .setInstanceConfigId(InstanceConfigId.of(projectId, instanceConfigId))
             .setNodeCount(1)
             .setDisplayName("SparkSpanner Test")
             .build();
-    runIgnoringAlreadyExist(() -> instanceAdminClient.createInstance(instanceInfo).get());
+    try {
+      instanceAdminClient.getInstance(instanceId);
+    } catch (SpannerException e) {
+      if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
+        runIgnoringAlreadyExist(() -> instanceAdminClient.createInstance(instanceInfo).get());
+      } else {
+        throw e;
+      }
+    }
 
     // Create the database and populate data
     log.info("\033[34mInitializing databases!\033[00m");

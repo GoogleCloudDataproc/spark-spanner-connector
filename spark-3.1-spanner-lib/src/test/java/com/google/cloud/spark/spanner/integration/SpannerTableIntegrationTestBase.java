@@ -29,7 +29,11 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
+<<<<<<<< HEAD:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/integration/SpannerTableIntegrationTestBase.java
 public abstract class SpannerTableIntegrationTestBase extends SpannerTestBase {
+========
+public class SpannerTableIntegrationTest extends SpannerTestBase {
+>>>>>>>> main:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/SpannerTableIntegrationTest.java
 
   @Test
   public void querySchemaShouldSuccessInSpannerTable() {

@@ -35,11 +35,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RunWith(Parameterized.class)
+<<<<<<<< HEAD:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/integration/FunctionsAndExpressionsIntegrationTestBase.java
 public abstract class FunctionsAndExpressionsIntegrationTestBase
     extends SparkSpannerIntegrationTestBase {
 
   private static final Logger logger =
       LoggerFactory.getLogger(FunctionsAndExpressionsIntegrationTestBase.class);
+========
+public class FunctionsAndExpressionsIntegrationTest extends SparkSpannerIntegrationTestBase {
+>>>>>>>> main:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/FunctionsAndExpressionsIntegrationTest.java
 
   private static final Map<String, Collection<String>> FILTER_DATA =
       ImmutableMap.<String, Collection<String>>builder()
@@ -77,7 +81,11 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
   @Parameterized.Parameters(name = "{index}: isPostgreSql={0}")
   public static Iterable<Object[]> data() {
     if (emulatorHost != null && !emulatorHost.isEmpty()) {
+<<<<<<<< HEAD:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/integration/FunctionsAndExpressionsIntegrationTestBase.java
       logger.info(
+========
+      System.out.println(
+>>>>>>>> main:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/FunctionsAndExpressionsIntegrationTest.java
           "FunctionsAndExpressionsIntegrationTest is skipped since pg is not supported in Spanner emulator");
       return ImmutableList.of(new Object[] {false});
     }
@@ -86,7 +94,11 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
 
   private boolean isPostgreSql;
 
+<<<<<<<< HEAD:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/integration/FunctionsAndExpressionsIntegrationTestBase.java
   public FunctionsAndExpressionsIntegrationTestBase(boolean isPostgreSql) {
+========
+  public FunctionsAndExpressionsIntegrationTest(boolean isPostgreSql) {
+>>>>>>>> main:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/FunctionsAndExpressionsIntegrationTest.java
     this.isPostgreSql = isPostgreSql;
   }
 

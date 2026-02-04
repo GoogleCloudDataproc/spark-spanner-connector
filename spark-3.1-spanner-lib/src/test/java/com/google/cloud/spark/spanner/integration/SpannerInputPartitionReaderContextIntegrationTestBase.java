@@ -48,8 +48,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
+<<<<<<<< HEAD:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/integration/SpannerInputPartitionReaderContextIntegrationTestBase.java
 public abstract class SpannerInputPartitionReaderContextIntegrationTestBase
     extends SpannerTestBase {
+========
+public class SpannerInputPartitionReaderContextIntegrationTest extends SpannerTestBase {
+>>>>>>>> main:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/SpannerInputPartitionReaderContextIntegrationTest.java
 
   @Test
   public void testCreatePartitionContext() throws Exception {

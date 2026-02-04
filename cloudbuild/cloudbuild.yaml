@@ -11,18 +11,24 @@ steps:
     entrypoint: 'bash'
     args: ['/workspace/cloudbuild/presubmit.sh', 'init']
 
-  # TODO: Re-enable the tests below after fixing the permission issue.
+  # 3. Run unit tests
+  - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
+    id: 'unit-tests'
+    waitFor: ['init']
+    entrypoint: 'bash'
+    args: ['/workspace/cloudbuild/presubmit.sh', 'unittest']
 
-  # # 3. Run integration tests with real Spanner databases
+  # TODO: Re-enable the ITs below after fixing the permission issue.
+  # 4. Run integration tests with real Spanner databases
   # - name: 'gcr.io/$PROJECT_ID/dataproc-spark-spanner-connector-presubmit'
-  #   id: 'integration-real-spanner'
-  #   waitFor: ['init']
-  #   entrypoint: 'bash'
-  #   args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest-real-spanner']
-  #   env:
-  #     - 'SPANNER_PROJECT_ID=$PROJECT_ID'
-  #     - 'SPANNER_INSTANCE_ID=test-instance'
-  #     - 'SPANNER_DATABASE_ID=testdb'
+  #  id: 'integration-real-spanner'
+  #  waitFor: ['init']
+  #  entrypoint: 'bash'
+  #  args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest-real-spanner']
+  #  env:
+  #    - 'SPANNER_PROJECT_ID=${_GOOGLE_CLOUD_PROJECT}'
+  #    - 'SPANNER_INSTANCE_ID=test-instance'
+  #    - 'SPANNER_DATABASE_ID=testdb'
 
   # # 4. Run acceptance tests by creating real Dataproc clusters.
   # # TODO: Make the acceptance test run in parallel with integration-real-spanner.

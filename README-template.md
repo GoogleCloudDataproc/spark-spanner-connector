@@ -53,6 +53,8 @@ You can find the released jar file from the Releases tag on right of the github 
 | spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |
 | spark-3.5-spanner          |         |         |         |         |         | &check; |                         | &check;                 |                         |                         | &check;                 |
 
+Note 1: Dataproc compatibility to be tested.
+
 ### Maven / Ivy Package
 
 The connector is not available on the Maven Central yet.

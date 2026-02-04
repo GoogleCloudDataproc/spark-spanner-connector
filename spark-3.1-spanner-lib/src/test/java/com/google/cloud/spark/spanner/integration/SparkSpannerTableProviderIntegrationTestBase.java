@@ -14,7 +14,9 @@
 
 package com.google.cloud.spark.spanner.integration;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.spark.spanner.SparkSpannerTableProviderBase;
 import com.google.cloud.spark.spanner.TestData;

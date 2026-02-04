@@ -32,6 +32,9 @@ jobs:
       - name: Build for Spark 3.3
         run: |
           mvn -B -e install -P3.3 -DskipTests
+      - name: Build for Spark 3.5
+        run: |
+          mvn -B -e install -P3.5 -DskipTests
       - name: Get short commit hash
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT

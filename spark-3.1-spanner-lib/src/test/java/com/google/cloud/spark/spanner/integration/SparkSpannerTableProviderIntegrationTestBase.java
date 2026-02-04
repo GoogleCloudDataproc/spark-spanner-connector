@@ -25,15 +25,11 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
-<<<<<<<< HEAD:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/integration/SparkSpannerTableProviderIntegrationTestBase.java
 public abstract class SparkSpannerTableProviderIntegrationTestBase<
         T extends SparkSpannerTableProviderBase>
     extends SparkSpannerIntegrationTestBase {
 
   protected abstract T getInstance();
-========
-public class Spark31SpannerTableProviderIntegrationTest extends SparkSpannerIntegrationTestBase {
->>>>>>>> main:spark-3.1-spanner-lib/src/test/java/com/google/cloud/spark/spanner/Spark31SpannerTableProviderIntegrationTest.java
 
   @Test
   public void getTableForWrite_withenablePartialRowUpdates_returnsTableWithDataFrameSchema() {

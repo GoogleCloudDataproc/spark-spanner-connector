@@ -8,7 +8,7 @@ import org.apache.spark.sql.Row;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class GraphReadIntegrationTest extends GraphReadIntegrationTestBase {
+public abstract class GraphReadIntegrationTest extends GraphReadIntegrationTestBase {
 
   @Test
   public void testFlexibleGraphConfigs() {

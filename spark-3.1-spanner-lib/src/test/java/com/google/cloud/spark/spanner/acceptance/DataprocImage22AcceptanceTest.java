@@ -24,6 +24,7 @@ import org.junit.runners.JUnit4;
 public final class DataprocImage22AcceptanceTest extends DataprocAcceptanceTestBase {
 
   private static AcceptanceTestContext context;
+  public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.1-spanner/target";
 
   public DataprocImage22AcceptanceTest() {
     super(context);
@@ -32,7 +33,8 @@ public final class DataprocImage22AcceptanceTest extends DataprocAcceptanceTestB
   @BeforeClass
   public static void setup() throws Exception {
     context =
-        DataprocAcceptanceTestBase.setup("2.2-debian12", "spark-3.1-spanner", ImmutableList.of());
+        DataprocAcceptanceTestBase.setup(
+            "2.2-debian12", CONNECTOR_JAR_DIRECTORY, "spark-3.1-spanner", ImmutableList.of());
   }
 
   @AfterClass

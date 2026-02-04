@@ -17,7 +17,11 @@ package com.google.cloud.spark.spanner.integration;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.spark.spanner.*;
+import com.google.cloud.spark.spanner.SpannerInputPartitionReaderContext;
+import com.google.cloud.spark.spanner.SpannerPartitionReader;
+import com.google.cloud.spark.spanner.SpannerScanBuilder;
+import com.google.cloud.spark.spanner.SpannerScanner;
+import com.google.cloud.spark.spanner.SpannerUtils;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;

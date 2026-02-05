@@ -1,5 +1,7 @@
 # Release Notes
 
+## Next
+
 ## 1.2.2 - 2026-02-05
 
 *   Artifacts are now published to Maven Central.

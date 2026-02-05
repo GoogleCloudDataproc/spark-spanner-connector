@@ -23,13 +23,13 @@ cd /workspace
 case $STEP in
   # Download maven and all the dependencies
   init)
-    $MVN install -DskipTests -P3.1,3.2,3.3
+    $MVN install -DskipTests -P3.1,3.2,3.3,3.5
     exit
     ;;
 
   # Run unit tests
   unittest)
-    $MVN test -T 1C -P3.1,3.2,3.3
+    $MVN test -T 1C -P3.1,3.2,3.3,3.5
     ;;
 
 
@@ -37,11 +37,11 @@ case $STEP in
   integrationtest-real-spanner)
     # Starts the Spanner emulator and setup the gcloud command.
     # Sets the env used in the integration test.
-    $MVN -P3.1,3.2,3.3,integration failsafe:integration-test failsafe:verify
+    $MVN -P3.1,3.2,3.3,3.5,integration failsafe:integration-test failsafe:verify
     ;;
 
   acceptance-test)
-    $MVN -P3.1,3.2,3.3,acceptance failsafe:integration-test failsafe:verify
+    $MVN -P3.1,3.2,3.3,3.5,acceptance failsafe:integration-test failsafe:verify
     ;;
 
   *)

@@ -57,7 +57,17 @@ Note 1: Dataproc compatibility to be tested.
 
 ### Maven / Ivy Package
 
-The connector is not available on the Maven Central yet.
+The connector is also available from the
+[Maven Central](https://repo1.maven.org/maven2/com/google/cloud/spark/spanner/)
+repository. It can be used using the `--packages` option or the
+`spark.jars.packages` configuration property. Use the following value
+
+| version    | Connector Artifact                                                                 |
+|------------|------------------------------------------------------------------------------------|
+| Spark 3.5  | `com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag}`                    |
+| Spark 3.3  | `com.google.cloud.spark.spanner:spark-3.3-spanner:${next-release-tag}`                    |
+| Spark 3.2  | `com.google.cloud.spark.spanner:spark-3.2-spanner:${next-release-tag}`                    |
+| Spark 3.1  | `com.google.cloud.spark.spanner:spark-3.1-spanner:${next-release-tag}`                    |
 
 ### Specifying the Spark Spanner connector version in a Dataproc cluster
 
@@ -70,7 +80,7 @@ gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
 ```
 ## Usage
 
-The connector supports exporting both tables and graphs from Spanner.
+The connector supports exporting both tables and graphs from Spanner, and importing to Spanner (Preview).
 It uses the cross language
 [Spark SQL Data Source API](https://spark.apache.org/docs/latest/sql-data-sources.html)
 to communicate with the

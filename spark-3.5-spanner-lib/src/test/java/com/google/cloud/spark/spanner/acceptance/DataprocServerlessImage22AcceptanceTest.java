@@ -25,7 +25,6 @@ import org.junit.runners.JUnit4;
 public final class DataprocServerlessImage22AcceptanceTest
     extends DataprocServerlessAcceptanceTestBase {
 
-  private static AcceptanceTestContext context;
   public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.5-spanner/target";
 
   public DataprocServerlessImage22AcceptanceTest() {

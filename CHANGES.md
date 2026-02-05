@@ -3,6 +3,7 @@
 ## Next
 
 *   Artifacts are now published to Maven Central.
+*   Add support for Spanner Spark 3.5 connector.
 
 ## 1.2.0 - 2026-01-20
 

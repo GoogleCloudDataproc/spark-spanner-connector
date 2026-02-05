@@ -7,10 +7,10 @@ import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
+import java.util.Collections;
+import java.util.function.BiConsumer;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.DataType;
@@ -99,131 +99,194 @@ public class SpannerWriterUtilsTest {
     }
   }
 
-  @Test
-  public void testNullHandling() {
-    StructType schema =
-        new StructType()
-            .add("long", DataTypes.LongType)
-            .add("string", DataTypes.StringType)
-            .add("boolean", DataTypes.BooleanType)
-            .add("double", DataTypes.DoubleType)
-            .add("binary", DataTypes.BinaryType)
-            .add("timestamp", DataTypes.TimestampType)
-            .add("date", DataTypes.DateType)
-            .add("long_array", DataTypes.createArrayType(DataTypes.LongType))
-            .add("str_array", DataTypes.createArrayType(DataTypes.StringType))
-            .add("boolean_array", DataTypes.createArrayType(DataTypes.BooleanType))
-            .add("double_array", DataTypes.createArrayType(DataTypes.DoubleType))
-            .add("binary_array", DataTypes.createArrayType(DataTypes.BinaryType))
-            .add("timestamp_array", DataTypes.createArrayType(DataTypes.TimestampType))
-            .add("date_array", DataTypes.createArrayType(DataTypes.DateType));
-    InternalRow row = mock(InternalRow.class);
+  @RunWith(Parameterized.class)
+  public static class NullTests {
 
-    // Simulate a null value in Spark
-    when(row.isNullAt(anyInt())).thenReturn(true);
-
-    Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
-
-    Assert.assertEquals(Value.int64(null), mutation.asMap().get("long"));
-    Assert.assertEquals(Value.string(null), mutation.asMap().get("string"));
-    Assert.assertEquals(Value.bool(null), mutation.asMap().get("boolean"));
-    Assert.assertEquals(Value.float64(null), mutation.asMap().get("double"));
-    Assert.assertEquals(Value.bytes(null), mutation.asMap().get("binary"));
-    Assert.assertEquals(Value.timestamp(null), mutation.asMap().get("timestamp"));
-    Assert.assertEquals(Value.date(null), mutation.asMap().get("date"));
-    Assert.assertEquals(Value.int64Array((long[]) null), mutation.asMap().get("long_array"));
-    Assert.assertEquals(Value.stringArray(null), mutation.asMap().get("str_array"));
-    Assert.assertEquals(Value.boolArray((boolean[]) null), mutation.asMap().get("boolean_array"));
-    Assert.assertEquals(Value.float64Array((double[]) null), mutation.asMap().get("double_array"));
-    Assert.assertEquals(Value.bytesArray(null), mutation.asMap().get("binary_array"));
-    Assert.assertEquals(Value.timestampArray(null), mutation.asMap().get("timestamp_array"));
-    Assert.assertEquals(Value.dateArray(null), mutation.asMap().get("date_array"));
-  }
-
-  @Test
-  public void testScalarArrayConversion() {
-    StructType schema =
-        new StructType()
-            .add("long_array", DataTypes.createArrayType(DataTypes.LongType))
-            .add("str_array", DataTypes.createArrayType(DataTypes.StringType))
-            .add("boolean_array", DataTypes.createArrayType(DataTypes.BooleanType))
-            .add("double_array", DataTypes.createArrayType(DataTypes.DoubleType))
-            .add("binary_array", DataTypes.createArrayType(DataTypes.BinaryType));
-
-    InternalRow row = mock(InternalRow.class);
-    ArrayData arrayData = mock(ArrayData.class);
-
-    long[] longData = {1L, 2L, 3L};
-    when(row.isNullAt(0)).thenReturn(false);
-    when(row.getArray(0)).thenReturn(arrayData);
-    when(arrayData.toLongArray()).thenReturn(longData);
-
-    Object[] stringObjectData = {"A", "B"};
-    Iterable<String> stringData =
-        java.util.Arrays.stream(stringObjectData)
-            .map(item -> item == null ? null : item.toString())
-            .collect(java.util.stream.Collectors.toList());
-    when(row.isNullAt(1)).thenReturn(false);
-    when(row.getArray(1)).thenReturn(arrayData);
-    when(arrayData.toObjectArray(DataTypes.StringType)).thenReturn(stringObjectData);
-
-    boolean[] booleanData = {true, false};
-    when(row.isNullAt(2)).thenReturn(false);
-    when(row.getArray(2)).thenReturn(arrayData);
-    when(arrayData.toBooleanArray()).thenReturn(booleanData);
-
-    double[] doubleData = {95.5, -10.88};
-    when(row.isNullAt(3)).thenReturn(false);
-    when(row.getArray(3)).thenReturn(arrayData);
-    when(arrayData.toDoubleArray()).thenReturn(doubleData);
-
-    byte[] byteData = {95, 10, 127};
-    Object[] byteObjectData = new Object[] {byteData, null};
-    when(row.isNullAt(4)).thenReturn(false);
-    when(row.getArray(4)).thenReturn(arrayData);
-    when(arrayData.toObjectArray(DataTypes.BinaryType)).thenReturn(byteObjectData);
-
-    // Execute
-    Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
-
-    Assert.assertEquals(Value.int64Array(longData), mutation.asMap().get("long_array"));
-    Assert.assertEquals(Value.stringArray(stringData), mutation.asMap().get("str_array"));
-    Assert.assertEquals(Value.boolArray(booleanData), mutation.asMap().get("boolean_array"));
-    Assert.assertEquals(Value.float64Array(doubleData), mutation.asMap().get("double_array"));
-
-    // Construct expected Spanner Value
-    List<ByteArray> expectedByteList = Arrays.asList(ByteArray.copyFrom(byteData), null);
-    Assert.assertEquals(Value.bytesArray(expectedByteList), mutation.asMap().get("binary_array"));
-  }
-
-  @Test
-  public void testTimestampAndDateArrays() {
-    StructType schema =
-        new StructType()
-            .add("timestamp_array", DataTypes.createArrayType(DataTypes.TimestampType))
-            .add("date_array", DataTypes.createArrayType(DataTypes.DateType));
-    // Note: As of 2026, ensure your logic accounts for modern epoch handling
-    long[] micros = {1704067200000000L}; // 2024-01-01 00:00:00
-    List<Timestamp> timestamps = new ArrayList<>(micros.length);
-    for (long micro : micros) {
-      timestamps.add(Timestamp.ofTimeMicroseconds(micro));
+    // Parameters for each test case: [ColumnName, DataType, ExpectedSpannerValue]
+    @Parameters(name = "Testing {0}")
+    public static Collection<Object[]> data() {
+      return Arrays.asList(
+          new Object[][] {
+            {"long", DataTypes.LongType, Value.int64(null)},
+            {"string", DataTypes.StringType, Value.string(null)},
+            {"boolean", DataTypes.BooleanType, Value.bool(null)},
+            {"double", DataTypes.DoubleType, Value.float64(null)},
+            {"binary", DataTypes.BinaryType, Value.bytes(null)},
+            {"timestamp", DataTypes.TimestampType, Value.timestamp(null)},
+            {"date", DataTypes.DateType, Value.date(null)},
+            {
+              "long_array",
+              DataTypes.createArrayType(DataTypes.LongType),
+              Value.int64Array((long[]) null)
+            },
+            {"str_array", DataTypes.createArrayType(DataTypes.StringType), Value.stringArray(null)},
+            {
+              "boolean_array",
+              DataTypes.createArrayType(DataTypes.BooleanType),
+              Value.boolArray((boolean[]) null)
+            },
+            {
+              "double_array",
+              DataTypes.createArrayType(DataTypes.DoubleType),
+              Value.float64Array((double[]) null)
+            },
+            {
+              "binary_array",
+              DataTypes.createArrayType(DataTypes.BinaryType),
+              Value.bytesArray(null)
+            },
+            {
+              "timestamp_array",
+              DataTypes.createArrayType(DataTypes.TimestampType),
+              Value.timestampArray(null)
+            },
+            {"date_array", DataTypes.createArrayType(DataTypes.DateType), Value.dateArray(null)}
+          });
     }
-    int[] days = {19723}; // 2024-01-01 in epoch days
-    List<Date> dates = new ArrayList<>(days.length);
-    dates.add(Date.fromYearMonthDay(2024, 1, 1));
 
-    InternalRow row = mock(InternalRow.class);
-    ArrayData arrayData = mock(ArrayData.class);
+    @Parameter(0)
+    public String fieldName;
 
-    when(row.isNullAt(0)).thenReturn(false);
-    when(row.getArray(0)).thenReturn(arrayData);
-    when(arrayData.toLongArray()).thenReturn(micros);
-    when(row.isNullAt(1)).thenReturn(false);
-    when(row.getArray(1)).thenReturn(arrayData);
-    when(arrayData.toIntArray()).thenReturn(days);
+    @Parameter(1)
+    public DataType sparkType;
 
-    Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
-    Assert.assertEquals(Value.timestampArray(timestamps), mutation.asMap().get("timestamp_array"));
-    Assert.assertEquals(Value.dateArray(dates), mutation.asMap().get("date_array"));
+    @Parameter(2)
+    public Value expectedValue;
+
+    @Test
+    public void testNullHandling() {
+      // 1. Setup single-column schema for this parameter set
+      StructType schema = new StructType().add(fieldName, sparkType);
+
+      // 2. Mock InternalRow based on the current parameter's type
+      InternalRow row = mock(InternalRow.class);
+
+      // Simulate a null value in Spark
+      when(row.isNullAt(0)).thenReturn(true);
+
+      // 2. Execute
+      Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
+
+      // 4. Verify the mapped value
+      Assert.assertEquals(expectedValue, mutation.asMap().get(fieldName));
+    }
+  }
+
+  @RunWith(Parameterized.class)
+  public static class ScalarArrayTests {
+
+    private final String colName;
+    private final DataType sparkType;
+    private final Object inputData;
+    private final Value expectedValue;
+    private final BiConsumer<ArrayData, Object> mockSetup;
+
+    public ScalarArrayTests(
+        String colName,
+        DataType sparkType,
+        Object inputData,
+        Value expectedValue,
+        BiConsumer<ArrayData, Object> mockSetup) {
+      this.colName = colName;
+      this.sparkType = sparkType;
+      this.inputData = inputData;
+      this.expectedValue = expectedValue;
+      this.mockSetup = mockSetup;
+    }
+
+    @Parameters(name = "{0}")
+    public static Collection<Object[]> data() {
+      return Arrays.asList(
+          new Object[][] {
+            // 1. Long Array
+            {
+              "long_array",
+              DataTypes.LongType,
+              new long[] {1L, 2L, 3L},
+              Value.int64Array(new long[] {1L, 2L, 3L}),
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) -> when(ad.toLongArray()).thenReturn((long[]) d)
+            },
+
+            // 2. String Array
+            {
+              "str_array",
+              DataTypes.StringType,
+              new Object[] {"A", "B"},
+              Value.stringArray(Arrays.asList("A", "B")),
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) -> when(ad.toObjectArray(DataTypes.StringType)).thenReturn((Object[]) d)
+            },
+
+            // 3. Boolean Array
+            {
+              "boolean_array",
+              DataTypes.BooleanType,
+              new boolean[] {true, false},
+              Value.boolArray(new boolean[] {true, false}),
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) -> when(ad.toBooleanArray()).thenReturn((boolean[]) d)
+            },
+
+            // 4. Double Array
+            {
+              "double_array",
+              DataTypes.DoubleType,
+              new double[] {95.5, -10.88},
+              Value.float64Array(new double[] {95.5, -10.88}),
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) -> when(ad.toDoubleArray()).thenReturn((double[]) d)
+            },
+
+            // 5. Binary Array (Array[Byte])
+            {
+              "binary_array",
+              DataTypes.BinaryType,
+              new Object[] {new byte[] {95, 10, 127}, null},
+              Value.bytesArray(Arrays.asList(ByteArray.copyFrom(new byte[] {95, 10, 127}), null)),
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) -> when(ad.toObjectArray(DataTypes.BinaryType)).thenReturn((Object[]) d)
+            },
+
+            // 6. Timestamp Array (Stored as microseconds in Spark)
+            {
+              "timestamp_array",
+              DataTypes.TimestampType,
+              new long[] {1704067200000000L},
+              Value.timestampArray(
+                  Collections.singletonList(Timestamp.ofTimeMicroseconds(1704067200000000L))),
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) -> when(ad.toLongArray()).thenReturn((long[]) d)
+            },
+
+            // 7. Date Array (Stored as epoch days in Spark)
+            {
+              "date_array",
+              DataTypes.DateType,
+              new int[] {19723},
+              Value.dateArray(Collections.singletonList(Date.fromYearMonthDay(2024, 1, 1))),
+              (BiConsumer<ArrayData, Object>) (ad, d) -> when(ad.toIntArray()).thenReturn((int[]) d)
+            }
+          });
+    }
+
+    @Test
+    public void testArrayConversion() {
+      String TABLE_NAME = "test_table";
+      StructType schema = new StructType().add(colName, DataTypes.createArrayType(sparkType));
+      InternalRow row = mock(InternalRow.class);
+      ArrayData arrayData = mock(ArrayData.class);
+
+      when(row.isNullAt(0)).thenReturn(false);
+      when(row.getArray(0)).thenReturn(arrayData);
+
+      // Executes the specific stubbing (e.g., ad.toLongArray() or ad.toIntArray())
+      mockSetup.accept(arrayData, inputData);
+
+      Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
+
+      Assert.assertEquals(
+          "Failure on type: " + colName, expectedValue, mutation.asMap().get(colName));
+    }
   }
 }

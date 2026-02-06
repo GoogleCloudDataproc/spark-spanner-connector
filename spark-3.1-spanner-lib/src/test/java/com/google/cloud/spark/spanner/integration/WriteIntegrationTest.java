@@ -64,15 +64,36 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
               DataTypes.createStructField("date_col", DataTypes.DateType, true),
               DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
               DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
+              DataTypes.createStructField(
+                  "long_array", DataTypes.createArrayType(DataTypes.LongType), true),
+              DataTypes.createStructField(
+                  "str_array", DataTypes.createArrayType(DataTypes.StringType), true),
+              DataTypes.createStructField(
+                  "boolean_array", DataTypes.createArrayType(DataTypes.BooleanType), true),
+              DataTypes.createStructField(
+                  "double_array", DataTypes.createArrayType(DataTypes.DoubleType), true),
+              DataTypes.createStructField(
+                  "timestamp_array", DataTypes.createArrayType(DataTypes.TimestampType), true),
+              DataTypes.createStructField(
+                  "date_array", DataTypes.createArrayType(DataTypes.DateType), true),
+              DataTypes.createStructField(
+                  "binary_array", DataTypes.createArrayType(DataTypes.BinaryType), true),
+              DataTypes.createStructField(
+                  "numeric_array",
+                  DataTypes.createArrayType(DataTypes.createDecimalType(38, 9)),
+                  true),
             });
 
     List<Row> rows =
-        Collections.singletonList(RowFactory.create(3L, null, null, null, null, null, null, null));
+        Collections.singletonList(
+            RowFactory.create(
+                3L, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null));
 
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", TestData.WRITE_TABLE_NAME);
+    props.put("table", "write_array_test_table");
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 

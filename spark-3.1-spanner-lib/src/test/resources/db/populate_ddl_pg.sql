@@ -92,6 +92,26 @@ CREATE TABLE write_test_table (
   PRIMARY KEY(long_col)
 );
 
+CREATE TABLE write_array_test_table (
+  long_col BIGINT,
+  string_col TEXT,
+  bool_col BOOLEAN,
+  double_col DOUBLE PRECISION,
+  timestamp_col TIMESTAMPTZ,
+  date_col DATE,
+  bytes_col BYTEA,
+  numeric_col NUMERIC,
+  long_array BIGINT ARRAY,
+  str_array TEXT ARRAY,
+  boolean_array BOOLEAN ARRAY,
+  double_array DOUBLE PRECISION ARRAY,
+  timestamp_array TIMESTAMPTZ ARRAY,
+  date_array DATE ARRAY,
+  binary_array BYTEA ARRAY,
+  numeric_array NUMERIC ARRAY,
+  PRIMARY KEY(long_col)
+);
+
 CREATE TABLE schema_test_table (
   id BIGINT PRIMARY KEY,
   name VARCHAR,

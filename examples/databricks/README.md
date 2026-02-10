@@ -68,7 +68,7 @@ gcloud spanner databases create spark_spanner_db_example \
 # Create the table using the local DDL file
 gcloud spanner databases ddl update spark_spanner_db_example \
   --instance=$SPANNER_INSTANCE_ID \
-  --ddl-file=./create_source_table.sql
+  --ddl-file=./create_test_table.sql
 ```
 
 ### 3. Create and Configure a Service Account

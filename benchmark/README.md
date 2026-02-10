@@ -228,13 +228,13 @@ Each JSON file contains detailed information about the run, including performanc
 
 ### "Error: Catalog 'X' is not accessible in current workspace"
 
-This error indicates a mismatch between the Databricks workspace targeted by your CLI configuration and the one specified in `benchmarkDatabricks.json`, or a lack of proper permissions.
+This error indicates a mismatch between the Databricks workspace targeted by your CLI configuration and the one specified in `environment.json`, or a lack of proper permissions.
 
 **Possible Causes and Solutions:**
 
 1.  **Workspace Host Mismatch**:
-    *   **Diagnosis**: Your `databricks auth describe` command might show a different `Host` than the `databricksHost` value in your `benchmarkDatabricks.json`. The `sbt` task uses the host from `benchmarkDatabricks.json`.
-    *   **Solution**: Update the `databricksHost` in `benchmarkDatabricks.json` to match the host of the Databricks workspace where your Unity Catalog is correctly configured and accessible. Ensure all other Databricks-specific settings (`clusterId`, `ucVolumePath`) are valid for this workspace.
+    *   **Diagnosis**: Your `databricks auth describe` command might show a different `Host` than the `databricksHost` value in your `environment.json`. The `sbt` task uses the host from `environment.json`.
+    *   **Solution**: Update the `databricksHost` in `environment.json` to match the host of the Databricks workspace where your Unity Catalog is correctly configured and accessible. Ensure all other Databricks-specific settings (`clusterId`, `ucVolumePath`) are valid for this workspace.
 
 2.  **Insufficient Permissions**: Even if the catalog is bound to the workspace, the user or service principal associated with your `databricksToken` might lack the necessary permissions.
     *   **Diagnosis**:

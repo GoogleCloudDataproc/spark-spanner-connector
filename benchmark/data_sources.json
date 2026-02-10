@@ -1,0 +1,15 @@
+{
+  "dataSources": [
+    {
+      "name": "generated-data",
+      "description": "A table structure suitable for holding large, generated datasets.",
+      "ddlFile": "ddl/create_spanner_table.sql",
+      "generatorNotebook": "notebooks/PrepareSource.scala"
+    },
+    {
+      "name": "default-100k-data",
+      "description": "A table structure for the default 100k records generated in-memory by the benchmark.",
+      "ddlFile": "ddl/create_spanner_table.sql"
+    }
+  ]
+}

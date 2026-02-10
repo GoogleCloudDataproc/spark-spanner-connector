@@ -83,7 +83,7 @@ object SparkSpannerWriteBenchmark {
     // Dynamically calculate the average row size
     val averageRowSizeBytes = SizeEstimator.estimate(dfWrite.first())
     val sizeInBytes = averageRowSizeBytes * numRecords
-    val sizeMb = sizeInBytes / (1024 * 1024)
+    val sizeMb = sizeInBytes / (1024.0 * 1024.0)
     println(s"Estimated job size: $sizeMb MB")
     println(f"Average row size: $averageRowSizeBytes bytes")
     println(s"Number of partitions: $numPartitions")

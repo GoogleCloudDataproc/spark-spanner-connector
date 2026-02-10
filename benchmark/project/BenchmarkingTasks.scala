@@ -174,7 +174,7 @@ object BenchmarkingTasks {
         tempConfig = tempConfig + ("buildSparkVersion" -> Json.toJson(sys.props.get("spark.version").getOrElse("3.3")))
         
         val finalMergedConfig = tempConfig
-        val configJsonString = Json.stringify(finalMergedConfig)
+        val configJsonString = Json.stringify(finalMergedConfig - "databricksToken") // Do not log Databricks token
         println(s"Running benchmark with merged configuration: ${configJsonString}")
 
         // Execute the Spark job

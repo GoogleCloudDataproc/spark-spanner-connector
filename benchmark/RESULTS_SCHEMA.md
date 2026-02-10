@@ -49,5 +49,5 @@ The results will be stored in the GCS bucket specified in the configuration.
 
 `gs://my-spark-spanner-bench-results/SparkSpannerWriteBenchmark/2026-01-07T12-00-00Z_a1b2c3d4.json`
 
-The `run_id` in the filename is a combination of a timestamp and a short, 8-character unique ID to ensure it's unique and sortable. The `runId` field in the JSON schema corresponds to this 8-character unique ID.
+The filename is a combination of a timestamp and a short, 8-character unique ID to ensure it's unique and sortable. The `runId` field in the JSON schema corresponds to this 8-character unique ID.
 

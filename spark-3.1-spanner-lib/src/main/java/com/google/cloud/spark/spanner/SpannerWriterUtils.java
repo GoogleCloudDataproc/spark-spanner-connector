@@ -20,7 +20,6 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,10 +98,17 @@ public class SpannerWriterUtils {
     // Long array
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.LongType,
-        (row, i, type) ->
-            row.isNullAt(i)
-                ? Value.int64Array((long[]) null)
-                : Value.int64Array(row.getArray(i).toLongArray()));
+        (row, i, type) -> {
+          if (row.isNullAt(i)) {
+            return Value.int64Array((List<Long>) null);
+          }
+          final ArrayData arrayData = row.getArray(i);
+          final DataType elementType = ((ArrayType) type).elementType();
+          final Object[] items = (Object[]) arrayData.toObjectArray(elementType);
+          final List<Long> longList =
+              Arrays.stream(items).map(item -> (Long) item).collect(Collectors.toList());
+          return Value.int64Array(longList);
+        });
 
     // String array
     ARRAY_TYPE_CONVERTERS.put(
@@ -121,18 +127,32 @@ public class SpannerWriterUtils {
     // Boolean
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.BooleanType,
-        (row, i, type) ->
-            row.isNullAt(i)
-                ? Value.boolArray((boolean[]) null)
-                : Value.boolArray(row.getArray(i).toBooleanArray()));
+        (row, i, type) -> {
+          if (row.isNullAt(i)) {
+            return Value.boolArray((boolean[]) null);
+          }
+          final ArrayData arrayData = row.getArray(i);
+          final DataType elementType = ((ArrayType) type).elementType();
+          final Object[] items = (Object[]) arrayData.toObjectArray(elementType);
+          final List<Boolean> boolList =
+              Arrays.stream(items).map(item -> (Boolean) item).collect(Collectors.toList());
+          return Value.boolArray(boolList);
+        });
 
     // Double
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.DoubleType,
-        (row, i, type) ->
-            row.isNullAt(i)
-                ? Value.float64Array((double[]) null)
-                : Value.float64Array(row.getArray(i).toDoubleArray()));
+        (row, i, type) -> {
+          if (row.isNullAt(i)) {
+            return Value.float64Array((double[]) null);
+          }
+          final ArrayData arrayData = row.getArray(i);
+          final DataType elementType = ((ArrayType) type).elementType();
+          final Object[] items = (Object[]) arrayData.toObjectArray(elementType);
+          final List<Double> doubleList =
+              Arrays.stream(items).map(item -> (Double) item).collect(Collectors.toList());
+          return Value.float64Array(doubleList);
+        });
 
     // Binary
     ARRAY_TYPE_CONVERTERS.put(
@@ -152,12 +172,13 @@ public class SpannerWriterUtils {
         DataTypes.TimestampType,
         (row, i, type) -> {
           if (row.isNullAt(i)) return Value.timestampArray(null);
-          long[] micros = row.getArray(i).toLongArray();
-          if (micros == null) return Value.timestampArray(Collections.emptyList());
+          final ArrayData arrayData = row.getArray(i);
+          final DataType elementType = ((ArrayType) type).elementType();
+          final Object[] items = (Object[]) arrayData.toObjectArray(elementType);
           List<Timestamp> timestamps =
-              java.util.Arrays.stream(micros)
-                  .mapToObj(Timestamp::ofTimeMicroseconds)
-                  .collect(java.util.stream.Collectors.toList());
+              Arrays.stream(items)
+                  .map(item -> item == null ? null : Timestamp.ofTimeMicroseconds((Long) item))
+                  .collect(Collectors.toList());
           return Value.timestampArray(timestamps);
         });
 
@@ -165,19 +186,27 @@ public class SpannerWriterUtils {
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.DateType,
         (row, i, type) -> {
-          if (row.isNullAt(i)) return Value.dateArray(null);
-          int[] days = row.getArray(i).toIntArray();
-          if (days == null) return Value.dateArray(Collections.emptyList());
+          if (row.isNullAt(i)) {
+            return Value.dateArray(null);
+          }
+          final ArrayData arrayData = row.getArray(i);
+          final DataType elementType = ((ArrayType) type).elementType();
+          final Object[] items = (Object[]) arrayData.toObjectArray(elementType);
           List<Date> dates =
-              java.util.Arrays.stream(days)
-                  .mapToObj(java.time.LocalDate::ofEpochDay)
+              Arrays.stream(items)
                   .map(
-                      localDate ->
-                          Date.fromYearMonthDay(
-                              localDate.getYear(),
-                              localDate.getMonthValue(),
-                              localDate.getDayOfMonth()))
-                  .collect(java.util.stream.Collectors.toList());
+                      item -> {
+                        if (item == null) {
+                          return null;
+                        }
+                        java.time.LocalDate localDate =
+                            java.time.LocalDate.ofEpochDay((Integer) item);
+                        return Date.fromYearMonthDay(
+                            localDate.getYear(),
+                            localDate.getMonthValue(),
+                            localDate.getDayOfMonth());
+                      })
+                  .collect(Collectors.toList());
           return Value.dateArray(dates);
         });
 

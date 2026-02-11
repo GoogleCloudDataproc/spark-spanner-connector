@@ -371,24 +371,25 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                   true),
             });
 
-    final long[] testLongArray1 = new long[] {1L, 2L, 3L};
+    final Long[] testLongArray1 = new Long[] {1L, null, 3L};
     final long[] testLongArray2 = new long[] {4L, 5L, 6L};
-    final Object[] testStrArray1 = new Object[] {"A", "B"};
+    final Object[] testStrArray1 = new Object[] {"A", "B", null};
     final Object[] testStrArray2 = new Object[] {"C", "D"};
-    final boolean[] testBooleanArray1 = new boolean[] {true, false};
+    final Boolean[] testBooleanArray1 = new Boolean[] {true, false, null};
     final boolean[] testBooleanArray2 = new boolean[] {false, true};
-    final double[] testDoubleArray1 = new double[] {95.5, -10.88};
+    final Double[] testDoubleArray1 = new Double[] {95.5, -10.88, null};
     final double[] testDoubleArray2 = new double[] {19.64, -213.44};
     final Timestamp[] testTimestamp1 = {
       java.sql.Timestamp.valueOf("2023-01-01 23:59:59"),
-      java.sql.Timestamp.valueOf("2024-01-01 10:10:10")
+      java.sql.Timestamp.valueOf("2024-01-01 10:10:10"),
+      null
     };
     final Timestamp[] testTimestamp2 = {
       java.sql.Timestamp.valueOf("2025-12-31 00:01:01"),
       java.sql.Timestamp.valueOf("2026-2-11 14:10:10")
     };
     final Date[] testDateArray1 = {
-      java.sql.Date.valueOf("2023-01-01"), java.sql.Date.valueOf("2024-01-01")
+      java.sql.Date.valueOf("2023-01-01"), java.sql.Date.valueOf("2024-01-01"), null
     };
     final Date[] testDateArray2 = {
       java.sql.Date.valueOf("2025-01-01"), java.sql.Date.valueOf("2026-01-01")
@@ -399,7 +400,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     final MathContext mc = new MathContext(38, RoundingMode.HALF_UP);
     final Object[] testDecimalArray1 = {
       new BigDecimal("123.456", mc).setScale(9, RoundingMode.HALF_UP),
-      new BigDecimal("987.654", mc).setScale(9, RoundingMode.HALF_UP)
+      new BigDecimal("987.654", mc).setScale(9, RoundingMode.HALF_UP),
+      null
     };
     final Object[] testDecimalArray2 = {
       new BigDecimal("135.791", mc).setScale(9, RoundingMode.HALF_UP),
@@ -467,10 +469,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(row1.getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-01-01"));
     assertThat(row1.<byte[]>getAs(6)).isEqualTo(new byte[] {1, 2, 3});
     assertThat(row1.getDecimal(7).compareTo(new java.math.BigDecimal("123.456"))).isEqualTo(0);
-    assertArrayEquals(testLongArray1, rowToLongArray(row1, 8));
+    assertArrayEquals(testLongArray1, rowToLongObjectArray(row1, 8));
     assertArrayEquals(testStrArray1, rowToStrObjectArray(row1, 9));
-    assertArrayEquals(testBooleanArray1, rowToBooleanArray(row1, 10));
-    assertArrayEquals(testDoubleArray1, rowToDoubleArray(row1, 11), 0.01);
+    assertArrayEquals(testBooleanArray1, rowToBooleanObjectArray(row1, 10));
+    assertArrayEquals(testDoubleArray1, rowToDoubleObjectArray(row1, 11));
     assertArrayEquals(testTimestamp1, rowToTimestampArray(row1, 12));
     assertArrayEquals(testDateArray1, rowToDateArray(row1, 13));
     assertArrayEquals(testBinaryArray1, rowToByteArray(row1, 14));
@@ -494,17 +496,22 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertArrayEquals(testDecimalArray2, rowToDecimalArray(row2, 15));
   }
 
-  long[] rowToLongArray(Row row, int index) {
+  private long[] rowToLongArray(Row row, int index) {
     final List<Long> actualLongList = row.getList(index);
     return actualLongList.stream().mapToLong(l -> l).toArray();
   }
 
-  Object[] rowToStrObjectArray(Row row, int index) {
+  private Long[] rowToLongObjectArray(Row row, int index) {
+    final List<Long> actualLongList = row.getList(index);
+    return actualLongList.toArray(new Long[0]);
+  }
+
+  private Object[] rowToStrObjectArray(Row row, int index) {
     final List<String> actualList = row.getList(index);
     return actualList.toArray();
   }
 
-  boolean[] rowToBooleanArray(Row row, int index) {
+  private boolean[] rowToBooleanArray(Row row, int index) {
     final List<Boolean> actualList = row.getList(index);
     boolean[] booleanArray = new boolean[actualList.size()];
 
@@ -514,22 +521,32 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     return booleanArray;
   }
 
-  double[] rowToDoubleArray(Row row, int index) {
+  private Boolean[] rowToBooleanObjectArray(Row row, int index) {
+    final List<Boolean> actualList = row.getList(index);
+    return actualList.toArray(new Boolean[0]);
+  }
+
+  private double[] rowToDoubleArray(Row row, int index) {
     final List<Double> actualList = row.getList(index);
     return actualList.stream().mapToDouble(d -> d).toArray();
   }
 
-  Timestamp[] rowToTimestampArray(Row row, int index) {
+  private Double[] rowToDoubleObjectArray(Row row, int index) {
+    final List<Double> actualList = row.getList(index);
+    return actualList.toArray(new Double[0]);
+  }
+
+  private Timestamp[] rowToTimestampArray(Row row, int index) {
     final List<Timestamp> actualList = row.getList(index);
     return actualList.toArray(new Timestamp[0]);
   }
 
-  Date[] rowToDateArray(Row row, int index) {
+  private Date[] rowToDateArray(Row row, int index) {
     final List<Date> actualList = row.getList(index);
     return actualList.toArray(new Date[0]);
   }
 
-  Object[] rowToByteArray(Row row, int index) {
+  private Object[] rowToByteArray(Row row, int index) {
     final List<byte[]> actualList = row.<byte[]>getList(index);
     Object[] byteArray = new Object[actualList.size()];
 
@@ -539,7 +556,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     return byteArray;
   }
 
-  BigDecimal[] rowToDecimalArray(Row row, int index) {
+  private BigDecimal[] rowToDecimalArray(Row row, int index) {
     final List<BigDecimal> actualList = row.getList(index);
     return actualList.toArray(new BigDecimal[0]);
   }

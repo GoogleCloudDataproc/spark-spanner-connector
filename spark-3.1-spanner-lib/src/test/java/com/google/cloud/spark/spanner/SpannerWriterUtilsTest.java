@@ -235,18 +235,18 @@ public class SpannerWriterUtilsTest {
             {
               "long_array",
               DataTypes.LongType,
-              new long[] {1L, 2L, 3L},
-              Value.int64Array(new long[] {1L, 2L, 3L}),
+              new Long[] {1L, 2L, null},
+              Value.int64Array(Arrays.asList(new Long[] {1L, 2L, null})),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toLongArray()).thenReturn((long[]) d)
+                  (ad, d) -> when(ad.toObjectArray(DataTypes.LongType)).thenReturn((Long[]) d)
             },
 
             // 2. String Array
             {
               "str_array",
               DataTypes.StringType,
-              new Object[] {"A", "B"},
-              Value.stringArray(Arrays.asList("A", "B")),
+              new Object[] {"A", "B", null},
+              Value.stringArray(Arrays.asList("A", "B", null)),
               (BiConsumer<ArrayData, Object>)
                   (ad, d) -> when(ad.toObjectArray(DataTypes.StringType)).thenReturn((Object[]) d)
             },
@@ -255,20 +255,20 @@ public class SpannerWriterUtilsTest {
             {
               "boolean_array",
               DataTypes.BooleanType,
-              new boolean[] {true, false},
-              Value.boolArray(new boolean[] {true, false}),
+              new Boolean[] {true, false, null},
+              Value.boolArray(Arrays.asList(new Boolean[] {true, false, null})),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toBooleanArray()).thenReturn((boolean[]) d)
+                  (ad, d) -> when(ad.toObjectArray(DataTypes.BooleanType)).thenReturn((Object[]) d)
             },
 
             // 4. Double Array
             {
               "double_array",
               DataTypes.DoubleType,
-              new double[] {95.5, -10.88},
-              Value.float64Array(new double[] {95.5, -10.88}),
+              new Double[] {95.5, -10.88, null},
+              Value.float64Array(Arrays.asList(new Double[] {95.5, -10.88, null})),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toDoubleArray()).thenReturn((double[]) d)
+                  (ad, d) -> when(ad.toObjectArray(DataTypes.DoubleType)).thenReturn((Object[]) d)
             },
 
             // 5. Binary Array (Array[Byte])
@@ -285,20 +285,22 @@ public class SpannerWriterUtilsTest {
             {
               "timestamp_array",
               DataTypes.TimestampType,
-              new long[] {1704067200000000L},
+              new Long[] {1704067200000000L, null},
               Value.timestampArray(
-                  Collections.singletonList(Timestamp.ofTimeMicroseconds(1704067200000000L))),
+                  Arrays.asList(Timestamp.ofTimeMicroseconds(1704067200000000L), null)),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toLongArray()).thenReturn((long[]) d)
+                  (ad, d) ->
+                      when(ad.toObjectArray(DataTypes.TimestampType)).thenReturn((Object[]) d)
             },
 
             // 7. Date Array (Stored as epoch days in Spark)
             {
               "date_array",
               DataTypes.DateType,
-              new int[] {19723},
-              Value.dateArray(Collections.singletonList(Date.fromYearMonthDay(2024, 1, 1))),
-              (BiConsumer<ArrayData, Object>) (ad, d) -> when(ad.toIntArray()).thenReturn((int[]) d)
+              new Integer[] {19723, null},
+              Value.dateArray(Arrays.asList(Date.fromYearMonthDay(2024, 1, 1), null)),
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) -> when(ad.toObjectArray(DataTypes.DateType)).thenReturn((Object[]) d)
             },
 
             // 8. Decimal Array

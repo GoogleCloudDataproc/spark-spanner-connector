@@ -38,18 +38,36 @@ If you run a Spark job on the Dataproc cluster, you'll have to assign correspond
 You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-${next-release-tag}.jar` directly.
 
 ### Connector to Spark Compatibility Matrix
-| Connector \ Spark                     | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     |
-|---------------------------------------|---------|---------------------|---------------------|---------|---------|---------|---------|---------|---------|
-| spark-3.1-spanner                     |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; |
+| Connector \ Spark | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     |
+|-------------------|---------|---------------------|---------------------|---------|---------|---------|---------|---------|---------|
+| spark-3.1-spanner |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; |
+| spark-3.2-spanner |         |                     |                     |         |         | &check; | &check; | &check; | &check; |
+| spark-3.3-spanner |         |                     |                     |         |         |         | &check; | &check; | &check; |
+| spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; |
 
 ### Connector to Dataproc Image Compatibility Matrix
-| Connector \ Dataproc Image            | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | Serverless<br>Image 1.0 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 |
-|---------------------------------------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|
-| spark-3.1-spanner                     |         |         |         | &check; | &check; | &check; | &check;                 | &check;                 | &check;                 |
+| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 |
+|----------------------------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
+| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |
+| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |
+| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |
+| spark-3.5-spanner          |         |         |         |         |         | &check; |                         | &check;                 |                         |                         | &check;                 |
+
+Note 1: Dataproc compatibility to be tested.
 
 ### Maven / Ivy Package
 
-The connector is not available on the Maven Central yet.
+The connector is also available from the
+[Maven Central](https://repo1.maven.org/maven2/com/google/cloud/spark/spanner/)
+repository. It can be used using the `--packages` option or the
+`spark.jars.packages` configuration property. Use the following value
+
+| version    | Connector Artifact                                                                 |
+|------------|------------------------------------------------------------------------------------|
+| Spark 3.5  | `com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag}`                    |
+| Spark 3.3  | `com.google.cloud.spark.spanner:spark-3.3-spanner:${next-release-tag}`                    |
+| Spark 3.2  | `com.google.cloud.spark.spanner:spark-3.2-spanner:${next-release-tag}`                    |
+| Spark 3.1  | `com.google.cloud.spark.spanner:spark-3.1-spanner:${next-release-tag}`                    |
 
 ### Specifying the Spark Spanner connector version in a Dataproc cluster
 
@@ -62,7 +80,7 @@ gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
 ```
 ## Usage
 
-The connector supports exporting both tables and graphs from Spanner.
+The connector supports exporting both tables and graphs from Spanner, and importing to Spanner (Preview).
 It uses the cross language
 [Spark SQL Data Source API](https://spark.apache.org/docs/latest/sql-data-sources.html)
 to communicate with the

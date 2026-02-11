@@ -8,6 +8,7 @@ object BenchmarkingTasks {
 
   lazy val buildBenchmarkJar = taskKey[File]("Builds the spanner test suite JAR.")
   lazy val runDatabricksNotebook = inputKey[Unit]("Runs a notebook on Databricks.")
+  lazy val createResultsBucket = inputKey[Unit]("Creates a GCS bucket for benchmark results.")
   lazy val refreshDatabricksToken = inputKey[Unit]("Refreshes the Databricks token.")
   lazy val spannerUp = inputKey[Unit]("Ensures spanner instance, database and table exist for benchmark.")
   lazy val spannerDown = inputKey[Unit]("Removes the spanner instance, and its databases, referenced in the benchmark config.")
@@ -632,7 +633,42 @@ object BenchmarkingTasks {
       IO.write(envFile, Json.prettyPrint(updatedEnvironmentConfig))
       println(s"Successfully updated databricksToken in ${envFile.getAbsolutePath}.")
     },
+      createResultsBucket := {
+        val args: Seq[String] = Def.spaceDelimited("<arg>").parsed
+        if (args.isEmpty) {
+          sys.error("Usage: sbt \"createResultsBucket <environment>\" (e.g., dataproc or databricks)")
+        }
+        val environmentName = args(0)
+        val baseDir = baseDirectory.value
+        
+        val envFile = baseDir / "environment.json"
+        if (!envFile.exists()) sys.error(s"Environment file not found at ${envFile.getAbsolutePath}.")
+        val environmentConfig = loadBenchmarkConfig(envFile)
 
+        val specificEnvConfig = (environmentConfig \ environmentName).asOpt[JsObject].getOrElse {
+          sys.error(s"Configuration for environment '$environmentName' not found in environment.json.")
+        }
+
+        val resultsBucket = (specificEnvConfig \ "resultsBucket").asOpt[String].getOrElse(sys.error(s"resultsBucket not found in environment.json for the '$environmentName' environment."))
+        val projectId = (specificEnvConfig \ "projectId").as[String]
+        val location = (specificEnvConfig \ "dataprocRegion").asOpt[String].orElse((specificEnvConfig \ "spannerRegion").asOpt[String]).getOrElse("us-central1")
+
+        val command = Seq(
+          "gcloud", "storage", "buckets", "create", s"gs://$resultsBucket",
+          s"--project=$projectId",
+          s"--location=$location",
+          "--uniform-bucket-level-access"
+        )
+
+        println(s"Running command: ${command.mkString(" ")}")
+        // Don't fail if the bucket already exists
+        val exitCode = command.!(ProcessLogger(_ => ()))
+        if (exitCode != 0) {
+          println(s"Could not create bucket '$resultsBucket'. It may already exist.")
+        } else {
+          println(s"Successfully created GCS bucket '$resultsBucket'.")
+        }
+      },
       buildBenchmarkJar := (assembly in ThisProject).value,
   )
 }

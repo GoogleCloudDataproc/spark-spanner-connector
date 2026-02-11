@@ -9,7 +9,7 @@ This guide walks through setting up your Google Cloud environment to run the Spa
 ### 1. Configure Your Environment
 
 The benchmark runner and supporting sbt tasks now use a structured configuration:
-*   **Benchmark Definitions**: Defined in `benchmark/benchmark_definitions.json`. These describe what to test.
+*   **Benchmark Definitions**: Defined in `benchmark/benchmark_definitions.json`. These describe a known tests -- combination of a Spark job, job parameters and Spark environment.
 *   **Data Sources**: Defined in `benchmark/data_sources.json`. These map logical data names to DDLs, allowing separation of schema from specific table names.
 *   **Environment Configuration**: Defined in `benchmark/environment.json`. This file contains all environment-specific settings (GCP project IDs, Dataproc cluster names, GCS bucket names, Spanner instance IDs, Databricks host/token/cluster IDs, etc.) and mappings from logical data source names to physical table names in your environment.
 
@@ -50,12 +50,12 @@ Use the provided sbt tasks to ensure the necessary Spanner instance, database, a
 ```bash
 # Ensure Spanner instance and database exist for a specific benchmark scenario.
 # This task will create the instance and database if they don't exist.
-# Example: sbt "spannerUp dataproc-100k-records"
+# Example: sbt "spannerUp dataproc-100mil-records"
 sbt "spannerUp <benchmark_name>"
 
 # Create the Spanner table required for a specific benchmark scenario.
 # This task uses the DDL defined in `data_sources.json` for the given benchmark.
-# Example: sbt "createBenchmarkSpannerTable dataproc-100k-records"
+# Example: sbt "createBenchmarkSpannerTable dataproc-100mil-records"
 sbt "createBenchmarkSpannerTable <benchmark_name>"
 ```
 *Note: The `createBenchmarkSpannerTable` task will infer the DDL file from `data_sources.json` based on the benchmark's `dataSource` and automatically replace the placeholder table name with the `writeTable` value derived from your benchmark configuration.*

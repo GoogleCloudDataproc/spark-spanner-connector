@@ -119,7 +119,7 @@ object SparkSpannerWriteBenchmark {
     val runId = UUID.randomUUID().toString.take(8)
     val runTimestamp = java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.now())
     val sparkVersion = spark.version
-    val connectorVersion = "0.1.0"
+    val connectorVersion = "0.0.1-SNAPSHOT"
 
     val resultJson = Json.obj(
       "runId" -> runId,

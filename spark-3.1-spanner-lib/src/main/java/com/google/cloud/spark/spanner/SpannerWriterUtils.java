@@ -19,10 +19,22 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.types.*;
+import org.apache.spark.sql.types.ArrayType;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.DecimalType;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 
 public class SpannerWriterUtils {
 
@@ -220,8 +232,14 @@ public class SpannerWriterUtils {
           return Value.numericArray(null);
         }
         ArrayData ad = row.getArray(index);
-        BigDecimal[] a = (BigDecimal[]) ad.toObjectArray(elementType);
-        return Value.numericArray(Arrays.asList(a));
+        final Object[] items = ad.toObjectArray(elementType);
+        DecimalType dt = (DecimalType) elementType;
+        List<BigDecimal> decimals =
+            Arrays.stream(items)
+                .map(item -> item == null ? null : ((Decimal) item).toJavaBigDecimal())
+                .collect(Collectors.toList());
+
+        return Value.numericArray(decimals);
       }
     }
     // TODO handle Struct here.

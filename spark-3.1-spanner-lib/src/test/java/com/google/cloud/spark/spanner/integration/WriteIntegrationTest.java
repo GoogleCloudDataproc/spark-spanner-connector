@@ -15,10 +15,16 @@
 package com.google.cloud.spark.spanner.integration;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.google.cloud.spark.spanner.TestData;
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +46,7 @@ import org.junit.runners.Parameterized.Parameters;
 public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   private final boolean usePostgresSql;
+  protected static final String WRITE_ARRAY_TABLE_NAME = "write_array_test_table";
 
   @Parameters
   public static Collection<Object[]> usePostgresSqlValues() {
@@ -93,7 +100,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", "write_array_test_table");
+    props.put("table", WRITE_ARRAY_TABLE_NAME);
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
@@ -329,5 +336,211 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(row2.getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-02-02"));
     assertThat(row2.<byte[]>getAs(6)).isEqualTo(new byte[] {4, 5, 6});
     assertThat(row2.getDecimal(7).compareTo(new java.math.BigDecimal("789.012"))).isEqualTo(0);
+  }
+
+  @Test
+  public void testArrayWrite() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+              DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
+              DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
+              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
+              DataTypes.createStructField("date_col", DataTypes.DateType, true),
+              DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
+              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
+              DataTypes.createStructField(
+                  "long_array", DataTypes.createArrayType(DataTypes.LongType), true),
+              DataTypes.createStructField(
+                  "str_array", DataTypes.createArrayType(DataTypes.StringType), true),
+              DataTypes.createStructField(
+                  "boolean_array", DataTypes.createArrayType(DataTypes.BooleanType), true),
+              DataTypes.createStructField(
+                  "double_array", DataTypes.createArrayType(DataTypes.DoubleType), true),
+              DataTypes.createStructField(
+                  "timestamp_array", DataTypes.createArrayType(DataTypes.TimestampType), true),
+              DataTypes.createStructField(
+                  "date_array", DataTypes.createArrayType(DataTypes.DateType), true),
+              DataTypes.createStructField(
+                  "binary_array", DataTypes.createArrayType(DataTypes.BinaryType), true),
+              DataTypes.createStructField(
+                  "numeric_array",
+                  DataTypes.createArrayType(DataTypes.createDecimalType(38, 9)),
+                  true),
+            });
+
+    final long[] testLongArray1 = new long[] {1L, 2L, 3L};
+    final long[] testLongArray2 = new long[] {4L, 5L, 6L};
+    final Object[] testStrArray1 = new Object[] {"A", "B"};
+    final Object[] testStrArray2 = new Object[] {"C", "D"};
+    final boolean[] testBooleanArray1 = new boolean[] {true, false};
+    final boolean[] testBooleanArray2 = new boolean[] {false, true};
+    final double[] testDoubleArray1 = new double[] {95.5, -10.88};
+    final double[] testDoubleArray2 = new double[] {19.64, -213.44};
+    final Timestamp[] testTimestamp1 = {
+      java.sql.Timestamp.valueOf("2023-01-01 10:10:10"),
+      java.sql.Timestamp.valueOf("2023-01-01 10:10:10")
+    };
+    final Timestamp[] testTimestamp2 = {
+      java.sql.Timestamp.valueOf("2023-01-01 10:10:10"),
+      java.sql.Timestamp.valueOf("2023-01-01 10:10:10")
+    };
+    final Date[] testDateArray1 = {
+      java.sql.Date.valueOf("2023-01-01"), java.sql.Date.valueOf("2023-01-01")
+    };
+    final Date[] testDateArray2 = {
+      java.sql.Date.valueOf("2023-01-01"), java.sql.Date.valueOf("2023-01-01")
+    };
+    final Object[] testBinaryArray1 = {new byte[] {1, 2, 3}, new byte[] {4, 5, 6}};
+    final Object[] testBinaryArray2 = {new byte[] {7, 8, 9}, new byte[] {10, 11, 12}};
+
+    final MathContext mc = new MathContext(38, RoundingMode.HALF_UP);
+    final Object[] testDecimalArray1 = {
+      new BigDecimal("123.456", mc).setScale(9, RoundingMode.HALF_UP),
+      new BigDecimal("987.654", mc).setScale(9, RoundingMode.HALF_UP)
+    };
+    final Object[] testDecimalArray2 = {
+      new BigDecimal("135.791", mc).setScale(9, RoundingMode.HALF_UP),
+      new BigDecimal("246.802", mc).setScale(9, RoundingMode.HALF_UP)
+    };
+
+    List<Row> rows =
+        Arrays.asList(
+            RowFactory.create(
+                101L,
+                "one",
+                true,
+                1.1,
+                java.sql.Timestamp.valueOf("2023-01-01 10:10:10"),
+                java.sql.Date.valueOf("2023-01-01"),
+                new byte[] {1, 2, 3},
+                new java.math.BigDecimal("123.456"),
+                testLongArray1,
+                testStrArray1,
+                testBooleanArray1,
+                testDoubleArray1,
+                testTimestamp1,
+                testDateArray1,
+                testBinaryArray1,
+                testDecimalArray1),
+            RowFactory.create(
+                102L,
+                "two",
+                false,
+                2.2,
+                java.sql.Timestamp.valueOf("2023-02-02 20:20:20"),
+                java.sql.Date.valueOf("2023-02-02"),
+                new byte[] {4, 5, 6},
+                new java.math.BigDecimal("789.012"),
+                testLongArray2,
+                testStrArray2,
+                testBooleanArray2,
+                testDoubleArray2,
+                testTimestamp2,
+                testDateArray2,
+                testBinaryArray2,
+                testDecimalArray2));
+
+    Dataset<Row> df = spark.createDataFrame(rows, schema);
+
+    Map<String, String> props = connectionProperties(usePostgresSql);
+    props.put("table", WRITE_ARRAY_TABLE_NAME);
+
+    df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    Dataset<Row> writtenDf =
+        spark.read().format("cloud-spanner").options(props).load().filter("long_col IN (101, 102)");
+
+    assertEquals(2, writtenDf.count());
+
+    Map<Long, Row> writtenRows =
+        writtenDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    Row row1 = writtenRows.get(101L);
+    assertThat(row1.getString(1)).isEqualTo("one");
+    assertThat(row1.getBoolean(2)).isTrue();
+    assertThat(row1.getDouble(3)).isEqualTo(1.1);
+    assertThat(row1.getTimestamp(4)).isEqualTo(java.sql.Timestamp.valueOf("2023-01-01 10:10:10"));
+    assertThat(row1.getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-01-01"));
+    assertThat(row1.<byte[]>getAs(6)).isEqualTo(new byte[] {1, 2, 3});
+    assertThat(row1.getDecimal(7).compareTo(new java.math.BigDecimal("123.456"))).isEqualTo(0);
+    assertArrayEquals(testLongArray1, rowToLongArray(row1, 8));
+    assertArrayEquals(testStrArray1, rowToStrObjectArray(row1, 9));
+    assertArrayEquals(testBooleanArray1, rowToBooleanArray(row1, 10));
+    assertArrayEquals(testDoubleArray1, rowToDoubleArray(row1, 11), 0.01);
+    assertArrayEquals(testTimestamp1, rowToTimestampArray(row1, 12));
+    assertArrayEquals(testDateArray1, rowToDateArray(row1, 13));
+    assertArrayEquals(testBinaryArray1, rowToByteArray(row1, 14));
+    assertArrayEquals(testDecimalArray1, rowToDecimalArray(row1, 15));
+
+    Row row2 = writtenRows.get(102L);
+    assertThat(row2.getString(1)).isEqualTo("two");
+    assertThat(row2.getBoolean(2)).isFalse();
+    assertThat(row2.getDouble(3)).isEqualTo(2.2);
+    assertThat(row2.getTimestamp(4)).isEqualTo(java.sql.Timestamp.valueOf("2023-02-02 20:20:20"));
+    assertThat(row2.getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-02-02"));
+    assertThat(row2.<byte[]>getAs(6)).isEqualTo(new byte[] {4, 5, 6});
+    assertThat(row2.getDecimal(7).compareTo(new java.math.BigDecimal("789.012"))).isEqualTo(0);
+    assertArrayEquals(testLongArray2, rowToLongArray(row2, 8));
+    assertArrayEquals(testStrArray2, rowToStrObjectArray(row2, 9));
+    assertArrayEquals(testBooleanArray2, rowToBooleanArray(row2, 10));
+    assertArrayEquals(testDoubleArray2, rowToDoubleArray(row2, 11), 0.01);
+    assertArrayEquals(testTimestamp2, rowToTimestampArray(row2, 12));
+    assertArrayEquals(testDateArray2, rowToDateArray(row2, 13));
+    assertArrayEquals(testBinaryArray2, rowToByteArray(row2, 14));
+    assertArrayEquals(testDecimalArray2, rowToDecimalArray(row2, 15));
+  }
+
+  long[] rowToLongArray(Row row, int index) {
+    final List<Long> actualLongList = row.getList(index);
+    return actualLongList.stream().mapToLong(l -> l).toArray();
+  }
+
+  Object[] rowToStrObjectArray(Row row, int index) {
+    final List<String> actualList = row.getList(index);
+    return actualList.toArray();
+  }
+
+  boolean[] rowToBooleanArray(Row row, int index) {
+    final List<Boolean> actualList = row.getList(index);
+    boolean[] booleanArray = new boolean[actualList.size()];
+
+    for (int i = 0; i < actualList.size(); i++) {
+      booleanArray[i] = actualList.get(i);
+    }
+    return booleanArray;
+  }
+
+  double[] rowToDoubleArray(Row row, int index) {
+    final List<Double> actualList = row.getList(index);
+    return actualList.stream().mapToDouble(d -> d).toArray();
+  }
+
+  Timestamp[] rowToTimestampArray(Row row, int index) {
+    final List<Timestamp> actualList = row.getList(index);
+    return actualList.toArray(new Timestamp[0]);
+  }
+
+  Date[] rowToDateArray(Row row, int index) {
+    final List<Date> actualList = row.getList(index);
+    return actualList.toArray(new Date[0]);
+  }
+
+  Object[] rowToByteArray(Row row, int index) {
+    final List<byte[]> actualList = row.<byte[]>getList(index);
+    Object[] byteArray = new Object[actualList.size()];
+
+    for (int i = 0; i < actualList.size(); i++) {
+      byteArray[i] = actualList.get(i);
+    }
+    return byteArray;
+  }
+
+  BigDecimal[] rowToDecimalArray(Row row, int index) {
+    final List<BigDecimal> actualList = row.getList(index);
+    return actualList.toArray(new BigDecimal[0]);
   }
 }

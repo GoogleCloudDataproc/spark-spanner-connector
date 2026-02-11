@@ -22,6 +22,8 @@ import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,6 +32,8 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Assert;
 import org.junit.Test;
@@ -42,6 +46,11 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Enclosed.class)
 public class SpannerWriterUtilsTest {
   private static final String TABLE_NAME = "test_table";
+  private static final MathContext mc = new MathContext(38, RoundingMode.HALF_UP);
+  private static final java.math.BigDecimal jbd =
+      new java.math.BigDecimal("135.791", mc).setScale(9, RoundingMode.HALF_UP);
+  private static final scala.math.BigDecimal bd = scala.math.BigDecimal$.MODULE$.apply(jbd);
+  private static final Decimal decimal = new Decimal().set(bd);
 
   @RunWith(Parameterized.class)
   public static class ScalarTests {
@@ -63,7 +72,8 @@ public class SpannerWriterUtilsTest {
               1704067200000000L,
               Value.timestamp(Timestamp.ofTimeMicroseconds(1704067200000000L))
             },
-            {"dt", DataTypes.DateType, 19723, Value.date(Date.fromYearMonthDay(2024, 1, 1))}
+            {"dt", DataTypes.DateType, 19723, Value.date(Date.fromYearMonthDay(2024, 1, 1))},
+            {"decimal", new DecimalType(38, 9), decimal, Value.numeric(jbd)}
           });
     }
 
@@ -101,6 +111,8 @@ public class SpannerWriterUtilsTest {
       else if (sparkType == DataTypes.TimestampType)
         when(row.getLong(0)).thenReturn((long) mockValue);
       else if (sparkType == DataTypes.DateType) when(row.getInt(0)).thenReturn((int) mockValue);
+      else if (sparkType instanceof DecimalType)
+        when(row.getDecimal(0, 38, 9)).thenReturn((Decimal) mockValue);
 
       // 3. Execute
       com.google.cloud.spanner.Mutation mutation =
@@ -129,6 +141,7 @@ public class SpannerWriterUtilsTest {
             {"binary", DataTypes.BinaryType, Value.bytes(null)},
             {"timestamp", DataTypes.TimestampType, Value.timestamp(null)},
             {"date", DataTypes.DateType, Value.date(null)},
+            {"decimal", new DecimalType(38, 9), Value.numeric(null)},
             {
               "long_array",
               DataTypes.createArrayType(DataTypes.LongType),
@@ -155,7 +168,12 @@ public class SpannerWriterUtilsTest {
               DataTypes.createArrayType(DataTypes.TimestampType),
               Value.timestampArray(null)
             },
-            {"date_array", DataTypes.createArrayType(DataTypes.DateType), Value.dateArray(null)}
+            {"date_array", DataTypes.createArrayType(DataTypes.DateType), Value.dateArray(null)},
+            {
+              "decimal_array",
+              DataTypes.createArrayType(new DecimalType(38, 9)),
+              Value.numericArray(null)
+            }
           });
     }
 
@@ -281,6 +299,16 @@ public class SpannerWriterUtilsTest {
               new int[] {19723},
               Value.dateArray(Collections.singletonList(Date.fromYearMonthDay(2024, 1, 1))),
               (BiConsumer<ArrayData, Object>) (ad, d) -> when(ad.toIntArray()).thenReturn((int[]) d)
+            },
+
+            // 8. Decimal Array
+            {
+              "decimal_array",
+              new DecimalType(38, 9),
+              new Object[] {decimal},
+              Value.numericArray(Collections.singletonList(jbd)),
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) -> when(ad.toObjectArray(new DecimalType(38, 9))).thenReturn((Object[]) d)
             }
           });
     }

@@ -312,18 +312,23 @@ object BenchmarkingTasks {
         val baselineMetrics = (baselineJson \ "performanceMetrics").as[JsObject]
         val currentMetrics = (currentJson \ "performanceMetrics").as[JsObject]
 
-        case class Metric(name: String, key: String)
+        case class Metric(name: String, key: String, higherIsBetter: Boolean)
         val metricsToCompare = Seq(
-          Metric("Duration (s)", "durationSeconds"),
-          Metric("Throughput (MB/s)", "throughputMbPerSec"),
-          Metric("Records Written", "recordCount")
+          Metric("Duration (s)", "durationSeconds", higherIsBetter = false),
+          Metric("Throughput (MB/s)", "throughputMbPerSec", higherIsBetter = true),
+          Metric("Records Written", "recordCount", higherIsBetter = true)
         )
 
-        def formatChange(baseline: Double, current: Double): String = {
+        def formatChange(baseline: Double, current: Double, higherIsBetter: Boolean): String = {
           if (baseline == 0) "N/A"
           else {
             val change = ((current - baseline) / baseline) * 100
-            val emoji = if (change > 0) "📈" else "📉"
+            val emoji = if (change == 0) {
+              "➡️"
+            } else {
+              val isImprovement = (change > 0 && higherIsBetter) || (change < 0 && !higherIsBetter)
+              if (isImprovement) "📈" else "📉"
+            }
             f"$change%+.2f%% $emoji"
           }
         }
@@ -336,7 +341,7 @@ object BenchmarkingTasks {
           metric =>
           val baselineValue = (baselineMetrics \ metric.key).asOpt[Double].getOrElse(0.0)
           val currentValue = (currentMetrics \ metric.key).asOpt[Double].getOrElse(0.0)
-          val changeStr = formatChange(baselineValue, currentValue)
+          val changeStr = formatChange(baselineValue, currentValue, metric.higherIsBetter)
           
           val formattedBaseline = f"$baselineValue%10.2f"
           val formattedCurrent = f"$currentValue%10.2f"

@@ -25,6 +25,12 @@ You need to create and configure your local `environment.json` file:
 
 **Important**: `benchmark/environment.json` is in `.gitignore` and should **not** be committed to the repository.
 
+**Databricks Token Refresh**: Databricks tokens can expire. You can refresh the `databricksToken` in your `environment.json` file automatically using the sbt task:
+```bash
+sbt refreshDatabricksToken
+```
+This task will create a new temporary token via the Databricks CLI and update your `environment.json`. Ensure your Databricks CLI is configured and has permissions to create new tokens.
+
 ### 2. Set up Your GCP Project
 
 Make sure you have the Google Cloud SDK (`gcloud`) installed and authenticated.

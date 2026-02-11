@@ -10,14 +10,23 @@
       "mutationsPerTransaction": 1000
     },
     {
-      "name": "databricks-1mil-records",
-      "description": "A 1mil record write test on Databricks using a source table and default connector options.",
+      "name": "dataproc-5mil-records",
+      "description": "A  1mil record write test for validation on Dataproc.",
+      "environment": "dataproc",
+      "dataSource": "generated-data",
+      "numRecords": 5000000,
+      "numPartitions": 80,
+      "mutationsPerTransaction": 1000
+    },
+    {
+      "name": "databricks-5mil-records",
+      "description": "A 5mil record write test on Databricks using a source table and default connector options.",
       "environment": "databricks",
       "dataSource": "generated-data",
       "localNotebookPath" : "notebooks/SparkSpannerBenchmarkNotebook.scala",
       "localPrepareNotebookPath" : "notebooks/PrepareSource.scala",
-      "numPartitions": 16,
-      "numRecords": 1000000
+      "numPartitions": 80,
+      "numRecords": 5000000
     },
     {
       "name": "databricks-10mil-records",

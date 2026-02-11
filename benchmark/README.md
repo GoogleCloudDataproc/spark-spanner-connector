@@ -175,15 +175,15 @@ This section describes how to run benchmarks using sbt tasks.
     ```
 2.  **Run a Benchmark and Establish Baseline**:
     *   Navigate to the `benchmark` directory.
-    *   Run your chosen benchmark (e.g., `dataproc-100k-records`):
+    *   Run your chosen benchmark (e.g., `dataproc-100mil-records`):
         ```bash
         cd benchmark
-        sbt "runBenchmark dataproc-100k-records"
+        sbt "runBenchmark dataproc-100mil-records"
         ```
     *   The script will print the GCS path where the result JSON was uploaded (e.g., `gs://<your-results-bucket>/SparkSpannerWriteBenchmark/<timestamp>_<githash>.json`). Note down the full GCS path.
     *   Use this path to set it as the baseline:
         ```bash
-        sbt "setBenchmarkBaseline dataproc-100k-records <full_gcs_path_from_above>"
+        sbt "setBenchmarkBaseline dataproc-100mil-records <full_gcs_path_from_above>"
         ```
     This step effectively tags a known-good performance run as your reference point.
 
@@ -197,12 +197,12 @@ This section describes how to run benchmarks using sbt tasks.
     *   Run the same benchmark again to generate new results:
         ```bash
         # Still in the benchmark directory
-        sbt "runBenchmark dataproc-100k-records"
+        sbt "runBenchmark dataproc-100mil-records"
         ```
     *   Note down the GCS path for the new run from the output.
     *   Compare the new results against your established baseline:
         ```bash
-        sbt "compareBenchmarkResults dataproc-100k-records <full_gcs_path_for_new_run>"
+        sbt "compareBenchmarkResults dataproc-100mil-records <full_gcs_path_for_new_run>"
         ```
     The task will output a formatted comparison report, showing performance deltas between your baseline and the new run.
 

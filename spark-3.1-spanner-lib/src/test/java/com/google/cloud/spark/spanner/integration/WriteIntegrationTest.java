@@ -380,18 +380,18 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     final double[] testDoubleArray1 = new double[] {95.5, -10.88};
     final double[] testDoubleArray2 = new double[] {19.64, -213.44};
     final Timestamp[] testTimestamp1 = {
-      java.sql.Timestamp.valueOf("2023-01-01 10:10:10"),
-      java.sql.Timestamp.valueOf("2023-01-01 10:10:10")
+      java.sql.Timestamp.valueOf("2023-01-01 23:59:59"),
+      java.sql.Timestamp.valueOf("2024-01-01 10:10:10")
     };
     final Timestamp[] testTimestamp2 = {
-      java.sql.Timestamp.valueOf("2023-01-01 10:10:10"),
-      java.sql.Timestamp.valueOf("2023-01-01 10:10:10")
+      java.sql.Timestamp.valueOf("2025-12-31 00:01:01"),
+      java.sql.Timestamp.valueOf("2026-2-11 14:10:10")
     };
     final Date[] testDateArray1 = {
-      java.sql.Date.valueOf("2023-01-01"), java.sql.Date.valueOf("2023-01-01")
+      java.sql.Date.valueOf("2023-01-01"), java.sql.Date.valueOf("2024-01-01")
     };
     final Date[] testDateArray2 = {
-      java.sql.Date.valueOf("2023-01-01"), java.sql.Date.valueOf("2023-01-01")
+      java.sql.Date.valueOf("2025-01-01"), java.sql.Date.valueOf("2026-01-01")
     };
     final Object[] testBinaryArray1 = {new byte[] {1, 2, 3}, new byte[] {4, 5, 6}};
     final Object[] testBinaryArray2 = {new byte[] {7, 8, 9}, new byte[] {10, 11, 12}};

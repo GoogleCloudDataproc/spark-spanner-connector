@@ -19,7 +19,6 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -155,10 +154,10 @@ public class SpannerWriterUtils {
           if (row.isNullAt(i)) return Value.timestampArray(null);
           long[] micros = row.getArray(i).toLongArray();
           if (micros == null) return Value.timestampArray(Collections.emptyList());
-          List<Timestamp> timestamps = new ArrayList<>(micros.length);
-          for (long micro : micros) {
-            timestamps.add(Timestamp.ofTimeMicroseconds(micro));
-          }
+          List<Timestamp> timestamps =
+              java.util.Arrays.stream(micros)
+                  .mapToObj(Timestamp::ofTimeMicroseconds)
+                  .collect(java.util.stream.Collectors.toList());
           return Value.timestampArray(timestamps);
         });
 
@@ -169,14 +168,16 @@ public class SpannerWriterUtils {
           if (row.isNullAt(i)) return Value.dateArray(null);
           int[] days = row.getArray(i).toIntArray();
           if (days == null) return Value.dateArray(Collections.emptyList());
-          List<Date> dates = new ArrayList<>(days.length);
-
-          for (int day : days) {
-            java.time.LocalDate localDate = java.time.LocalDate.ofEpochDay(day);
-            dates.add(
-                Date.fromYearMonthDay(
-                    localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
-          }
+          List<Date> dates =
+              java.util.Arrays.stream(days)
+                  .mapToObj(java.time.LocalDate::ofEpochDay)
+                  .map(
+                      localDate ->
+                          Date.fromYearMonthDay(
+                              localDate.getYear(),
+                              localDate.getMonthValue(),
+                              localDate.getDayOfMonth()))
+                  .collect(java.util.stream.Collectors.toList());
           return Value.dateArray(dates);
         });
 
@@ -233,7 +234,6 @@ public class SpannerWriterUtils {
         }
         ArrayData ad = row.getArray(index);
         final Object[] items = ad.toObjectArray(elementType);
-        DecimalType dt = (DecimalType) elementType;
         List<BigDecimal> decimals =
             Arrays.stream(items)
                 .map(item -> item == null ? null : ((Decimal) item).toJavaBigDecimal())

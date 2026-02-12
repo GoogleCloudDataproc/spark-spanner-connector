@@ -151,7 +151,7 @@ public class SpannerWriterUtils {
               row,
               i,
               (a, idx) -> {
-                LocalDate localDate = LocalDate.ofEpochDay(((Integer) a.getInt(idx)).longValue());
+                LocalDate localDate = LocalDate.ofEpochDay(a.getInt(idx));
                 return Date.fromYearMonthDay(
                     localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth());
               },

@@ -35,6 +35,7 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -236,19 +237,27 @@ public class SpannerWriterUtilsTest {
               "long_array",
               DataTypes.LongType,
               new Long[] {1L, 2L, null},
-              Value.int64Array(Arrays.asList(new Long[] {1L, 2L, null})),
+              Value.int64Array(Arrays.asList(1L, 2L, null)),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toObjectArray(DataTypes.LongType)).thenReturn((Object[]) d)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad, (Long[]) d, (i, val) -> when(ad.getLong(i)).thenReturn((Long) val))
             },
 
             // 2. String Array
             {
               "str_array",
               DataTypes.StringType,
-              new Object[] {"A", "B", null},
+              new String[] {"A", "B", null},
               Value.stringArray(Arrays.asList("A", "B", null)),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toObjectArray(DataTypes.StringType)).thenReturn((Object[]) d)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad,
+                          (String[]) d,
+                          (i, val) ->
+                              when(ad.getUTF8String(i))
+                                  .thenReturn(UTF8String.fromString((String) val)))
             },
 
             // 3. Boolean Array
@@ -258,7 +267,11 @@ public class SpannerWriterUtilsTest {
               new Boolean[] {true, false, null},
               Value.boolArray(Arrays.asList(new Boolean[] {true, false, null})),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toObjectArray(DataTypes.BooleanType)).thenReturn((Object[]) d)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad,
+                          (Boolean[]) d,
+                          (i, val) -> when(ad.getBoolean(i)).thenReturn((Boolean) val))
             },
 
             // 4. Double Array
@@ -268,17 +281,25 @@ public class SpannerWriterUtilsTest {
               new Double[] {95.5, -10.88, null},
               Value.float64Array(Arrays.asList(new Double[] {95.5, -10.88, null})),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toObjectArray(DataTypes.DoubleType)).thenReturn((Object[]) d)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad,
+                          (Double[]) d,
+                          (i, val) -> when(ad.getDouble(i)).thenReturn((Double) val))
             },
 
             // 5. Binary Array (Array[Byte])
             {
               "binary_array",
               DataTypes.BinaryType,
-              new Object[] {new byte[] {95, 10, 127}, null},
+              new byte[][] {new byte[] {95, 10, 127}, null},
               Value.bytesArray(Arrays.asList(ByteArray.copyFrom(new byte[] {95, 10, 127}), null)),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toObjectArray(DataTypes.BinaryType)).thenReturn((Object[]) d)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad,
+                          (byte[][]) d,
+                          (i, val) -> when(ad.getBinary(i)).thenReturn((byte[]) val))
             },
 
             // 6. Timestamp Array (Stored as microseconds in Spark)
@@ -290,29 +311,51 @@ public class SpannerWriterUtilsTest {
                   Arrays.asList(Timestamp.ofTimeMicroseconds(1704067200000000L), null)),
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
-                      when(ad.toObjectArray(DataTypes.TimestampType)).thenReturn((Object[]) d)
+                      setupArrayMock(
+                          ad, (Long[]) d, (i, val) -> when(ad.getLong(i)).thenReturn((Long) val))
             },
 
             // 7. Date Array (Stored as epoch days in Spark)
             {
               "date_array",
               DataTypes.DateType,
-              new Integer[] {19723, null},
-              Value.dateArray(Arrays.asList(Date.fromYearMonthDay(2024, 1, 1), null)),
+              new Integer[] {18628, null}, // Epoch days
+              Value.dateArray(Arrays.asList(Date.fromYearMonthDay(2021, 1, 1), null)),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toObjectArray(DataTypes.DateType)).thenReturn((Object[]) d)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad,
+                          (Integer[]) d,
+                          (i, val) -> when(ad.getInt(i)).thenReturn((Integer) val))
             },
 
             // 8. Decimal Array
             {
               "decimal_array",
               new DecimalType(38, 9),
-              new Object[] {decimal},
+              new Decimal[] {decimal},
               Value.numericArray(Collections.singletonList(jbd)),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toObjectArray(new DecimalType(38, 9))).thenReturn((Object[]) d)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad,
+                          (Decimal[]) d,
+                          (i, val) -> when(ad.getDecimal(i, 38, 9)).thenReturn((Decimal) val))
             }
           });
+    }
+
+    private static void setupArrayMock(
+        ArrayData ad, Object[] data, BiConsumer<Integer, Object> getterStubber) {
+      when(ad.numElements()).thenReturn(data.length);
+      for (int i = 0; i < data.length; i++) {
+        if (data[i] == null) {
+          when(ad.isNullAt(i)).thenReturn(true);
+        } else {
+          when(ad.isNullAt(i)).thenReturn(false);
+          getterStubber.accept(i, data[i]);
+        }
+      }
     }
 
     @Test

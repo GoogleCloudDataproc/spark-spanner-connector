@@ -20,18 +20,16 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -101,28 +99,29 @@ public class SpannerWriterUtils {
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.LongType,
         (row, i, type) -> {
-          return arrayConverter(row, i, type, item -> (Long) item, Value::int64Array);
+          return arrayConverter(row, i, ArrayData::getLong, Value::int64Array);
         });
 
     // String array
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.StringType,
         (row, i, type) -> {
-          return arrayConverter(row, i, type, Object::toString, Value::stringArray);
+          return arrayConverter(
+              row, i, (a, idx) -> a.getUTF8String(idx).toString(), Value::stringArray);
         });
 
     // Boolean
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.BooleanType,
         (row, i, type) -> {
-          return arrayConverter(row, i, type, item -> (Boolean) item, Value::boolArray);
+          return arrayConverter(row, i, ArrayData::getBoolean, Value::boolArray);
         });
 
     // Double
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.DoubleType,
         (row, i, type) -> {
-          return arrayConverter(row, i, type, item -> (Double) item, Value::float64Array);
+          return arrayConverter(row, i, ArrayData::getDouble, Value::float64Array);
         });
 
     // Binary
@@ -130,7 +129,7 @@ public class SpannerWriterUtils {
         DataTypes.BinaryType,
         (row, i, type) -> {
           return arrayConverter(
-              row, i, type, item -> ByteArray.copyFrom((byte[]) item), Value::bytesArray);
+              row, i, (a, idx) -> ByteArray.copyFrom(a.getBinary(idx)), Value::bytesArray);
         });
 
     // Timestamp
@@ -140,8 +139,7 @@ public class SpannerWriterUtils {
           return arrayConverter(
               row,
               i,
-              type,
-              item -> Timestamp.ofTimeMicroseconds((Long) item),
+              (a, idx) -> Timestamp.ofTimeMicroseconds(a.getLong(idx)),
               Value::timestampArray);
         });
 
@@ -152,9 +150,8 @@ public class SpannerWriterUtils {
           return arrayConverter(
               row,
               i,
-              type,
-              item -> {
-                LocalDate localDate = LocalDate.ofEpochDay(((Integer) item).longValue());
+              (a, idx) -> {
+                LocalDate localDate = LocalDate.ofEpochDay(((Integer) a.getInt(idx)).longValue());
                 return Date.fromYearMonthDay(
                     localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth());
               },
@@ -165,11 +162,16 @@ public class SpannerWriterUtils {
     // because it relies on instanceof checks rather than strict equality.
   }
 
+  // Allows Spark
+  @FunctionalInterface
+  private interface ArrayElementGetter<T> {
+    T get(ArrayData array, int index);
+  }
+
   private static <T> Value arrayConverter(
       InternalRow row,
       int i,
-      DataType type,
-      Function<Object, T> mapper,
+      ArrayElementGetter<T> elementGetter,
       Function<List<T>, Value> constructor) {
 
     if (row.isNullAt(i)) {
@@ -177,13 +179,17 @@ public class SpannerWriterUtils {
     }
 
     final ArrayData arrayData = row.getArray(i);
-    final DataType elementType = ((ArrayType) type).elementType();
-    final Object[] items = (Object[]) arrayData.toObjectArray(elementType);
+    int numElements = arrayData.numElements();
+    List<T> convertedList = new ArrayList<>(numElements);
 
-    List<T> convertedList =
-        Arrays.stream(items)
-            .map(item -> item == null ? null : mapper.apply(item))
-            .collect(Collectors.toList());
+    for (int j = 0; j < numElements; j++) {
+      if (arrayData.isNullAt(j)) {
+        convertedList.add(null);
+      } else {
+        // Uses specialized Spark getters (getLong, getDouble, etc.)
+        convertedList.add(elementGetter.get(arrayData, j));
+      }
+    }
 
     return constructor.apply(convertedList);
   }
@@ -232,17 +238,12 @@ public class SpannerWriterUtils {
       }
 
       if (elementType instanceof DecimalType) {
-        if (row.isNullAt(index)) {
-          return Value.numericArray(null);
-        }
-        ArrayData ad = row.getArray(index);
-        final Object[] items = ad.toObjectArray(elementType);
-        List<BigDecimal> decimals =
-            Arrays.stream(items)
-                .map(item -> item == null ? null : ((Decimal) item).toJavaBigDecimal())
-                .collect(Collectors.toList());
-
-        return Value.numericArray(decimals);
+        DecimalType dt = (DecimalType) elementType;
+        return arrayConverter(
+            row,
+            index,
+            (ad, i) -> ad.getDecimal(i, dt.precision(), dt.scale()).toJavaBigDecimal(),
+            Value::numericArray);
       }
     }
     // TODO handle Struct here.

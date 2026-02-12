@@ -168,7 +168,11 @@ This section describes how to run benchmarks using sbt tasks.
 
 ### sbt Tasks Overview
 
-*   `sbt "runBenchmark <benchmark_name>"`: Builds the connector, runs the specified benchmark on your Dataproc or Databricks cluster, and outputs the GCS path of the result file.
+*   `sbt "runBenchmark <benchmark_name>"`: Submits the specified benchmark to your Dataproc or Databricks cluster. This command returns immediately with a **Job ID** (for Dataproc) or a **Run ID** (for Databricks). You will need this ID for the next step.
+*   `sbt "getBenchmark <environment> <id>"`: Waits for a submitted job to complete and retrieves its results.
+    *   `<environment>`: `dataproc` or `databricks`.
+    *   `<id>`: The Job ID or Run ID returned by the `runBenchmark` task.
+    *   The task will print the final GCS path of the result file if the job completes successfully.
 *   `sbt "setBenchmarkBaseline <benchmark_name> <gcs_path>"`: Copies a specific benchmark run's result (identified by its full GCS path) to establish it as the baseline for future comparisons.
 *   `sbt "compareBenchmarkResults <benchmark_name> <gcs_path>"`: Downloads a specific benchmark run's result (identified by its full GCS path) and its corresponding baseline, then outputs a formatted comparison report.
 
@@ -180,16 +184,28 @@ This section describes how to run benchmarks using sbt tasks.
     mvn clean install -P3.3 -DskipTests
     ```
 2.  **Run a Benchmark and Establish Baseline**:
-    *   Navigate to the `benchmark` directory.
-    *   Run your chosen benchmark (e.g., `dataproc-100mil-records`):
+    *   Navigate to the `benchmark` directory: `cd benchmark`
+    *   **Step 1: Submit the benchmark job.** Run your chosen benchmark (e.g., `dataproc-5mil-records`). The task will submit the job and exit immediately, printing an ID.
         ```bash
-        cd benchmark
-        sbt "runBenchmark dataproc-100mil-records"
+        sbt "runBenchmark dataproc-5mil-records"
+        > ...
+        > Dataproc job submitted successfully.
+        > Job ID: d562f67bc43940e1b09344414ad38ff1
         ```
-    *   The script will print the GCS path where the result JSON was uploaded (e.g., `gs://<your-results-bucket>/SparkSpannerWriteBenchmark/<timestamp>_<githash>.json`). Note down the full GCS path.
-    *   Use this path to set it as the baseline:
+        Copy the **Job ID** (for Dataproc) or **Run ID** (for Databricks).
+
+    *   **Step 2: Retrieve the results.** Use the `getBenchmark` task with the environment and the ID from the previous step. This task will wait for the job to complete.
         ```bash
-        sbt "setBenchmarkBaseline dataproc-100mil-records <full_gcs_path_from_above>"
+        sbt "getBenchmark dataproc d562f67bc43940e1b09344414ad38ff1"
+        > ...
+        > Benchmark Run Complete
+        > Result file created at: gs://your-results-bucket/SparkSpannerWriteBenchmark/2026-02-12T..._....json
+        ```
+        Copy the full **GCS path** from the output.
+
+    *   **Step 3: Set the baseline.** Use the GCS path you just obtained to set the baseline for this benchmark.
+        ```bash
+        sbt "setBenchmarkBaseline dataproc-5mil-records gs://your-results-bucket/SparkSpannerWriteBenchmark/2026-02-12T..._....json"
         ```
     This step effectively tags a known-good performance run as your reference point.
 
@@ -218,12 +234,7 @@ After a benchmark run is complete, the results are stored as a JSON file in the 
 
 ### Location
 
-You can find the results in the bucket specified by the `resultsBucket` property in your `environment.json` file.
-
-The directory structure and file naming convention is as follows:
-- **Bucket:** `gs://<results_bucket_name>/`
-- **Directory:** `/SparkSpannerWriteBenchmark/`
-- **File:** `/<run_id>.json`
+Benchmark results are stored as JSON files in the GCS bucket specified by the `resultsBucket` property in your `environment.json` file.
 
 For example:
 `gs://my-spark-spanner-bench-results/SparkSpannerWriteBenchmark/2026-01-07T12-00-00Z_a1b2c3d4.json`

@@ -172,4 +172,4 @@ try {
 println("Finished writing results.")
 
 dfWrite.unpersist()
-dbutils.notebook.exit("SUCCESS")
+dbutils.notebook.exit(resultsURI.toString())

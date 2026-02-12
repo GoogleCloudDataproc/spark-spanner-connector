@@ -238,7 +238,7 @@ public class SpannerWriterUtilsTest {
               new Long[] {1L, 2L, null},
               Value.int64Array(Arrays.asList(new Long[] {1L, 2L, null})),
               (BiConsumer<ArrayData, Object>)
-                  (ad, d) -> when(ad.toObjectArray(DataTypes.LongType)).thenReturn((Long[]) d)
+                  (ad, d) -> when(ad.toObjectArray(DataTypes.LongType)).thenReturn((Object[]) d)
             },
 
             // 2. String Array

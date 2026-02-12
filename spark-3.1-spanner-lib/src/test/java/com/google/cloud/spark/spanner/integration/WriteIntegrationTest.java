@@ -548,12 +548,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   private Object[] rowToByteArray(Row row, int index) {
     final List<byte[]> actualList = row.<byte[]>getList(index);
-    Object[] byteArray = new Object[actualList.size()];
-
-    for (int i = 0; i < actualList.size(); i++) {
-      byteArray[i] = actualList.get(i);
-    }
-    return byteArray;
+    return actualList.toArray();
   }
 
   private BigDecimal[] rowToDecimalArray(Row row, int index) {

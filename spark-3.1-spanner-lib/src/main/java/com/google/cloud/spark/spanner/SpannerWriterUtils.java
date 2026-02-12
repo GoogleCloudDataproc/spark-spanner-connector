@@ -19,6 +19,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -89,7 +90,7 @@ public class SpannerWriterUtils {
         (row, i, type) -> {
           if (row.isNullAt(i)) return Value.date(null);
           int days = row.getInt(i);
-          java.time.LocalDate localDate = java.time.LocalDate.ofEpochDay(days);
+          LocalDate localDate = LocalDate.ofEpochDay(days);
           return Value.date(
               Date.fromYearMonthDay(
                   localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
@@ -114,14 +115,14 @@ public class SpannerWriterUtils {
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.StringType,
         (row, i, type) -> {
-          if (row.isNullAt(i)) return Value.stringArray(null);
+          if (row.isNullAt(i)) return Value.stringArray((List<String>) null);
 
           final DataType elementType = ((ArrayType) type).elementType();
           final Object[] items = (Object[]) row.getArray(i).toObjectArray(elementType);
           return Value.stringArray(
-              java.util.Arrays.stream(items)
+              Arrays.stream(items)
                   .map(item -> item == null ? null : item.toString())
-                  .collect(java.util.stream.Collectors.toList()));
+                  .collect(Collectors.toList()));
         });
 
     // Boolean
@@ -129,7 +130,7 @@ public class SpannerWriterUtils {
         DataTypes.BooleanType,
         (row, i, type) -> {
           if (row.isNullAt(i)) {
-            return Value.boolArray((boolean[]) null);
+            return Value.boolArray((List<Boolean>) null);
           }
           final ArrayData arrayData = row.getArray(i);
           final DataType elementType = ((ArrayType) type).elementType();
@@ -144,7 +145,7 @@ public class SpannerWriterUtils {
         DataTypes.DoubleType,
         (row, i, type) -> {
           if (row.isNullAt(i)) {
-            return Value.float64Array((double[]) null);
+            return Value.float64Array((List<Double>) null);
           }
           final ArrayData arrayData = row.getArray(i);
           final DataType elementType = ((ArrayType) type).elementType();
@@ -162,16 +163,16 @@ public class SpannerWriterUtils {
           DataType elementType = ((ArrayType) type).elementType();
           Object[] items = (Object[]) row.getArray(i).toObjectArray(elementType);
           return Value.bytesArray(
-              java.util.Arrays.stream(items)
+              Arrays.stream(items)
                   .map(item -> item == null ? null : ByteArray.copyFrom((byte[]) item))
-                  .collect(java.util.stream.Collectors.toList()));
+                  .collect(Collectors.toList()));
         });
 
     // Timestamp
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.TimestampType,
         (row, i, type) -> {
-          if (row.isNullAt(i)) return Value.timestampArray(null);
+          if (row.isNullAt(i)) return Value.timestampArray((List<Timestamp>) null);
           final ArrayData arrayData = row.getArray(i);
           final DataType elementType = ((ArrayType) type).elementType();
           final Object[] items = (Object[]) arrayData.toObjectArray(elementType);
@@ -187,7 +188,7 @@ public class SpannerWriterUtils {
         DataTypes.DateType,
         (row, i, type) -> {
           if (row.isNullAt(i)) {
-            return Value.dateArray(null);
+            return Value.dateArray((List<Date>) null);
           }
           final ArrayData arrayData = row.getArray(i);
           final DataType elementType = ((ArrayType) type).elementType();
@@ -199,8 +200,7 @@ public class SpannerWriterUtils {
                         if (item == null) {
                           return null;
                         }
-                        java.time.LocalDate localDate =
-                            java.time.LocalDate.ofEpochDay((Integer) item);
+                        LocalDate localDate = LocalDate.ofEpochDay((Integer) item);
                         return Date.fromYearMonthDay(
                             localDate.getYear(),
                             localDate.getMonthValue(),

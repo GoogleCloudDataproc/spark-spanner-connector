@@ -114,6 +114,25 @@ CREATE TABLE write_test_table (
     numeric_col NUMERIC
     ) PRIMARY KEY(long_col);
 
+CREATE TABLE write_array_test_table (
+    long_col INT64,
+    string_col STRING(MAX),
+    bool_col BOOL,
+    double_col FLOAT64,
+    timestamp_col TIMESTAMP,
+    date_col DATE,
+    bytes_col BYTES(MAX),
+    numeric_col NUMERIC,
+    long_array ARRAY<INT64>,
+    str_array ARRAY<STRING(MAX)>,
+    boolean_array ARRAY<BOOL>,
+    double_array ARRAY<FLOAT64>,
+    timestamp_array ARRAY<TIMESTAMP>,
+    date_array ARRAY<DATE>,
+    binary_array ARRAY<BYTES(MAX)>,
+    numeric_array ARRAY<NUMERIC>
+    ) PRIMARY KEY(long_col);
+
 CREATE TABLE schema_test_table (
   id INT64 NOT NULL,
   name STRING(MAX),

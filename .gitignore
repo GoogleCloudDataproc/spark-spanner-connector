@@ -32,3 +32,6 @@ dependency-reduced-pom.xml
 
 # direnv
 .envrc
+
+# Benchmark environment-specific configuration
+benchmark/environment.json

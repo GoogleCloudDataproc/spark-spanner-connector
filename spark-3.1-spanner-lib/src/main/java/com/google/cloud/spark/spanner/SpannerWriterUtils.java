@@ -179,7 +179,7 @@ public class SpannerWriterUtils {
     }
 
     final ArrayData arrayData = row.getArray(i);
-    int numElements = arrayData.numElements();
+    final int numElements = arrayData.numElements();
     List<T> convertedList = new ArrayList<>(numElements);
 
     for (int j = 0; j < numElements; j++) {

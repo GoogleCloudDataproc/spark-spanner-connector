@@ -18,6 +18,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.spark.spanner.TestData;
 import java.math.BigDecimal;
@@ -475,7 +476,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertArrayEquals(testDoubleArray1, rowToDoubleObjectArray(row1, 11));
     assertArrayEquals(testTimestamp1, rowToTimestampArray(row1, 12));
     assertArrayEquals(testDateArray1, rowToDateArray(row1, 13));
-    assertArrayEquals(testBinaryArray1, rowToByteArray(row1, 14));
+    assertTrue(java.util.Arrays.deepEquals(testBinaryArray1, rowToByteArray(row1, 14)));
     assertArrayEquals(testDecimalArray1, rowToDecimalArray(row1, 15));
 
     Row row2 = writtenRows.get(102L);
@@ -492,7 +493,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertArrayEquals(testDoubleArray2, rowToDoubleArray(row2, 11), 0.01);
     assertArrayEquals(testTimestamp2, rowToTimestampArray(row2, 12));
     assertArrayEquals(testDateArray2, rowToDateArray(row2, 13));
-    assertArrayEquals(testBinaryArray2, rowToByteArray(row2, 14));
+    assertTrue(java.util.Arrays.deepEquals(testBinaryArray2, rowToByteArray(row2, 14)));
     assertArrayEquals(testDecimalArray2, rowToDecimalArray(row2, 15));
   }
 

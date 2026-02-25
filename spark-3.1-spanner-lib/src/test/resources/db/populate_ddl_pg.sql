@@ -92,6 +92,19 @@ CREATE TABLE write_test_table (
   PRIMARY KEY(long_col)
 );
 
+CREATE TABLE write_struct_test_table (
+    long_col BIGINT,
+    string_col TEXT,
+    bool_col BOOLEAN,
+    double_col DOUBLE PRECISION,
+    timestamp_col TIMESTAMPTZ,
+    date_col DATE,
+    bytes_col BYTEA,
+    numeric_col NUMERIC,
+    struct_col jsonb,
+    PRIMARY KEY(long_col)
+);
+
 CREATE TABLE write_array_test_table (
   long_col BIGINT,
   string_col TEXT,

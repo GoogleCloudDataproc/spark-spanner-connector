@@ -273,14 +273,18 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   }
 
   private void checkChildRow(Row row) {
-    assertThat(row.getLong(0)).isEqualTo(100L);
-    assertThat(row.getString(1)).isEqualTo("str_value");
-    assertThat(row.getBoolean(2)).isTrue();
-    assertThat(row.getDouble(3)).isEqualTo(95.5);
-    assertThat(row.<byte[]>getAs(4)).isEqualTo(new byte[] {1, 2, 3});
-    assertThat(row.getTimestamp(5)).isEqualTo(java.sql.Timestamp.valueOf("2025-01-01 11:12:13"));
-    assertThat(row.getDate(6)).isEqualTo(java.sql.Date.valueOf("2026-01-01"));
-    assertThat(row.getDecimal(7).compareTo(new java.math.BigDecimal("123.456"))).isEqualTo(0);
+    assertThat(row.<Long>getAs("long_field")).isEqualTo(100L);
+    assertThat(row.<String>getAs("str_field")).isEqualTo("str_value");
+    assertThat(row.<Boolean>getAs("bool_field")).isTrue();
+    assertThat(row.<Double>getAs("double_field")).isEqualTo(95.5);
+    assertThat(row.<byte[]>getAs("binary_field")).isEqualTo(new byte[] {1, 2, 3});
+    assertThat(row.<java.sql.Timestamp>getAs("ts_field"))
+        .isEqualTo(java.sql.Timestamp.valueOf("2025-01-01 11:12:13"));
+    assertThat(row.<java.sql.Date>getAs("dt_field")).isEqualTo(java.sql.Date.valueOf("2026-01-01"));
+    assertThat(
+            row.<java.math.BigDecimal>getAs("decimal_field")
+                .compareTo(new java.math.BigDecimal("123.456")))
+        .isEqualTo(0);
   }
 
   @Test

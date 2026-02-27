@@ -38,6 +38,7 @@ import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -229,6 +230,45 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(finalRows.get(202L).getString(1)).isEqualTo("original twenty-two");
     // Check that row 203 was inserted.
     assertThat(finalRows.get(203L).getString(1)).isEqualTo("new twenty-three");
+  }
+
+  @Test
+  public void testInsert() {
+    // 1. Write initial data using unique keys.
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            });
+    List<Row> initialRows =
+        Arrays.asList(
+            RowFactory.create(201L, "original twenty-one"),
+            RowFactory.create(202L, "original twenty-two"));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+
+    Map<String, String> props = connectionProperties(usePostgresSql);
+    props.put("table", TestData.WRITE_TABLE_NAME);
+    props.put("enablePartialRowUpdates", "true");
+    props.put("mutationType", "insert");
+
+    initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    // 2. Write a second DataFrame to update one row and insert another.
+    List<Row> newRows =
+        Arrays.asList(
+            RowFactory.create(201L, "new twenty-one"), // Update 201
+            RowFactory.create(203L, "new twenty-three") // Insert 203
+            );
+    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+
+    try {
+      newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+      Assert.fail();
+    } catch (Exception e) {
+      // 3. Verify that row 201 cannot be inserted again.
+      assertThat(e.getCause().getMessage()).contains("ALREADY_EXISTS: Row [201]");
+    }
   }
 
   @Test

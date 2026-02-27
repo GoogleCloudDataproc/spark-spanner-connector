@@ -247,12 +247,11 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             RowFactory.create(202L, "original twenty-two"));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
 
-    Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", TestData.WRITE_TABLE_NAME);
-    props.put("enablePartialRowUpdates", "true");
-    props.put("mutationType", "insert");
+    Map<String, String> upsertProps = connectionProperties(usePostgresSql);
+    upsertProps.put("table", TestData.WRITE_TABLE_NAME);
+    upsertProps.put("enablePartialRowUpdates", "true");
 
-    initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+    initialDf.write().format("cloud-spanner").options(upsertProps).mode(SaveMode.Append).save();
 
     // 2. Write a second DataFrame to update one row and insert another.
     List<Row> newRows =
@@ -262,13 +261,135 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             );
     Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
 
+    Map<String, String> insertProps = connectionProperties(usePostgresSql);
+    insertProps.put("table", TestData.WRITE_TABLE_NAME);
+    insertProps.put("enablePartialRowUpdates", "true");
+    insertProps.put("mutationType", "insert");
+
     try {
-      newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+      newDf.write().format("cloud-spanner").options(insertProps).mode(SaveMode.Append).save();
       Assert.fail();
     } catch (Exception e) {
       // 3. Verify that row 201 cannot be inserted again.
       assertThat(e.getCause().getMessage()).contains("ALREADY_EXISTS: Row [201]");
     }
+  }
+
+  @Test
+  public void testUpdate() {
+    // 1. Write initial data using unique keys.
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            });
+    List<Row> initialRows =
+        Arrays.asList(
+            RowFactory.create(201L, "original twenty-one"),
+            RowFactory.create(202L, "original twenty-two"));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+
+    Map<String, String> upsertProps = connectionProperties(usePostgresSql);
+    upsertProps.put("table", TestData.WRITE_TABLE_NAME);
+    upsertProps.put("enablePartialRowUpdates", "true");
+
+    initialDf.write().format("cloud-spanner").options(upsertProps).mode(SaveMode.Append).save();
+
+    // 2. Write a second DataFrame to update one row and insert another.
+    List<Row> newRows =
+        Arrays.asList(
+            RowFactory.create(201L, "new twenty-one"), // Update 201
+            RowFactory.create(203L, "new twenty-three") // Insert 203
+            );
+    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+
+    Map<String, String> updateProps = connectionProperties(usePostgresSql);
+    updateProps.put("table", TestData.WRITE_TABLE_NAME);
+    updateProps.put("enablePartialRowUpdates", "true");
+    updateProps.put("mutationType", "update");
+
+    try {
+      newDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
+      Assert.fail();
+    } catch (Exception e) {
+      // 3. Verify that row 201 cannot be inserted again.
+      assertThat(e.getCause().getMessage()).contains("NOT_FOUND: Row [203]");
+    }
+  }
+
+  @Test
+  public void testReplace() {
+    // 1. Write initial data using unique keys.
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
+            });
+    List<Row> initialRows =
+        Arrays.asList(
+            RowFactory.create(
+                201L, "original twenty-one", java.sql.Timestamp.valueOf("2023-01-01 10:10:10")),
+            RowFactory.create(
+                202L, "original twenty-two", java.sql.Timestamp.valueOf("2024-01-01 10:10:10")));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+
+    Map<String, String> upsertProps = connectionProperties(usePostgresSql);
+    upsertProps.put("table", TestData.WRITE_TABLE_NAME);
+    upsertProps.put("enablePartialRowUpdates", "true");
+
+    initialDf.write().format("cloud-spanner").options(upsertProps).mode(SaveMode.Append).save();
+
+    // 2. Write a second DataFrame to replace two rows.
+    List<Row> newRows =
+        Arrays.asList(
+            RowFactory.create(
+                201L,
+                "new twenty-one",
+                java.sql.Timestamp.valueOf("2025-01-01 10:10:10")), // Replace 201 with 3 columns
+            RowFactory.create(
+                202L,
+                "new twenty-two",
+                java.sql.Timestamp.valueOf("2026-01-01 10:10:10")) // Replace 201 with 3 columns
+            // null
+            );
+    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+
+    Map<String, String> replaceProps = connectionProperties(usePostgresSql);
+    replaceProps.put("table", TestData.WRITE_TABLE_NAME);
+    replaceProps.put("enablePartialRowUpdates", "true");
+    replaceProps.put("mutationType", "replace");
+
+    newDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
+
+    // 3. Verify the final state of the rows involved in this test.
+    Dataset<Row> finalDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(upsertProps)
+            .load()
+            .filter("long_col IN (201, 202)");
+
+    assertEquals(2, finalDf.count());
+
+    Map<Long, Row> finalRows =
+        finalDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 201 was replaced.
+    assertThat(finalRows.get(201L).getString(1)).isEqualTo("new twenty-one");
+    assertThat(finalRows.get(201L).getTimestamp(4))
+        .isEqualTo(java.sql.Timestamp.valueOf("2025-01-01 10:10:10"));
+    // Check that row 202 string was replaced.
+    assertThat(finalRows.get(202L).getString(1)).isEqualTo("new twenty-two");
+    assertThat(finalRows.get(202L).getTimestamp(4))
+        .isEqualTo(java.sql.Timestamp.valueOf("2026-01-01 10:10:10"));
+
+    // TODO: Check that row 202 is replaced with null.
+    // assertThat(finalRows.get(202L).isNullAt(2)).isTrue();
   }
 
   @Test

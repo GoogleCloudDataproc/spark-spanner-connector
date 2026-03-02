@@ -243,6 +243,11 @@ public class SpannerCatalog implements TableCatalog {
 
   @Override
   public boolean tableExists(Identifier ident) {
+    if (ident.namespace().length > 0) {
+      log.warn("Invalid namespace for listing tables: {}", String.join(".", ident.namespace()));
+      return false;
+    }
+
     String tableName = ident.name();
 
     DatabaseClient dbClient = getDatabaseClient();

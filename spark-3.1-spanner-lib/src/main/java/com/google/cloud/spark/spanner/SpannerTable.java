@@ -272,7 +272,8 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public StructType schema() {
-    if (this.properties.containsKey("enablePartialRowUpdates")) {
+    if (this.properties.getOrDefault("enablePartialRowUpdates", "false").equalsIgnoreCase("true")
+        && dfSchema != null) {
       return this.dfSchema;
     }
     return this.dbSchema.schema;

@@ -364,7 +364,46 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
     newDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
 
-    // 3. Verify the final state of the rows involved in this test.
+    // 3. Verify the state of the rows involved in this test.
+    Dataset<Row> nextDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(upsertProps)
+            .load()
+            .filter("long_col IN (201, 202)");
+
+    assertEquals(2, nextDf.count());
+
+    Map<Long, Row> nextRows =
+        nextDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 201 was replaced.
+    assertThat(nextRows.get(201L).getString(1)).isEqualTo("new twenty-one");
+    assertThat(nextRows.get(201L).getTimestamp(4))
+        .isEqualTo(java.sql.Timestamp.valueOf("2025-01-01 10:10:10"));
+    // Check that row 202 was replaced.
+    assertThat(nextRows.get(202L).getString(1)).isEqualTo("new twenty-two");
+    assertThat(nextRows.get(202L).getTimestamp(4))
+        .isEqualTo(java.sql.Timestamp.valueOf("2026-01-01 10:10:10"));
+
+    // 4. Write two rows with one column missing
+    StructType shortSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            });
+    List<Row> shortRows =
+        Arrays.asList(
+            RowFactory.create(201L, "short twenty-one"),
+            RowFactory.create(202L, "short twenty-two"));
+    Dataset<Row> shortDf = spark.createDataFrame(shortRows, shortSchema);
+
+    shortDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
+
+    // 5. Verify the final state of the rows involved in this test.
     Dataset<Row> finalDf =
         spark
             .read()
@@ -380,16 +419,11 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
 
     // Check that row 201 was replaced.
-    assertThat(finalRows.get(201L).getString(1)).isEqualTo("new twenty-one");
-    assertThat(finalRows.get(201L).getTimestamp(4))
-        .isEqualTo(java.sql.Timestamp.valueOf("2025-01-01 10:10:10"));
-    // Check that row 202 string was replaced.
-    assertThat(finalRows.get(202L).getString(1)).isEqualTo("new twenty-two");
-    assertThat(finalRows.get(202L).getTimestamp(4))
-        .isEqualTo(java.sql.Timestamp.valueOf("2026-01-01 10:10:10"));
-
-    // TODO: Check that row 202 is replaced with null.
-    // assertThat(finalRows.get(202L).isNullAt(2)).isTrue();
+    assertThat(finalRows.get(201L).getString(1)).isEqualTo("short twenty-one");
+    assertThat(finalRows.get(201L).isNullAt(4)).isTrue();
+    // Check that row 202 was replaced.
+    assertThat(finalRows.get(202L).getString(1)).isEqualTo("short twenty-two");
+    assertThat(finalRows.get(202L).isNullAt(4)).isTrue();
   }
 
   @Test

@@ -192,14 +192,16 @@ public class SpannerWriterUtils {
   }
 
   private static Mutation.WriteBuilder createBuilder(String tableName, Mutation.Op mode) {
-    if (Objects.requireNonNull(mode) == Mutation.Op.INSERT) {
-      return Mutation.newInsertBuilder(tableName);
-    } else if (Objects.requireNonNull(mode) == Mutation.Op.UPDATE) {
-      return Mutation.newUpdateBuilder(tableName);
-    } else if (Objects.requireNonNull(mode) == Mutation.Op.REPLACE) {
-      return Mutation.newReplaceBuilder(tableName);
+    switch (Objects.requireNonNull(mode)) {
+      case INSERT:
+        return Mutation.newInsertBuilder(tableName);
+      case UPDATE:
+        return Mutation.newUpdateBuilder(tableName);
+      case REPLACE:
+        return Mutation.newReplaceBuilder(tableName);
+      default:
+        return Mutation.newInsertOrUpdateBuilder(tableName);
     }
-    return Mutation.newInsertOrUpdateBuilder(tableName);
   }
 
   public static Mutation internalRowToMutation(

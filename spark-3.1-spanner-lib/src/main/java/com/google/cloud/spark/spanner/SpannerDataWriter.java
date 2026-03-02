@@ -118,7 +118,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   private Mutation.Op parseMutationType(String mutationTypeProperty) {
     if (mutationTypeProperty == null) return Mutation.Op.INSERT_OR_UPDATE;
-    switch (mutationTypeProperty) {
+    switch (mutationTypeProperty.toLowerCase(java.util.Locale.ROOT)) {
       case "insert":
         return Mutation.Op.INSERT;
       case "update":

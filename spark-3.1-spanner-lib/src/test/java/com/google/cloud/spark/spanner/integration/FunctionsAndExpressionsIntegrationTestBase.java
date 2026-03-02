@@ -84,14 +84,19 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
     return ImmutableList.of(new Object[] {false}, new Object[] {true});
   }
 
-  private boolean isPostgreSql;
+  private final boolean isPostgreSql;
 
   public FunctionsAndExpressionsIntegrationTestBase(boolean isPostgreSql) {
     this.isPostgreSql = isPostgreSql;
   }
 
+  @Override
+  protected boolean getUsePostgreSql() {
+    return isPostgreSql;
+  }
+
   public Dataset<Row> readFromTable(String table) {
-    Map<String, String> props = this.connectionProperties(isPostgreSql);
+    Map<String, String> props = connectionProperties();
     return spark
         .read()
         .format("cloud-spanner")

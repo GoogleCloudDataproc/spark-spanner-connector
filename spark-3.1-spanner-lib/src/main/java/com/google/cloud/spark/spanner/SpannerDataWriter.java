@@ -38,6 +38,7 @@ import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,25 +88,28 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       ScheduledExecutorService scheduler) {
     this.partitionId = partitionId;
     this.taskId = taskId;
-    this.tableName = SpannerUtils.getRequiredOption(properties, "table");
+
+    CaseInsensitiveStringMap caseInsensitiveStringMap = new CaseInsensitiveStringMap(properties);
+    this.tableName = SpannerUtils.getRequiredOption(caseInsensitiveStringMap, "table");
 
     this.schema = schema;
 
     // Default to 1MB (Safety) and 1000 Mutations
     this.mutationsPerTransaction =
         Integer.parseInt(
-            properties.getOrDefault(
+            caseInsensitiveStringMap.getOrDefault(
                 "mutationsPerTransaction", MUTATIONS_PER_TRANSACTION_DEFAULT_STR));
     this.bytesPerTransaction =
         Long.parseLong(
-            properties.getOrDefault(
+            caseInsensitiveStringMap.getOrDefault(
                 "bytesPerTransaction", BYTES_PER_TRANSACTION_DEFAULT_STR)); // 1 MB default
     this.assumeIdempotentRows =
         Boolean.parseBoolean(
-            properties.getOrDefault("assumeIdempotentRows", ASSUME_IDEMPOTENT_ROWS_DEFAULT_STR));
+            caseInsensitiveStringMap.getOrDefault(
+                "assumeIdempotentRows", ASSUME_IDEMPOTENT_ROWS_DEFAULT_STR));
     this.maxPendingTransactions =
         Integer.parseInt(
-            properties.getOrDefault(
+            caseInsensitiveStringMap.getOrDefault(
                 "maxPendingTransactions", MAX_PENDING_TRANSACTIONS_DEFAULT_STR));
 
     this.batchClient = batchClient;

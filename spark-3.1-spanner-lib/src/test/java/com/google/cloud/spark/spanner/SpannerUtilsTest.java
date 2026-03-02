@@ -14,12 +14,16 @@
 
 package com.google.cloud.spark.spanner;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.junit.Test;
 
 public class SpannerUtilsTest {
@@ -141,5 +145,33 @@ public class SpannerUtilsTest {
             .getMessage()
             .contains(
                 "DataFrame has type decimal(38,10) but Spanner table expects type decimal(38,9)"));
+  }
+
+  @Test
+  public void testGetRequiredOptionCaseInsensitive() {
+    Map<String, String> props = new HashMap<>();
+    props.put("TABLE", "my_table");
+    props.put("instanceId", "my_instance");
+    CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(props);
+
+    assertEquals("my_table", SpannerUtils.getRequiredOption(options, "table"));
+    assertEquals("my_table", SpannerUtils.getRequiredOption(options, "TABLE"));
+    assertEquals("my_table", SpannerUtils.getRequiredOption(options, "Table"));
+
+    assertEquals("my_instance", SpannerUtils.getRequiredOption(options, "instanceid"));
+    assertEquals("my_instance", SpannerUtils.getRequiredOption(options, "INSTANCEID"));
+    assertEquals("my_instance", SpannerUtils.getRequiredOption(options, "instanceId"));
+  }
+
+  @Test
+  public void testGetRequiredOptionMissing() {
+    Map<String, String> props = new HashMap<>();
+    CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(props);
+
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.getRequiredOption(options, "table"));
+    assertTrue(e.getMessage().contains("Option 'table' property must be set"));
   }
 }

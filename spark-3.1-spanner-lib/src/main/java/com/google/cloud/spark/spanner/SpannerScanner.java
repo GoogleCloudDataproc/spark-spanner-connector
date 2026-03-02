@@ -36,6 +36,7 @@ import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,14 +47,14 @@ public class SpannerScanner implements Batch, Scan {
   private final SpannerTable spannerTable;
   private final Filter[] filters;
   private final Set<String> requiredColumns;
-  private final Map<String, String> opts;
+  private final CaseInsensitiveStringMap opts;
   private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
   private final Timestamp INIT_TIME = Timestamp.now();
   private final Map<String, StructField> fields;
   private final StructType readSchema;
 
   public SpannerScanner(
-      Map<String, String> opts,
+      CaseInsensitiveStringMap opts,
       SpannerTable spannerTable,
       Map<String, StructField> fields,
       Filter[] filters,
@@ -116,7 +117,7 @@ public class SpannerScanner implements Batch, Scan {
                   this.filters);
     }
 
-    Boolean enableDataboost = false;
+    boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {
       enableDataboost = this.opts.get("enableDataBoost").equalsIgnoreCase("true");
     }

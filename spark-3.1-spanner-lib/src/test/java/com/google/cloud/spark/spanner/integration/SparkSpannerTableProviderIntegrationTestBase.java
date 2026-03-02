@@ -55,7 +55,7 @@ public abstract class SparkSpannerTableProviderIntegrationTestBase<
   }
 
   @Test
-  public void getTableForWrite_withoutenablePartialRowUpdates_returnsTableWithFullSchema() {
+  public void getTableForWrite_withoutEnablePartialRowUpdates_returnsTableWithFullSchema() {
     // Arrange
     T provider = getInstance();
     Map<String, String> props = connectionProperties();
@@ -88,7 +88,7 @@ public abstract class SparkSpannerTableProviderIntegrationTestBase<
     // Arrange
     T provider = getInstance();
     Map<String, String> props = connectionPropertiesLowerCase(false);
-
+    props.put("enablePartialRowUpdates", "true");
     final StructType partialSchema = new StructType().add("long_col", DataTypes.LongType, false);
 
     // Act

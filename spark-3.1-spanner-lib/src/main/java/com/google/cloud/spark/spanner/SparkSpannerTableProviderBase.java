@@ -14,8 +14,9 @@
 
 package com.google.cloud.spark.spanner;
 
-import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
 import java.util.Map;
+import org.apache.spark.sql.connector.catalog.Identifier;
+import org.apache.spark.sql.connector.catalog.SupportsCatalogOptions;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
@@ -23,7 +24,8 @@ import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public abstract class SparkSpannerTableProviderBase implements DataSourceRegister, TableProvider {
+public abstract class SparkSpannerTableProviderBase
+    implements SupportsCatalogOptions, DataSourceRegister, TableProvider {
 
   /*
    * Infers the schema of the table identified by the given options.
@@ -45,15 +47,12 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
         Boolean.parseBoolean(options.getOrDefault("enablePartialRowUpdates", "false"));
 
     boolean hasTable = options.containsKey("table");
-    boolean hasGraph = options.containsKey("graph");
-    if (hasTable && !hasGraph) {
+    if (hasTable) {
       if (enablePartialRowUpdates) {
         return new SpannerTable(options, schema);
       } else {
         return new SpannerTable(options);
       }
-    } else if (!hasTable && hasGraph) {
-      return SpannerGraphBuilder.build(options);
     } else {
       throw new SpannerConnectorException(
           SpannerErrorCode.INVALID_ARGUMENT,
@@ -81,15 +80,26 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
 
   private Table getTable(Map<String, String> properties) {
     boolean hasTable = properties.containsKey("table");
-    boolean hasGraph = properties.containsKey("graph");
-    if (hasTable && !hasGraph) {
+    if (hasTable) {
       return new SpannerTable(properties);
-    } else if (!hasTable && hasGraph) {
-      return SpannerGraphBuilder.build(properties);
     } else {
       throw new SpannerConnectorException(
           SpannerErrorCode.INVALID_ARGUMENT,
           "properties must contain one of \"table\" or \"graph\"");
     }
+  }
+
+  @Override
+  public Identifier extractIdentifier(CaseInsensitiveStringMap options) {
+    String table = options.get("table");
+    if (table != null) {
+      return Identifier.of(new String[0], table);
+    }
+    return null;
+  }
+
+  @Override
+  public String extractCatalog(CaseInsensitiveStringMap options) {
+    return options.getOrDefault("catalog", "spanner");
   }
 }

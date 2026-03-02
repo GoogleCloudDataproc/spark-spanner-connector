@@ -17,9 +17,8 @@ package com.google.cloud.spark.spanner.integration;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import com.google.cloud.spark.spanner.SpannerConnectorException;
-import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.TestData;
+import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -54,28 +53,35 @@ public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegration
     this.usePostgreSql = usePostgreSql;
   }
 
+  @Override
+  protected boolean getUsePostgreSql() {
+    return usePostgreSql;
+  }
+
   @Test
   public void testColumnNotFound() {
     StructType dfSchema =
         new StructType(
             new StructField[] {
               DataTypes.createStructField("id", DataTypes.LongType, false),
+              DataTypes.createStructField("name", DataTypes.StringType, true),
+              DataTypes.createStructField("value", DataTypes.DoubleType, true),
               DataTypes.createStructField("non_existent_col", DataTypes.StringType, true)
             });
-    List<Row> rows = Collections.singletonList(RowFactory.create(1L, "some_string"));
+    List<Row> rows = Collections.singletonList(RowFactory.create(1L, "a", 1.1, "some_string"));
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
     Map<String, String> props = connectionProperties(usePostgreSql);
     props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
-    SpannerConnectorException e =
+    AnalysisException e =
         assertThrows(
-            SpannerConnectorException.class,
+            AnalysisException.class,
             () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
 
-    assertThat(e.getErrorCode()).isEqualTo(SpannerErrorCode.SCHEMA_VALIDATION_ERROR);
-    assertThat(e.getMessage()).contains("DataFrame column 'non_existent_col' not found");
+    assertThat(e.getMessage())
+        .contains("Cannot write to 'schema_test_table', too many data columns");
   }
 
   @Test
@@ -83,22 +89,20 @@ public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegration
     StructType dfSchema =
         new StructType(
             new StructField[] {
-              DataTypes.createStructField("id", DataTypes.StringType, false) // wrong type
+              DataTypes.createStructField("id", DataTypes.StringType, false), // wrong type
+              DataTypes.createStructField("name", DataTypes.StringType, true),
+              DataTypes.createStructField("value", DataTypes.DoubleType, true),
             });
-    List<Row> rows = Collections.singletonList(RowFactory.create("not_a_long"));
+    List<Row> rows = Collections.singletonList(RowFactory.create("not_a_long", "a", 1.1));
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
     Map<String, String> props = connectionProperties(usePostgreSql);
     props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true");
 
-    SpannerConnectorException e =
-        assertThrows(
-            SpannerConnectorException.class,
-            () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
-
-    assertThat(e.getErrorCode()).isEqualTo(SpannerErrorCode.SCHEMA_VALIDATION_ERROR);
-    assertThat(e.getMessage()).contains("Data type mismatch for column 'id'");
+    assertThrows(
+        AnalysisException.class,
+        () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
   }
 
   @Test
@@ -130,31 +134,39 @@ public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegration
       // PostgreSQL's NUMERIC is more flexible and this write may not fail.
       return;
     }
-
+    spark.conf().set("spark.sql.storeAssignmentPolicy", "STRICT");
     // Create a DataFrame with a high-scale decimal type.
     StructType dfSchema =
         new StructType(
             new StructField[] {
               DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 10), true)
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+              DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
+              DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
+              DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
+              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 10), true),
+              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
+              DataTypes.createStructField("date_col", DataTypes.DateType, true)
             });
     List<Row> rows =
         Collections.singletonList(
-            RowFactory.create(999L, new java.math.BigDecimal("123.1234567890")));
+            RowFactory.create(
+                999L,
+                "a",
+                true,
+                "a".getBytes(),
+                1.1,
+                new java.math.BigDecimal("0.0000000001").setScale(10, RoundingMode.HALF_UP),
+                null,
+                null));
     Dataset<Row> df = spark.createDataFrame(rows, dfSchema);
 
     Map<String, String> props = connectionProperties(usePostgreSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
     props.put("enablePartialRowUpdates", "true"); // Must be true to test connector validation.
 
-    SpannerConnectorException e =
-        assertThrows(
-            SpannerConnectorException.class,
-            () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
-
-    assertThat(e.getErrorCode()).isEqualTo(SpannerErrorCode.SCHEMA_VALIDATION_ERROR);
-    assertThat(e.getMessage()).contains("Data type mismatch for column 'numeric_col'");
-    assertThat(e.getMessage())
-        .contains("DataFrame has type decimal(38,10) but Spanner table expects type decimal(38,9)");
+    assertThrows(
+        AnalysisException.class,
+        () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
   }
 }

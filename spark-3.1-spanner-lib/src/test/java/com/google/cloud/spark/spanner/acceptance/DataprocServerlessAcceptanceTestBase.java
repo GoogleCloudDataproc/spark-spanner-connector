@@ -210,11 +210,18 @@ public class DataprocServerlessAcceptanceTestBase {
         context.getScriptUri(testName),
         "text/x-python");
     String parent = String.format("projects/%s/locations/%s", PROJECT_ID, REGION);
+    RuntimeConfig.Builder runtimeConfigBuilder =
+        RuntimeConfig.newBuilder().setVersion(s8sImageVersion);
+    runtimeConfigBuilder.putProperties(
+        "spark.sql.catalog.spanner", "com.google.cloud.spark.spanner.SpannerCatalog");
+    runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.projectId", PROJECT_ID);
+    runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.instanceId", INSTANCE_ID);
+    runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.databaseId", DATABASE_ID);
     Batch batch =
         Batch.newBuilder()
             .setName(parent + "/batches/" + context.clusterId)
             .setPysparkBatch(createPySparkBatchBuilder(context, testName, pythonZipUri, args))
-            .setRuntimeConfig(RuntimeConfig.newBuilder().setVersion(s8sImageVersion))
+            .setRuntimeConfig(runtimeConfigBuilder)
             .build();
 
     OperationFuture<Batch, BatchOperationMetadata> batchAsync =

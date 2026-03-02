@@ -15,49 +15,45 @@
 package com.google.cloud.spark.spanner.integration;
 
 import java.util.Map;
-import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.SparkSession;
-import org.junit.ClassRule;
-import org.junit.rules.ExternalResource;
+import org.junit.After;
+import org.junit.Before;
 
 public class SparkSpannerIntegrationTestBase extends SpannerTestBase {
 
-  @ClassRule public static SparkFactory sparkFactory = new SparkFactory();
-
   protected SparkSession spark;
 
-  public SparkSpannerIntegrationTestBase() {
-    this.spark = sparkFactory.spark;
+  public SparkSpannerIntegrationTestBase() {}
+
+  @Before
+  public void setUpSpark() {
+    Map<String, String> catalogProps = connectionProperties();
+    spark =
+        SparkSession.builder()
+            .master("local")
+            .appName("SparkSpannerIntegrationTest")
+            .config("spark.ui.enabled", "false")
+            .config("spark.sql.catalog.spanner", "com.google.cloud.spark.spanner.SpannerCatalog")
+            .config("spark.sql.catalog.spanner.projectId", catalogProps.get("projectId"))
+            .config("spark.sql.catalog.spanner.instanceId", catalogProps.get("instanceId"))
+            .config("spark.sql.catalog.spanner.databaseId", catalogProps.get("databaseId"))
+            .config("spark.default.parallelism", 20)
+            .getOrCreate();
+
+    if (catalogProps.get("emulatorHost") != null) {
+      spark.conf().set("spark.sql.catalog.spanner.emulatorHost", catalogProps.get("emulatorHost"));
+    }
+    spark.sparkContext().setLogLevel("WARN");
   }
 
-  public DataFrameReader reader() {
-    Map<String, String> props = connectionProperties();
-    DataFrameReader reader =
-        spark
-            .read()
-            .format("cloud-spanner")
-            .option("viewsEnabled", true)
-            .option("projectId", props.get("projectId"))
-            .option("instanceId", props.get("instanceId"))
-            .option("databaseId", props.get("databaseId"));
-    String emulatorHost = props.get("emulatorHost");
-    if (emulatorHost != null) reader = reader.option("emulatorHost", props.get("emulatorHost"));
-    return reader;
+  protected String getDataFrameFormat() {
+    return "cloud-spanner";
   }
 
-  protected static class SparkFactory extends ExternalResource {
-    SparkSession spark;
-
-    @Override
-    protected void before() throws Throwable {
-      spark =
-          SparkSession.builder()
-              .master("local")
-              .config("spark.ui.enabled", "false")
-              .config("spark.default.parallelism", 20)
-              .getOrCreate();
-      // reducing test's logs
-      spark.sparkContext().setLogLevel("WARN");
+  @After
+  public void tearDownSpark() {
+    if (spark != null) {
+      spark.stop();
     }
   }
 }

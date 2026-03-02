@@ -33,8 +33,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
@@ -49,7 +51,14 @@ import scala.collection.Seq;
 public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
 
   public Dataset<Row> readFromTable(String table) {
-    return reader().option("table", table).load();
+
+    Map<String, String> props = connectionProperties();
+    DataFrameReader reader = spark.read().format("cloud-spanner-graph");
+    String emulatorHost = props.get("emulatorHost");
+    if (emulatorHost != null) {
+      reader = reader.option("emulatorHost", props.get("emulatorHost"));
+    }
+    return reader.option("table", table).load();
   }
 
   @Test

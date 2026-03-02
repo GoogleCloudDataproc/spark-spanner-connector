@@ -23,13 +23,16 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.DataWriterFactory;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public class SpannerDataWriterFactory implements DataWriterFactory {
+  // Instances of this class are marshaled to worker nodes so all fields need to be serializable.
+  // CaseInsensitiveMap is not.
   private final Map<String, String> properties;
   private final StructType schema;
 
-  public SpannerDataWriterFactory(Map<String, String> properties, StructType schema) {
-    this.properties = properties;
+  public SpannerDataWriterFactory(CaseInsensitiveStringMap properties, StructType schema) {
+    this.properties = properties.asCaseSensitiveMap();
     this.schema = schema;
   }
 

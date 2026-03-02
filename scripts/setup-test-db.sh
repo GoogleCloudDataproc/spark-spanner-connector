@@ -156,7 +156,9 @@ setup_database() {
   done
 
   # Apply DML
-  for dml_file in $dml_files_str; do
+  local dml_files_arr
+  read -r -a dml_files_arr <<< "$dml_files_str"
+  for dml_file in "${dml_files_arr[@]}"; do
     execute_dml_file "$db_id" "$dml_file"
   done
 

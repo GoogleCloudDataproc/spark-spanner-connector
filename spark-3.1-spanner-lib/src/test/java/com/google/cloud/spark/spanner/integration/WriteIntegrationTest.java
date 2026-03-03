@@ -55,6 +55,30 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
+  private final StructType SCHEMA =
+      new StructType(
+          new StructField[] {
+            DataTypes.createStructField("long_col", DataTypes.LongType, false),
+            DataTypes.createStructField("string_col", DataTypes.StringType, true),
+          });
+
+  private Map<String, String> getBaseProps() {
+    Map<String, String> props = connectionProperties(usePostgresSql);
+    props.put("table", TestData.WRITE_TABLE_NAME);
+    props.put("enablePartialRowUpdates", "true");
+    return props;
+  }
+
+  private Dataset<Row> setupInitialData(StructType schema) {
+    List<Row> initialRows =
+        Arrays.asList(
+            RowFactory.create(201L, "original twenty-one"),
+            RowFactory.create(202L, "original twenty-two"));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+    initialDf.write().format("cloud-spanner").options(getBaseProps()).mode(SaveMode.Append).save();
+    return initialDf;
+  }
+
   public WriteIntegrationTest(boolean usePostgresSql) {
     super();
     this.usePostgresSql = usePostgresSql;
@@ -120,21 +144,12 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   @Test
   public void testIdempotentWrite() {
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
-
     List<Row> rows = Arrays.asList(RowFactory.create(4L, "four"), RowFactory.create(5L, "five"));
 
-    Dataset<Row> df = spark.createDataFrame(rows, schema);
+    Dataset<Row> df = spark.createDataFrame(rows, SCHEMA);
 
-    Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", TestData.WRITE_TABLE_NAME);
+    Map<String, String> props = getBaseProps();
     props.put("assumeIdempotentWrites", "true");
-    props.put("enablePartialRowUpdates", "true");
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
@@ -154,18 +169,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   @Test
   public void testEmptyDataFrameWrite() {
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
 
-    Dataset<Row> df = spark.createDataFrame(Collections.emptyList(), schema);
+    Dataset<Row> df = spark.createDataFrame(Collections.emptyList(), SCHEMA);
 
-    Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", TestData.WRITE_TABLE_NAME);
-    props.put("enablePartialRowUpdates", "true");
+    Map<String, String> props = getBaseProps();
 
     // Get initial count to ensure no new rows are added
     long initialCount = spark.read().format("cloud-spanner").options(props).load().count();
@@ -181,23 +188,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testUpsert() {
     // 1. Write initial data using unique keys.
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
-    List<Row> initialRows =
-        Arrays.asList(
-            RowFactory.create(201L, "original twenty-one"),
-            RowFactory.create(202L, "original twenty-two"));
-    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
-
-    Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", TestData.WRITE_TABLE_NAME);
-    props.put("enablePartialRowUpdates", "true");
-
-    initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+    setupInitialData(SCHEMA);
 
     // 2. Write a second DataFrame to update one row and insert another.
     List<Row> newRows =
@@ -205,16 +196,20 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             RowFactory.create(201L, "new twenty-one"), // Update 201
             RowFactory.create(203L, "new twenty-three") // Insert 203
             );
-    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
-
-    newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+    spark
+        .createDataFrame(newRows, SCHEMA)
+        .write()
+        .format("cloud-spanner")
+        .options(getBaseProps())
+        .mode(SaveMode.Append)
+        .save();
 
     // 3. Verify the final state of the rows involved in this test.
     Dataset<Row> finalDf =
         spark
             .read()
             .format("cloud-spanner")
-            .options(props)
+            .options(getBaseProps())
             .load()
             .filter("long_col IN (201, 202, 203)");
 
@@ -235,23 +230,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testInsert() {
     // 1. Write initial data using unique keys.
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
-    List<Row> initialRows =
-        Arrays.asList(
-            RowFactory.create(201L, "original twenty-one"),
-            RowFactory.create(202L, "original twenty-two"));
-    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
-
-    Map<String, String> upsertProps = connectionProperties(usePostgresSql);
-    upsertProps.put("table", TestData.WRITE_TABLE_NAME);
-    upsertProps.put("enablePartialRowUpdates", "true");
-
-    initialDf.write().format("cloud-spanner").options(upsertProps).mode(SaveMode.Append).save();
+    setupInitialData(SCHEMA);
 
     // 2. Write a second DataFrame to update one row and insert another.
     List<Row> newRows =
@@ -259,11 +238,9 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             RowFactory.create(201L, "new twenty-one"), // Update 201
             RowFactory.create(203L, "new twenty-three") // Insert 203
             );
-    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA);
 
-    Map<String, String> insertProps = connectionProperties(usePostgresSql);
-    insertProps.put("table", TestData.WRITE_TABLE_NAME);
-    insertProps.put("enablePartialRowUpdates", "true");
+    Map<String, String> insertProps = getBaseProps();
     insertProps.put("mutationType", "insert");
 
     try {
@@ -278,23 +255,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testUpdate() {
     // 1. Write initial data using unique keys.
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
-    List<Row> initialRows =
-        Arrays.asList(
-            RowFactory.create(201L, "original twenty-one"),
-            RowFactory.create(202L, "original twenty-two"));
-    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
-
-    Map<String, String> upsertProps = connectionProperties(usePostgresSql);
-    upsertProps.put("table", TestData.WRITE_TABLE_NAME);
-    upsertProps.put("enablePartialRowUpdates", "true");
-
-    initialDf.write().format("cloud-spanner").options(upsertProps).mode(SaveMode.Append).save();
+    setupInitialData(SCHEMA);
 
     // 2. Write a second DataFrame to update one row and insert another.
     List<Row> newRows =
@@ -302,11 +263,9 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             RowFactory.create(201L, "new twenty-one"), // Update 201
             RowFactory.create(203L, "new twenty-three") // Insert 203
             );
-    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA);
 
-    Map<String, String> updateProps = connectionProperties(usePostgresSql);
-    updateProps.put("table", TestData.WRITE_TABLE_NAME);
-    updateProps.put("enablePartialRowUpdates", "true");
+    Map<String, String> updateProps = getBaseProps();
     updateProps.put("mutationType", "update");
 
     try {
@@ -336,9 +295,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 202L, "original twenty-two", java.sql.Timestamp.valueOf("2024-01-01 10:10:10")));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
 
-    Map<String, String> upsertProps = connectionProperties(usePostgresSql);
-    upsertProps.put("table", TestData.WRITE_TABLE_NAME);
-    upsertProps.put("enablePartialRowUpdates", "true");
+    Map<String, String> upsertProps = getBaseProps();
 
     initialDf.write().format("cloud-spanner").options(upsertProps).mode(SaveMode.Append).save();
 
@@ -357,9 +314,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             );
     Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
 
-    Map<String, String> replaceProps = connectionProperties(usePostgresSql);
-    replaceProps.put("table", TestData.WRITE_TABLE_NAME);
-    replaceProps.put("enablePartialRowUpdates", "true");
+    Map<String, String> replaceProps = getBaseProps();
     replaceProps.put("mutationType", "replace");
 
     newDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
@@ -389,17 +344,11 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
         .isEqualTo(java.sql.Timestamp.valueOf("2026-01-01 10:10:10"));
 
     // 4. Write two rows with one column missing
-    StructType shortSchema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
     List<Row> shortRows =
         Arrays.asList(
             RowFactory.create(201L, "short twenty-one"),
             RowFactory.create(202L, "short twenty-two"));
-    Dataset<Row> shortDf = spark.createDataFrame(shortRows, shortSchema);
+    Dataset<Row> shortDf = spark.createDataFrame(shortRows, SCHEMA);
 
     shortDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
 
@@ -429,14 +378,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testUpdateSetColumnToNull() {
     // 1. Write initial data with a non-null string value
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
     List<Row> initialRows = Collections.singletonList(RowFactory.create(20L, "originalValue"));
-    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
@@ -452,7 +395,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
     // 2. Update the existing row, setting string_col to null
     List<Row> updateRows = Collections.singletonList(RowFactory.create(20L, null));
-    Dataset<Row> updateDf = spark.createDataFrame(updateRows, schema);
+    Dataset<Row> updateDf = spark.createDataFrame(updateRows, SCHEMA);
 
     updateDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 

@@ -199,6 +199,8 @@ public class SpannerWriterUtils {
         return Mutation.newUpdateBuilder(tableName);
       case REPLACE:
         return Mutation.newReplaceBuilder(tableName);
+      case DELETE:
+        throw new UnsupportedOperationException("Unsupported Spanner write mode: DELETE");
       default:
         return Mutation.newInsertOrUpdateBuilder(tableName);
     }

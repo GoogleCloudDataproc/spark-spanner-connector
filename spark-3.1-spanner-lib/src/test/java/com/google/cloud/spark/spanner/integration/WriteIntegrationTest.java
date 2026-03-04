@@ -309,7 +309,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             RowFactory.create(
                 202L,
                 "new twenty-two",
-                java.sql.Timestamp.valueOf("2026-01-01 10:10:10")) // Replace 201 with 3 columns
+                java.sql.Timestamp.valueOf("2026-01-01 10:10:10")) // Replace 202 with 3 columns
             // null
             );
     Dataset<Row> newDf = spark.createDataFrame(newRows, schema);

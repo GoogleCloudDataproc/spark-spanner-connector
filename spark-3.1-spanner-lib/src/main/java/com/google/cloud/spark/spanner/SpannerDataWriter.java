@@ -117,7 +117,9 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   }
 
   private Mutation.Op parseMutationType(String mutationTypeProperty) {
-    if (mutationTypeProperty == null) return Mutation.Op.INSERT_OR_UPDATE;
+    if (mutationTypeProperty == null) {
+      return Mutation.Op.INSERT_OR_UPDATE;
+    }
     switch (mutationTypeProperty.toLowerCase(java.util.Locale.ROOT)) {
       case "insert":
         return Mutation.Op.INSERT;
@@ -125,8 +127,13 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
         return Mutation.Op.UPDATE;
       case "replace":
         return Mutation.Op.REPLACE;
-      default:
+      case "insert_or_update":
         return Mutation.Op.INSERT_OR_UPDATE;
+      default:
+        throw new IllegalArgumentException(
+            "Invalid value for mutationType: "
+                + mutationTypeProperty
+                + ". Supported values are: insert, update, replace, insert_or_update.");
     }
   }
 

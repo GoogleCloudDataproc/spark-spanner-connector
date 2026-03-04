@@ -254,14 +254,14 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   @Test
   public void testUpdate() {
-    // 1. Write initial data using unique keys.
+    // 1. Write initial data using unique keys
     setupInitialData(SCHEMA);
 
-    // 2. Write a second DataFrame to update one row and insert another.
+    // 2. Write a second DataFrame to update an existing row and update a non-existent row.
     List<Row> newRows =
         Arrays.asList(
             RowFactory.create(201L, "new twenty-one"), // Update 201
-            RowFactory.create(203L, "new twenty-three") // Insert 203
+            RowFactory.create(203L, "new twenty-three") // Update 203
             );
     Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA);
 
@@ -272,7 +272,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
       newDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
       Assert.fail();
     } catch (Exception e) {
-      // 3. Verify that row 201 cannot be inserted again.
+      // 3. Verify that row 203 cannot be update before it exists
       assertThat(e.getCause().getMessage()).contains("NOT_FOUND: Row [203]");
     }
   }

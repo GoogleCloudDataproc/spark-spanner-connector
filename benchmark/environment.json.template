@@ -1,0 +1,30 @@
+{
+  "dataproc": {
+    "projectId": "your-gcp-project-id",
+    "instanceId": "your-spanner-instance-id",
+    "databaseId": "your-spanner-db-id",
+    "spannerRegion": "your-gcp-region",
+    "resultsBucket": "your-gcs-results-bucket",
+    "dataprocCluster": "your-dataproc-cluster-name",
+    "dataprocRegion": "your-dataproc-region",
+    "dataprocBucket": "your-dataproc-staging-bucket",
+    "dataSourceMappings": {
+      "generated-data": "ci_generated_data_v1",
+      "default-100k-data": "ci_default_100k"
+    }
+  },
+  "databricks": {
+    "projectId": "your-gcp-project-id",
+    "instanceId": "your-spanner-instance-id",
+    "databaseId": "your-spanner-db-id",
+    "resultsBucket": "your-gcs-results-bucket",
+    "databricksHost": "https://your-databricks-host",
+    "databricksToken": "dapi-your-token-here",
+    "clusterId": "your-cluster-id",
+    "ucVolumePath": "/Volumes/your/uc/path",
+    "dataSourceMappings": {
+      "generated-data": "dev_large_source",
+      "default-100k-data": "dev_default_100k"
+    }
+  }
+}

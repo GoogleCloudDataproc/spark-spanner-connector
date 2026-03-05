@@ -41,6 +41,7 @@ import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableCatalog;
 import org.apache.spark.sql.connector.catalog.TableChange;
 import org.apache.spark.sql.connector.expressions.Transform;
+import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.MetadataBuilder;
@@ -252,6 +253,18 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
       if (field.dataType() instanceof org.apache.spark.sql.types.DecimalType) {
         return "numeric";
       }
+      if (field.dataType() instanceof ArrayType) {
+        ArrayType arrayType = (ArrayType) field.dataType();
+        if (arrayType.elementType() instanceof ArrayType) {
+          throw new SpannerConnectorException(
+              SpannerErrorCode.UNSUPPORTED_DATATYPE,
+              "Nested arrays are not supported by Spanner: " + field.dataType());
+        }
+        StructField elementField =
+            DataTypes.createStructField(
+                field.name(), arrayType.elementType(), arrayType.containsNull());
+        return sparkTypeToSpannerType(elementField, dialect) + "[]";
+      }
     }
 
     // GoogleSQL types
@@ -278,6 +291,18 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
     }
     if (field.dataType() instanceof org.apache.spark.sql.types.DecimalType) {
       return "NUMERIC";
+    }
+    if (field.dataType() instanceof ArrayType) {
+      ArrayType arrayType = (ArrayType) field.dataType();
+      if (arrayType.elementType() instanceof ArrayType) {
+        throw new SpannerConnectorException(
+            SpannerErrorCode.UNSUPPORTED_DATATYPE,
+            "Nested arrays are not supported by Spanner: " + field.dataType());
+      }
+      StructField elementField =
+          DataTypes.createStructField(
+              field.name(), arrayType.elementType(), arrayType.containsNull());
+      return "ARRAY<" + sparkTypeToSpannerType(elementField, dialect) + ">";
     }
 
     throw new SpannerConnectorException(

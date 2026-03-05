@@ -738,6 +738,46 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   }
 
   @Test
+  public void testCreateTableWithArrayColumns() {
+    String tableName = TestData.WRITE_TABLE_NAME + "_ARR_DDL";
+    spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
+
+    // Schema includes array columns so that sparkTypeToSpannerType must handle ArrayType.
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField(
+                  "id", DataTypes.LongType, false, SpannerCatalog.PRIMARY_KEY_METADATA),
+              DataTypes.createStructField(
+                  "long_array", DataTypes.createArrayType(DataTypes.LongType), true),
+              DataTypes.createStructField(
+                  "str_array", DataTypes.createArrayType(DataTypes.StringType), true),
+            });
+
+    Long[] longArr = new Long[] {10L, 20L, 30L};
+    Object[] strArr = new Object[] {"hello", "world"};
+
+    List<Row> rows = Collections.singletonList(RowFactory.create(1L, longArr, strArr));
+    Dataset<Row> df = spark.createDataFrame(rows, schema);
+
+    Map<String, String> props = connectionProperties(usePostgresSql);
+    props.put("table", tableName);
+
+    // ErrorIfExists triggers createTable -> toDdl -> sparkTypeToSpannerType.
+    // If sparkTypeToSpannerType does not support ArrayType, this will throw.
+    df.write().format("cloud-spanner").options(props).mode(SaveMode.ErrorIfExists).save();
+
+    Dataset<Row> readBack =
+        spark.read().format("cloud-spanner").options(props).load().filter("id = 1");
+    assertEquals(1, readBack.count());
+
+    Row row = readBack.first();
+    assertThat(row.getLong(0)).isEqualTo(1L);
+    assertArrayEquals(longArr, row.getList(1).toArray(new Long[0]));
+    assertArrayEquals(strArr, row.getList(2).toArray());
+  }
+
+  @Test
   public void testErrorIfExists() {
 
     // 1. Write initial data.

@@ -69,14 +69,29 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     return props;
   }
 
-  private Dataset<Row> setupInitialData(StructType schema) {
+  /**
+   * Sets up initial data with a given list of row IDs. Used to avoid ID clashes between different
+   * tests.
+   *
+   * @param schema schema of table columns being used in test.
+   * @param ids IDs used in the test
+   * @return The dataframe defining the data being written
+   */
+  private Dataset<Row> setupInitialData(StructType schema, long[] ids) {
+    if (ids.length != 2) Assert.fail("Invalid number of id's provided");
     List<Row> initialRows =
         Arrays.asList(
-            RowFactory.create(201L, "original twenty-one"),
-            RowFactory.create(202L, "original twenty-two"));
+            RowFactory.create(ids[0], "original twenty-one"),
+            RowFactory.create(ids[1], "original twenty-two"));
+
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
     initialDf.write().format("cloud-spanner").options(getBaseProps()).mode(SaveMode.Append).save();
     return initialDf;
+  }
+
+  private Dataset<Row> setupInitialData(StructType schema) {
+    final long[] ids = new long[] {201L, 202L};
+    return setupInitialData(schema, ids);
   }
 
   public WriteIntegrationTest(boolean usePostgresSql) {
@@ -230,15 +245,18 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testInsert() {
     // 1. Write initial data using unique keys.
-    setupInitialData(SCHEMA);
+    setupInitialData(SCHEMA, new long[] {211L, 212L});
 
     // 2. Write a second DataFrame to update one row and insert another.
     List<Row> newRows =
         Arrays.asList(
-            RowFactory.create(201L, "new twenty-one"), // Update 201
-            RowFactory.create(203L, "new twenty-three") // Insert 203
+            RowFactory.create(211L, "new twenty-one"), // Update 211
+            RowFactory.create(213L, "new twenty-three") // Insert 213
             );
-    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA);
+
+    // To make tests reproducable, set repartition to 1 so all rows are handled in an atomic
+    // transaction.
+    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA).repartition(1);
 
     Map<String, String> insertProps = getBaseProps();
     insertProps.put("mutationType", "insert");
@@ -247,36 +265,17 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
       newDf.write().format("cloud-spanner").options(insertProps).mode(SaveMode.Append).save();
       Assert.fail();
     } catch (Exception e) {
-      // 3. Verify that row 201 cannot be inserted again.
-      assertThat(e.getCause().getMessage()).contains("ALREADY_EXISTS: Row [201]");
+      // 3. Verify that row 211 cannot be inserted again.
+      assertThat(e.getCause().getMessage()).contains("ALREADY_EXISTS: Row [211]");
     }
-  }
 
-  @Test
-  public void testUpdate() {
-    // 1. Write initial data using unique keys
-    setupInitialData(SCHEMA);
-
-    // 2. Write a second DataFrame to update an existing row and update a non-existent row.
-    List<Row> newRows =
-        Arrays.asList(
-            RowFactory.create(201L, "new twenty-one"), // Update 201
-            RowFactory.create(203L, "new twenty-three") // Update 203
+    // 4. Insert 213, happy path
+    List<Row> successfulInsertRows =
+        Collections.singletonList(
+            RowFactory.create(213L, "new twenty-three") // Insert 213
             );
-    // To make tests reproducable, set repartition to 1 so all rows are handled in atomic
-    // transaction.
-    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA).repartition(1);
-
-    Map<String, String> updateProps = getBaseProps();
-    updateProps.put("mutationType", "update");
-
-    try {
-      newDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
-      Assert.fail();
-    } catch (Exception e) {
-      // 3. Verify that row 203 cannot be update before it exists
-      assertThat(e.getCause().getMessage()).contains("NOT_FOUND: Row [203]");
-    }
+    Dataset<Row> successfulDf = spark.createDataFrame(successfulInsertRows, SCHEMA);
+    successfulDf.write().format("cloud-spanner").options(insertProps).mode(SaveMode.Append).save();
 
     // 5. Verify the final state of the rows involved in this test.
     Dataset<Row> finalDf =
@@ -285,7 +284,66 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             .format("cloud-spanner")
             .options(getBaseProps())
             .load()
-            .filter("long_col IN (201, 202)");
+            .filter("long_col IN (211, 212, 213)");
+
+    assertEquals(3, finalDf.count());
+
+    Map<Long, Row> finalRows =
+        finalDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 211 was not updated.
+    assertThat(finalRows.get(211L).getString(1)).isEqualTo("original twenty-one");
+    // Check that row 212 was not touched.
+    assertThat(finalRows.get(212L).getString(1)).isEqualTo("original twenty-two");
+    // Check that row 213 was inserted.
+    assertThat(finalRows.get(213L).getString(1)).isEqualTo("new twenty-three");
+  }
+
+  @Test
+  public void testUpdate() {
+    // 1. Write initial data using unique keys
+    setupInitialData(SCHEMA, new long[] {221L, 222L});
+
+    // 2. Write a second DataFrame to update an existing row and update a non-existent row.
+    List<Row> errorRows =
+        Arrays.asList(
+            RowFactory.create(221L, "new twenty-one"), // Update 221
+            RowFactory.create(223L, "new twenty-three") // Update 223
+            );
+
+    // To make tests reproducable, set repartition to 1 so all rows are handled in atomic
+    // transaction.
+    Dataset<Row> errorDf = spark.createDataFrame(errorRows, SCHEMA).repartition(1);
+
+    Map<String, String> updateProps = getBaseProps();
+    updateProps.put("mutationType", "update");
+
+    try {
+      errorDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
+      Assert.fail();
+    } catch (Exception e) {
+      // 3. Verify that row 223 cannot be updated before it exists
+      assertThat(e.getCause().getMessage()).contains("NOT_FOUND: Row [223]");
+    }
+
+    // 4. Update existing 222, happy path
+    List<Row> successfulUpdateRows =
+        Collections.singletonList(
+            RowFactory.create(222L, "new twenty-two") // Update 222
+            );
+    Dataset<Row> successfulDf = spark.createDataFrame(successfulUpdateRows, SCHEMA);
+
+    successfulDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
+
+    // 5. Verify the final state of the rows involved in this test.
+    Dataset<Row> finalDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(getBaseProps())
+            .load()
+            .filter("long_col IN (221, 222)");
 
     assertEquals(2, finalDf.count());
 
@@ -293,39 +351,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
         finalDf.collectAsList().stream()
             .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
 
-    // Check that row 201 was not updated.
-    assertThat(finalRows.get(201L).getString(1)).isEqualTo("original twenty-one");
-    // Check that row 202 was updated.
-    assertThat(finalRows.get(202L).getString(1)).isEqualTo("original twenty-two");
-
-    // 4. Update 202, happy path
-    List<Row> successfulUpdateRows =
-        Collections.singletonList(
-            RowFactory.create(202L, "new twenty-two") // Update 202
-            );
-    Dataset<Row> successfulDf = spark.createDataFrame(successfulUpdateRows, SCHEMA);
-
-    successfulDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
-
-    // 5. Verify the final state of the rows involved in this test.
-    Dataset<Row> finalDf2 =
-        spark
-            .read()
-            .format("cloud-spanner")
-            .options(getBaseProps())
-            .load()
-            .filter("long_col IN (201, 202)");
-
-    assertEquals(2, finalDf2.count());
-
-    Map<Long, Row> finalRows2 =
-        finalDf2.collectAsList().stream()
-            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
-
-    // Check that row 201 was not updated.
-    assertThat(finalRows2.get(201L).getString(1)).isEqualTo("original twenty-one");
-    // Check that row 202 was updated.
-    assertThat(finalRows2.get(202L).getString(1)).isEqualTo("new twenty-two");
+    // Check that row 221 was not updated.
+    assertThat(finalRows.get(221L).getString(1)).isEqualTo("original twenty-one");
+    // Check that row 222 was updated.
+    assertThat(finalRows.get(222L).getString(1)).isEqualTo("new twenty-two");
   }
 
   @Test

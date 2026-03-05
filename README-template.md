@@ -163,6 +163,7 @@ numWriteThreads| Integer    |The number of threads to use for writing per Spark 
 assumeIdempotentRows| Boolean    |When `true`, the connector uses a higher-throughput 'at-least-once' write mode. See [Spanner documentation](https://docs.cloud.google.com/spanner/docs/batch-write) for use cases and limitations. Default: `false`
 maxPendingTransactions| Integer    |The maximum number of concurrent batches that can be in-flight. This is used to control backpressure. Default: 20
 mutationType| String    |The row write mode used. Valid values are: insert, insert_or_update, replace, update. Default: insert_or_update
+
 `mutationsPerTransaction` and `bytesPerTransaction` are both used when building a transaction to send to spanner.
 
 

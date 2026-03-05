@@ -210,12 +210,12 @@ Spark Array Element Type|Spanner PostgreSql Array Type
 ---|---
 `LongType`|`bigint[]`/`int8[]`
 `StringType`|`varchar[]`/`text[]`/`character varying[]`
-`BooleanType`|`bool`/`boolean[]`
-`DoubleType`|`double precision`/`float8[]`
+`BooleanType`|`bool[]`/`boolean[]`
+`DoubleType`|`double precision[]`/`float8[]`
 `BinaryType`|`bytea[]`
 `TimestampType`|`timestamptz[]`/`timestamp with time zone[]`
 `DateType`|`date[]`
-`DecimalType`|`numeric`/`decimal[]`
+`DecimalType`|`numeric[]`/`decimal[]`
 
 > Note: `StructType` is not currently supported and pre-existing Google Spanner limitations apply. Specifically:
 > - Column value size is limited to 10MB,

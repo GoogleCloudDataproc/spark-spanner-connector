@@ -288,16 +288,16 @@ public class SpannerCatalogTest {
 
     if (dialect == Dialect.POSTGRESQL) {
       assertEquals(
-          "CREATE TABLE my_table (id bigint NOT NULL, id2 varchar NOT NULL, name varchar, "
-              + "active boolean NOT NULL, amount float8, data bytea, "
-              + "created_at timestamptz, created_on date, price numeric, "
-              + "PRIMARY KEY (id, id2))",
+          "CREATE TABLE \"my_table\" (\"id\" bigint NOT NULL, \"id2\" varchar NOT NULL, \"name\" varchar, "
+              + "\"active\" boolean NOT NULL, \"amount\" float8, \"data\" bytea, "
+              + "\"created_at\" timestamptz, \"created_on\" date, \"price\" numeric, "
+              + "PRIMARY KEY (\"id\", \"id2\"))",
           ddl);
     } else {
       assertEquals(
-          "CREATE TABLE my_table (id INT64 NOT NULL, id2 STRING(MAX) NOT NULL, name STRING(MAX), "
-              + "active BOOL NOT NULL, amount FLOAT64, data BYTES(MAX), created_at TIMESTAMP, "
-              + "created_on DATE, price NUMERIC, PRIMARY KEY (id, id2))",
+          "CREATE TABLE `my_table` (`id` INT64 NOT NULL, `id2` STRING(MAX) NOT NULL, `name` STRING(MAX), "
+              + "`active` BOOL NOT NULL, `amount` FLOAT64, `data` BYTES(MAX), `created_at` TIMESTAMP, "
+              + "`created_on` DATE, `price` NUMERIC, PRIMARY KEY (`id`, `id2`))",
           ddl);
     }
   }

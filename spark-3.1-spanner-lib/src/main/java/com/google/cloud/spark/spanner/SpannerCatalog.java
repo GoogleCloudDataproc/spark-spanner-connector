@@ -196,9 +196,11 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
 
   public static String toDdl(Identifier ident, StructType schema, Dialect dialect) {
     StringBuilder ddl = new StringBuilder();
-    ddl.append("CREATE TABLE ").append(ident.name()).append(" (");
+    ddl.append("CREATE TABLE ").append(quoteIdentifier(ident.name(), dialect)).append(" (");
     for (StructField field : schema.fields()) {
-      ddl.append(field.name()).append(" ").append(sparkTypeToSpannerType(field, dialect));
+      ddl.append(quoteIdentifier(field.name(), dialect))
+          .append(" ")
+          .append(sparkTypeToSpannerType(field, dialect));
       if (!field.nullable()) {
         ddl.append(" NOT NULL");
       }
@@ -211,7 +213,7 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
                 f ->
                     f.metadata().contains(SpannerUtils.PRIMARY_KEY_TAG)
                         && f.metadata().getBoolean(SpannerUtils.PRIMARY_KEY_TAG))
-            .map(StructField::name)
+            .map(f -> quoteIdentifier(f.name(), dialect))
             .collect(Collectors.toList());
 
     if (primaryKeys.isEmpty()) {
@@ -225,6 +227,13 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
     ddl.append("PRIMARY KEY (").append(String.join(", ", primaryKeys)).append(")");
     ddl.append(")");
     return ddl.toString();
+  }
+
+  static String quoteIdentifier(String identifier, Dialect dialect) {
+    if (dialect == Dialect.POSTGRESQL) {
+      return "\"" + identifier.replace("\"", "\"\"") + "\"";
+    }
+    return "`" + identifier.replace("`", "``") + "`";
   }
 
   private static String sparkTypeToSpannerType(StructField field, Dialect dialect) {
@@ -340,7 +349,8 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
       return false;
     }
 
-    String ddl = "DROP TABLE " + ident.name();
+    Dialect dialect = getDatabaseClient().getDialect();
+    String ddl = "DROP TABLE " + quoteIdentifier(ident.name(), dialect);
 
     DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =

@@ -162,7 +162,7 @@ bytesPerTransaction | Long |Maximum size of each transaction. Default: 1048576 (
 numWriteThreads| Integer    |The number of threads to use for writing per Spark worker.  Default: 8
 assumeIdempotentRows| Boolean    |When `true`, the connector uses a higher-throughput 'at-least-once' write mode. See [Spanner documentation](https://docs.cloud.google.com/spanner/docs/batch-write) for use cases and limitations. Default: `false`
 maxPendingTransactions| Integer    |The maximum number of concurrent batches that can be in-flight. This is used to control backpressure. Default: 20
-
+mutationType| String    |The row write mode used. Valid values are: insert, insert_or_update, replace, update. Default: insert_or_update
 `mutationsPerTransaction` and `bytesPerTransaction` are both used when building a transaction to send to spanner.
 
 
@@ -180,6 +180,18 @@ Spark Data Type|Spanner GoogleSql Type
 `TimestampType`|`TIMESTAMP`
 `DateType`|`DATE`
 `DecimalType`|`NUMERIC`
+`ArrayType(ElementType)`|`ARRAY<ElementType>`
+
+Spark Array Element Type|Spanner GoogleSql Array Type
+---|---
+`LongType`|`ARRAY<INT64>`
+`StringType`|`ARRAY<STRING>`
+`BooleanType`|`ARRAY<BOOL>`
+`DoubleType`|`ARRAY<FLOAT64>`
+`BinaryType`|`ARRAY<BYTES>`
+`TimestampType`|`ARRAY<TIMESTAMP>`
+`DateType`|`ARRAY<DATE>`
+`DecimalType`|`ARRAY<NUMERIC>`
 
 ##### PostgreSQL
 Spark Data Type|Spanner PostgreSql Type
@@ -192,8 +204,20 @@ Spark Data Type|Spanner PostgreSql Type
 `TimestampType`|`timestamptz`/`timestamp with time zone`
 `DateType`|`date`
 `DecimalType`|`numeric`/`decimal`
+`ArrayType(ElementType)`|`ElementType[]`
 
-> Note: `ArrayType`, and `StructType` are not currently supported and pre-existing Google Spanner limitations apply. Specifically:
+Spark Array Element Type|Spanner PostgreSql Array Type
+---|---
+`LongType`|`bigint[]`/`int8[]`
+`StringType`|`varchar[]`/`text[]`/`character varying[]`
+`BooleanType`|`bool`/`boolean[]`
+`DoubleType`|`double precision`/`float8[]`
+`BinaryType`|`bytea[]`
+`TimestampType`|`timestamptz[]`/`timestamp with time zone[]`
+`DateType`|`date[]`
+`DecimalType`|`numeric`/`decimal[]`
+
+> Note: `StructType` is not currently supported and pre-existing Google Spanner limitations apply. Specifically:
 > - Column value size is limited to 10MB,
 > - In GoogleSQL, `NUMERIC` type is limited to 9 digits of scale, Spark supports up to 38.
 

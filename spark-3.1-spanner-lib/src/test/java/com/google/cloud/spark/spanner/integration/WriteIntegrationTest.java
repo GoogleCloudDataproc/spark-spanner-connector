@@ -263,7 +263,9 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             RowFactory.create(201L, "new twenty-one"), // Update 201
             RowFactory.create(203L, "new twenty-three") // Update 203
             );
-    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA);
+    // To make tests reproducable, set repartition to 1 so all rows are handled in atomic
+    // transaction.
+    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA).repartition(1);
 
     Map<String, String> updateProps = getBaseProps();
     updateProps.put("mutationType", "update");
@@ -275,6 +277,55 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
       // 3. Verify that row 203 cannot be update before it exists
       assertThat(e.getCause().getMessage()).contains("NOT_FOUND: Row [203]");
     }
+
+    // 5. Verify the final state of the rows involved in this test.
+    Dataset<Row> finalDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(getBaseProps())
+            .load()
+            .filter("long_col IN (201, 202)");
+
+    assertEquals(2, finalDf.count());
+
+    Map<Long, Row> finalRows =
+        finalDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 201 was not updated.
+    assertThat(finalRows.get(201L).getString(1)).isEqualTo("original twenty-one");
+    // Check that row 202 was updated.
+    assertThat(finalRows.get(202L).getString(1)).isEqualTo("original twenty-two");
+
+    // 4. Update 202, happy path
+    List<Row> successfulUpdateRows =
+        Collections.singletonList(
+            RowFactory.create(202L, "new twenty-two") // Update 202
+            );
+    Dataset<Row> successfulDf = spark.createDataFrame(successfulUpdateRows, SCHEMA);
+
+    successfulDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
+
+    // 5. Verify the final state of the rows involved in this test.
+    Dataset<Row> finalDf2 =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(getBaseProps())
+            .load()
+            .filter("long_col IN (201, 202)");
+
+    assertEquals(2, finalDf2.count());
+
+    Map<Long, Row> finalRows2 =
+        finalDf2.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 201 was not updated.
+    assertThat(finalRows2.get(201L).getString(1)).isEqualTo("original twenty-one");
+    // Check that row 202 was updated.
+    assertThat(finalRows2.get(202L).getString(1)).isEqualTo("new twenty-two");
   }
 
   @Test

@@ -158,11 +158,11 @@ instanceId| String     |The instanceID of the Cloud Spanner database
 databaseId| String     |The databaseID of the Cloud Spanner database
 table| String     |The name of the destination Cloud Spanner table
 mutationsPerTransaction| Integer    |The number of mutations to send in a single transaction. Default: 1000
-bytesPerTransaction | Long |Maximum size of each transaction. Default: 1048576 (1MB)
+bytesPerTransaction | Long       |Maximum size of each transaction. Default: 1048576 (1MB)
 numWriteThreads| Integer    |The number of threads to use for writing per Spark worker.  Default: 8
 assumeIdempotentRows| Boolean    |When `true`, the connector uses a higher-throughput 'at-least-once' write mode. See [Spanner documentation](https://docs.cloud.google.com/spanner/docs/batch-write) for use cases and limitations. Default: `false`
 maxPendingTransactions| Integer    |The maximum number of concurrent batches that can be in-flight. This is used to control backpressure. Default: 20
-mutationType| String    |The row write mode used. Valid values are: insert, insert_or_update, replace, update. Default: insert_or_update
+mutationType| String     |The row write mode used. Valid values are: insert, insert_or_update, replace, update. Default: insert_or_update
 
 `mutationsPerTransaction` and `bytesPerTransaction` are both used when building a transaction to send to spanner.
 

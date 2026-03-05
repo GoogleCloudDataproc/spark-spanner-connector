@@ -21,18 +21,12 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
 public class GraphReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
-
-  @Override
-  protected String getDataFrameFormat() {
-    return "cloud-spanner-graph";
-  }
-
   public DataFrameReader reader() {
     Map<String, String> props = connectionProperties();
     DataFrameReader reader =
         spark
             .read()
-            .format(getDataFrameFormat())
+            .format("cloud-spanner")
             .option("viewsEnabled", true)
             .option("projectId", props.get("projectId"))
             .option("instanceId", props.get("instanceId"))

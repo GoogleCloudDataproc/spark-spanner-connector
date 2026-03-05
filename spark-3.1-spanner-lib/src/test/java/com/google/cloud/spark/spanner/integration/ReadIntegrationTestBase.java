@@ -53,7 +53,7 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
   public Dataset<Row> readFromTable(String table) {
 
     Map<String, String> props = connectionProperties();
-    DataFrameReader reader = spark.read().format("cloud-spanner-graph");
+    DataFrameReader reader = spark.read().format("cloud-spanner");
     String emulatorHost = props.get("emulatorHost");
     if (emulatorHost != null) {
       reader = reader.option("emulatorHost", props.get("emulatorHost"));

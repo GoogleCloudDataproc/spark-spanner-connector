@@ -21,10 +21,15 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ReadContext;
 import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
 import com.google.common.base.Verify;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -45,7 +50,10 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SpannerCatalog implements TableCatalog {
+public class SpannerCatalog implements TableCatalog, AutoCloseable {
+  public static final String GRAPH_IDENTIFIER_PREFIX = "__spanner_graph__";
+  private static final Gson GSON = new Gson();
+
   public static final Metadata PRIMARY_KEY_METADATA =
       new MetadataBuilder().putBoolean(SpannerUtils.PRIMARY_KEY_TAG, true).build();
   private static final Logger log = LoggerFactory.getLogger(SpannerCatalog.class);
@@ -107,10 +115,17 @@ public class SpannerCatalog implements TableCatalog {
           SpannerErrorCode.INVALID_ARGUMENT,
           "Invalid identifier namespace: " + String.join(".", ident.namespace()));
     }
+    if (isGraphIdentifier(ident)) {
+      return factorySpannerGraph(ident);
+    }
     if (!tableExists(ident)) {
       throw new NoSuchTableException(ident);
     }
     return factorySpannerTable(ident);
+  }
+
+  public static boolean isGraphIdentifier(Identifier ident) {
+    return ident.name().startsWith(GRAPH_IDENTIFIER_PREFIX);
   }
 
   protected Table factorySpannerTable(Identifier ident) {
@@ -118,6 +133,35 @@ public class SpannerCatalog implements TableCatalog {
     Verify.verifyNotNull(table, "table");
 
     return new SpannerTable(projectId, instanceId, databaseId, table, options, null);
+  }
+
+  protected Table factorySpannerGraph(Identifier ident) {
+    String json = ident.name().substring(GRAPH_IDENTIFIER_PREFIX.length());
+    if (json.isEmpty()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT, "Graph identifier has no encoded properties");
+    }
+    Map<String, String> graphProps;
+    try {
+      graphProps = GSON.fromJson(json, new TypeToken<Map<String, String>>() {}.getType());
+    } catch (JsonSyntaxException e) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "Malformed graph identifier JSON: " + e.getMessage(),
+          e);
+    }
+    if (graphProps == null) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT, "Graph identifier decoded to null");
+    }
+    Map<String, String> allOptions = new HashMap<>(options.asCaseSensitiveMap());
+    for (String key : SparkSpannerTableProviderBase.GRAPH_OPTION_KEYS) {
+      String val = graphProps.get(key);
+      if (val != null) {
+        allOptions.put(key, val);
+      }
+    }
+    return SpannerGraphBuilder.build(allOptions);
   }
 
   @Override
@@ -296,5 +340,12 @@ public class SpannerCatalog implements TableCatalog {
 
   private DatabaseClient getDatabaseClient() {
     return spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
+  }
+
+  @Override
+  public void close() {
+    if (spanner != null) {
+      spanner.close();
+    }
   }
 }

@@ -14,6 +14,11 @@
 
 package com.google.cloud.spark.spanner;
 
+import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
+import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.connector.catalog.Identifier;
 import org.apache.spark.sql.connector.catalog.SupportsCatalogOptions;
@@ -26,6 +31,12 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public abstract class SparkSpannerTableProviderBase
     implements SupportsCatalogOptions, DataSourceRegister, TableProvider {
+
+  private static final Gson GSON = new Gson();
+
+  static final List<String> GRAPH_OPTION_KEYS =
+      ImmutableList.of(
+          "graph", "type", "enableDataBoost", "configs", "graphQuery", "timestamp", "viewsEnabled");
 
   /*
    * Infers the schema of the table identified by the given options.
@@ -45,14 +56,16 @@ public abstract class SparkSpannerTableProviderBase
     final CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
     boolean enablePartialRowUpdates =
         Boolean.parseBoolean(options.getOrDefault("enablePartialRowUpdates", "false"));
-
     boolean hasTable = options.containsKey("table");
-    if (hasTable) {
+    boolean hasGraph = options.containsKey("graph");
+    if (hasTable && !hasGraph) {
       if (enablePartialRowUpdates) {
         return new SpannerTable(options, schema);
       } else {
         return new SpannerTable(options);
       }
+    } else if (!hasTable && hasGraph) {
+      return SpannerGraphBuilder.build(options);
     } else {
       throw new SpannerConnectorException(
           SpannerErrorCode.INVALID_ARGUMENT,
@@ -80,8 +93,11 @@ public abstract class SparkSpannerTableProviderBase
 
   private Table getTable(Map<String, String> properties) {
     boolean hasTable = properties.containsKey("table");
-    if (hasTable) {
+    boolean hasGraph = properties.containsKey("graph");
+    if (hasTable && !hasGraph) {
       return new SpannerTable(properties);
+    } else if (!hasTable && hasGraph) {
+      return SpannerGraphBuilder.build(properties);
     } else {
       throw new SpannerConnectorException(
           SpannerErrorCode.INVALID_ARGUMENT,
@@ -94,6 +110,18 @@ public abstract class SparkSpannerTableProviderBase
     String table = options.get("table");
     if (table != null) {
       return Identifier.of(new String[0], table);
+    }
+    String graph = options.get("graph");
+    if (graph != null) {
+      Map<String, String> graphProps = new HashMap<>();
+      for (String key : GRAPH_OPTION_KEYS) {
+        String val = options.get(key);
+        if (val != null) {
+          graphProps.put(key, val);
+        }
+      }
+      return Identifier.of(
+          new String[0], SpannerCatalog.GRAPH_IDENTIFIER_PREFIX + GSON.toJson(graphProps));
     }
     return null;
   }

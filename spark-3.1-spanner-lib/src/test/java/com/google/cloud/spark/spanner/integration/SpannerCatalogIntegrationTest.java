@@ -15,11 +15,13 @@
 package com.google.cloud.spark.spanner.integration;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.spark.spanner.SpannerCatalog;
+import com.google.cloud.spark.spanner.SpannerConnectorException;
 import com.google.cloud.spark.spanner.SpannerTable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,6 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.catalyst.analysis.TableAlreadyExistsException;
 import org.apache.spark.sql.connector.catalog.Identifier;
@@ -36,6 +40,7 @@ import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,16 +70,9 @@ public class SpannerCatalogIntegrationTest extends SparkSpannerIntegrationTestBa
         "spanner", new CaseInsensitiveStringMap(connectionProperties(usePostgresSql)));
   }
 
-  private String projectId() {
-    return connectionProperties(usePostgresSql).get("projectId");
-  }
-
-  private String instanceId() {
-    return connectionProperties(usePostgresSql).get("instanceId");
-  }
-
-  private String databaseId() {
-    return connectionProperties(usePostgresSql).get("databaseId");
+  @After
+  public void teardownCatalog() {
+    catalog.close();
   }
 
   @Test
@@ -149,5 +147,49 @@ public class SpannerCatalogIntegrationTest extends SparkSpannerIntegrationTestBa
       catalog.dropTable(ident);
       assertFalse(catalog.tableExists(ident));
     }
+  }
+
+  @Test
+  public void testTableExistsReturnsFalse() {
+    Identifier ident = Identifier.of(new String[0], "non_existent_table");
+    assertFalse(catalog.tableExists(ident));
+  }
+
+  @Test
+  public void testLoadTableRejectsNonEmptyNamespace() {
+    Identifier ident = Identifier.of(new String[] {"ns"}, "schema_test_table");
+    assertThrows(SpannerConnectorException.class, () -> catalog.loadTable(ident));
+  }
+
+  @Test
+  public void testListTablesWithInvalidNamespace() {
+    Identifier[] tables = catalog.listTables(new String[] {"invalid", "namespace"});
+    assertEquals(0, tables.length);
+  }
+
+  @Test
+  public void testDropTableNonExistent() {
+    Identifier ident = Identifier.of(new String[0], "table_that_does_not_exist");
+    assertFalse(catalog.dropTable(ident));
+  }
+
+  @Test
+  public void testIsGraphIdentifier() {
+    Identifier graphIdent =
+        Identifier.of(new String[0], SpannerCatalog.GRAPH_IDENTIFIER_PREFIX + "{\"graph\":\"G\"}");
+    assertTrue(SpannerCatalog.isGraphIdentifier(graphIdent));
+
+    Identifier tableIdent = Identifier.of(new String[0], "my_table");
+    assertFalse(SpannerCatalog.isGraphIdentifier(tableIdent));
+  }
+
+  @Test
+  public void testReadTableViaCatalogSql() {
+    if (usePostgresSql) {
+      return;
+    }
+    Dataset<Row> df = spark.sql("SELECT * FROM spanner.simpleTable");
+    assertThat(df.count()).isGreaterThan(0);
+    assertThat(df.columns()).asList().containsExactly("A", "B", "C");
   }
 }

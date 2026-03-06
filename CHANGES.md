@@ -2,10 +2,10 @@
 
 ## Next
 
-*   Add the tool to run write only performance benchmarks.
-*   Support array type and add solution for struct type in write connector.
-*   Add the different mutation mode support (INSERT/UPDATE/UPSERT/REPLACE).
-*   Add the spark catalog support and ErrorIfExists,Ignore,Override save mode.
+*   Add a tool to run write-only performance benchmarks.
+*   Support array type and add a solution for struct type in the write connector.
+*   Add support for different mutation modes (INSERT, UPDATE, UPSERT, REPLACE).
+*   Add Spark Catalog support and `ErrorIfExists`, `Ignore`, `Override` save modes.
 
 ## 1.2.2 - 2026-02-05
 

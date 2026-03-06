@@ -66,16 +66,16 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   private final StructType SCHEMA =
       new StructType(
-              new StructField[] {
-                      DataTypes.createStructField("long_col", DataTypes.LongType, false),
-                      DataTypes.createStructField("string_col", DataTypes.StringType, true),
-                      DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
-                      DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
-                      DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
-                      DataTypes.createStructField("date_col", DataTypes.DateType, true),
-                      DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
-                      DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
-              });
+          new StructField[] {
+            DataTypes.createStructField("long_col", DataTypes.LongType, false),
+            DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
+            DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
+            DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
+            DataTypes.createStructField("date_col", DataTypes.DateType, true),
+            DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
+            DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
+          });
 
   private Map<String, String> getBaseProps() {
     Map<String, String> props = connectionProperties(usePostgresSql);
@@ -96,8 +96,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     if (ids.length != 2) Assert.fail("Invalid number of id's provided");
     List<Row> initialRows =
         Arrays.asList(
-            RowFactory.create(ids[0], "original twenty-one"),
-            RowFactory.create(ids[1], "original twenty-two"));
+            RowFactory.create(ids[0], "original twenty-one", null, null, null, null, null, null),
+            RowFactory.create(ids[1], "original twenty-two", null, null, null, null, null, null));
 
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
     initialDf.write().format("cloud-spanner").options(getBaseProps()).mode(SaveMode.Append).save();
@@ -179,7 +179,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   @Test
   public void testIdempotentWrite() {
-    List<Row> rows = Arrays.asList(RowFactory.create(4L, "four"), RowFactory.create(5L, "five"));
+    List<Row> rows =
+        Arrays.asList(
+            RowFactory.create(4L, "four", null, null, null, null, null, null),
+            RowFactory.create(5L, "five", null, null, null, null, null, null));
 
     Dataset<Row> df = spark.createDataFrame(rows, SCHEMA);
 
@@ -224,21 +227,6 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testUpsert() {
     // 1. Write initial data using unique keys.
-    setupInitialData(SCHEMA);
-
-    // 1. Define the full schema
-    StructType fullSchema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-              DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
-              DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
-              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
-              DataTypes.createStructField("date_col", DataTypes.DateType, true),
-              DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
-              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true)
-            });
 
     java.sql.Timestamp ts = new java.sql.Timestamp(System.currentTimeMillis());
     java.sql.Date dt = new java.sql.Date(System.currentTimeMillis());
@@ -250,7 +238,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
         Arrays.asList(
             RowFactory.create(201L, "original twenty-one", true, 1.5, ts, dt, b, num),
             RowFactory.create(202L, "original twenty-two", false, 2.5, ts, dt, b, num));
-    Dataset<Row> initialDf = spark.createDataFrame(initialRows, fullSchema);
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
@@ -272,7 +260,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     List<Row> insertRows =
         Collections.singletonList(
             RowFactory.create(301L, "new thirty-one", null, null, null, null, null, null));
-    Dataset<Row> insertedRow301 = spark.createDataFrame(insertRows, fullSchema);
+    Dataset<Row> insertedRow301 = spark.createDataFrame(insertRows, SCHEMA);
 
     // 3. Combine them into your final updatesDs
     // unionByName is generally safer than union() as it matches columns by name
@@ -323,8 +311,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     // 2. Write a second DataFrame to update one row and insert another.
     List<Row> newRows =
         Arrays.asList(
-            RowFactory.create(211L, "new twenty-one"), // Update 211
-            RowFactory.create(213L, "new twenty-three") // Insert 213
+            RowFactory.create(
+                211L, "new twenty-one", null, null, null, null, null, null), // Update 211
+            RowFactory.create(
+                213L, "new twenty-three", null, null, null, null, null, null) // Insert 213
             );
 
     // To make tests reproducable, set repartition to 1 so all rows are handled in an atomic
@@ -345,7 +335,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     // 4. Insert 213, happy path
     List<Row> successfulInsertRows =
         Collections.singletonList(
-            RowFactory.create(213L, "new twenty-three") // Insert 213
+            RowFactory.create(
+                213L, "new twenty-three", null, null, null, null, null, null) // Insert 213
             );
     Dataset<Row> successfulDf = spark.createDataFrame(successfulInsertRows, SCHEMA);
     successfulDf.write().format("cloud-spanner").options(insertProps).mode(SaveMode.Append).save();
@@ -381,8 +372,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     // 2. Write a second DataFrame to update an existing row and update a non-existent row.
     List<Row> errorRows =
         Arrays.asList(
-            RowFactory.create(221L, "new twenty-one"), // Update 221
-            RowFactory.create(223L, "new twenty-three") // Update 223
+            RowFactory.create(
+                221L, "new twenty-one", null, null, null, null, null, null), // Update 221
+            RowFactory.create(
+                223L, "new twenty-three", null, null, null, null, null, null) // Update 223
             );
 
     // To make tests reproducable, set repartition to 1 so all rows are handled in atomic
@@ -403,7 +396,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     // 4. Update existing 222, happy path
     List<Row> successfulUpdateRows =
         Collections.singletonList(
-            RowFactory.create(222L, "new twenty-two") // Update 222
+            RowFactory.create(
+                222L, "new twenty-two", null, null, null, null, null, null) // Update 222
             );
     Dataset<Row> successfulDf = spark.createDataFrame(successfulUpdateRows, SCHEMA);
 
@@ -433,35 +427,27 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testReplace() {
     // 1. Write initial data using unique keys.
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-              DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
-              DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
-              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
-              DataTypes.createStructField("date_col", DataTypes.DateType, true),
-              DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
-              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true)
-            });
-
-    java.sql.Timestamp ts = new java.sql.Timestamp(System.currentTimeMillis());
-    java.sql.Date dt = new java.sql.Date(System.currentTimeMillis());
-    byte[] b = "initial_bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    java.math.BigDecimal num = new java.math.BigDecimal("999.999");
-
-    Row originalValue = RowFactory.create(20L, "originalValue", true, 1.23, ts, dt, b, num);
-    Row nullValue = RowFactory.create(20L, null, null, null, null, null, null, null);
-
-    List<Row> initialRows = Collections.singletonList(originalValue);
     List<Row> initialRows =
         Arrays.asList(
             RowFactory.create(
-                201L, "original twenty-one", java.sql.Timestamp.valueOf("2023-01-01 10:10:10")),
+                201L,
+                "original twenty-one",
+                null,
+                null,
+                java.sql.Timestamp.valueOf("2023-01-01 10:10:10"),
+                null,
+                null,
+                null),
             RowFactory.create(
-                202L, "original twenty-two", java.sql.Timestamp.valueOf("2024-01-01 10:10:10")));
-    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+                202L,
+                "original twenty-two",
+                null,
+                null,
+                java.sql.Timestamp.valueOf("2024-01-01 10:10:10"),
+                null,
+                null,
+                null));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
 
     Map<String, String> upsertProps = getBaseProps();
 
@@ -473,13 +459,23 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             RowFactory.create(
                 201L,
                 "new twenty-one",
-                java.sql.Timestamp.valueOf("2025-01-01 10:10:10")), // Replace 201 with 3 columns
+                null,
+                null,
+                java.sql.Timestamp.valueOf("2025-01-01 10:10:10"),
+                null,
+                null,
+                null), // Replace 201
             RowFactory.create(
                 202L,
                 "new twenty-two",
-                java.sql.Timestamp.valueOf("2026-01-01 10:10:10")) // Replace 202 with 3 columns
+                null,
+                null,
+                java.sql.Timestamp.valueOf("2026-01-01 10:10:10"),
+                null,
+                null,
+                null) // Replace 202
             );
-    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA);
 
     Map<String, String> replaceProps = getBaseProps();
     replaceProps.put("mutationType", "replace");
@@ -513,8 +509,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     // 4. Write two rows with one column missing
     List<Row> shortRows =
         Arrays.asList(
-            RowFactory.create(201L, "short twenty-one"),
-            RowFactory.create(202L, "short twenty-two"));
+            RowFactory.create(201L, "short twenty-one", null, null, null, null, null, null),
+            RowFactory.create(202L, "short twenty-two", null, null, null, null, null, null));
     Dataset<Row> shortDf = spark.createDataFrame(shortRows, SCHEMA);
 
     shortDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
@@ -545,7 +541,9 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testUpdateSetColumnToNull() {
     // 1. Write initial data with a non-null string value
-    List<Row> initialRows = Collections.singletonList(RowFactory.create(20L, "originalValue"));
+    List<Row> initialRows =
+        Collections.singletonList(
+            RowFactory.create(20L, "originalValue", null, null, null, null, null, null));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
@@ -561,7 +559,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(dfAfterInitialWrite.first().getString(1)).isEqualTo("originalValue");
 
     // 2. Update the existing row, setting string_col to null
-    List<Row> updateRows = Collections.singletonList(RowFactory.create(20L, null));
+    List<Row> updateRows =
+        Collections.singletonList(RowFactory.create(20L, null, null, null, null, null, null, null));
     Dataset<Row> updateDf = spark.createDataFrame(updateRows, SCHEMA);
 
     updateDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();

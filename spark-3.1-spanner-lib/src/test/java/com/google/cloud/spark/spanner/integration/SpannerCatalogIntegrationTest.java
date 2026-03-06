@@ -113,7 +113,7 @@ public class SpannerCatalogIntegrationTest extends SparkSpannerIntegrationTestBa
   public void testCreateTableAlreadyExists() {
     Identifier ident = Identifier.of(new String[0], "write_test_table");
     assertThrows(
-        TableAlreadyExistsException.class,
+        SpannerConnectorException.class,
         () -> catalog.createTable(ident, new StructType(), null, new HashMap<>()));
   }
 

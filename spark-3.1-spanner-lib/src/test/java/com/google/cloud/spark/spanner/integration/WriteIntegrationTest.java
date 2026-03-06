@@ -25,6 +25,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spark.spanner.SpannerCatalog;
 import com.google.cloud.spark.spanner.TestData;
 import java.math.BigDecimal;
@@ -740,7 +742,15 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Test
   public void testCreateTableWithArrayColumns() {
     String tableName = TestData.WRITE_TABLE_NAME + "_ARR_DDL";
-    spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
+    try {
+      spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
+
+    } catch (SpannerException e) {
+      // it's ok if table does not exist -- we are cleaning up
+      if (e.getErrorCode() != ErrorCode.NOT_FOUND) {
+        throw e;
+      }
+    }
 
     // Schema includes array columns so that sparkTypeToSpannerType must handle ArrayType.
     StructType schema =

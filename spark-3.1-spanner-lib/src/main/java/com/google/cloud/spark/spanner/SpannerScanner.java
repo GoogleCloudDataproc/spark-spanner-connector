@@ -94,18 +94,21 @@ public class SpannerScanner implements Batch, Scan {
   @Override
   public InputPartition[] planInputPartitions() {
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
+    boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
 
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
     if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
-      boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
       String columnsWithTablePrefix =
           buildColumnsWithTablePrefix(this.spannerTable.name(), this.requiredColumns, isPostgreSql);
       selectPrefix = "SELECT " + columnsWithTablePrefix;
     }
-    String sqlStmt = selectPrefix + " FROM " + this.spannerTable.name();
+
+    String quotedTableName =
+        isPostgreSql ? "\"" + spannerTable.name() + "\"" : "`" + spannerTable.name() + "`";
+    String sqlStmt = selectPrefix + " FROM " + quotedTableName;
     if (this.filters.length > 0) {
       sqlStmt +=
           " WHERE "

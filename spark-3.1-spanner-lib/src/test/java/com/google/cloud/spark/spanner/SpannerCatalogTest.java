@@ -30,14 +30,14 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ReadContext;
 import com.google.cloud.spanner.ReadOnlyTransaction;
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.Statement;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
-import org.apache.spark.sql.catalyst.analysis.TableAlreadyExistsException;
 import org.apache.spark.sql.connector.catalog.Identifier;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.types.DataTypes;
@@ -71,6 +71,7 @@ public class SpannerCatalogTest {
   @Mock private Spanner spanner;
   @Mock private DatabaseClient dbClient;
   @Mock private SpannerInformationSchema spannerInfoSchema;
+  @Mock private ReadContext singleUseReadContext;
 
   public SpannerCatalogTest(Dialect dialect) {
     this.dialect = dialect;
@@ -112,7 +113,7 @@ public class SpannerCatalogTest {
     when(dbClient.getDialect()).thenReturn(dialect);
     ReadOnlyTransaction mockRoTransaction = mock(ReadOnlyTransaction.class);
     when(dbClient.readOnlyTransaction()).thenReturn(mockRoTransaction);
-    when(dbClient.singleUse()).thenReturn(mock(ReadContext.class));
+    when(dbClient.singleUse()).thenReturn(singleUseReadContext);
   }
 
   @Test
@@ -142,8 +143,6 @@ public class SpannerCatalogTest {
   @Test
   public void loadTableShouldThrowNoSuchTableException() throws NoSuchTableException {
     Identifier ident = Identifier.of(new String[0], "non_existent");
-    when(spannerInfoSchema.tableExists(any(ReadContext.class), any(String.class)))
-        .thenReturn(false);
     thrown.expect(NoSuchTableException.class);
     catalog.loadTable(ident);
   }
@@ -151,7 +150,12 @@ public class SpannerCatalogTest {
   @Test
   public void loadTableShouldReturnSpannerTable() throws NoSuchTableException {
     Identifier ident = Identifier.of(new String[0], "t1");
-    when(spannerInfoSchema.tableExists(any(ReadContext.class), any(String.class))).thenReturn(true);
+    Statement mockStatement = Statement.of("");
+    when(spannerInfoSchema.tableExistsStatement("t1")).thenReturn(mockStatement);
+    ResultSet mockResultSet = mock(ResultSet.class);
+    when(singleUseReadContext.executeQuery(mockStatement)).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true);
+    when(mockResultSet.getLong(0)).thenReturn(1L);
     Table table = catalog.loadTable(ident);
     assertNotNull(table);
     assertTrue(table instanceof SpannerTable);
@@ -168,15 +172,18 @@ public class SpannerCatalogTest {
   @Test
   public void tableExistsShouldReturnTrue() {
     Identifier ident = Identifier.of(new String[0], "t1");
-    when(spannerInfoSchema.tableExists(any(ReadContext.class), any(String.class))).thenReturn(true);
+    Statement mockStatement = Statement.of("");
+    when(spannerInfoSchema.tableExistsStatement(any(String.class))).thenReturn(mockStatement);
+    ResultSet mockResultSet = mock(ResultSet.class);
+    when(singleUseReadContext.executeQuery(mockStatement)).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true);
+    when(mockResultSet.getLong(0)).thenReturn(1L);
     assertTrue(catalog.tableExists(ident));
   }
 
   @Test
   public void tableExistsShouldReturnFalse() {
     Identifier ident = Identifier.of(new String[] {"p", "i", "d"}, "non_existent");
-    when(spannerInfoSchema.tableExists(any(ReadContext.class), any(String.class)))
-        .thenReturn(false);
     assertFalse(catalog.tableExists(ident));
   }
 
@@ -187,17 +194,7 @@ public class SpannerCatalogTest {
   }
 
   @Test
-  public void createTableShouldThrowTableAlreadyExistsException()
-      throws TableAlreadyExistsException {
-    Identifier ident = Identifier.of(new String[0], "existing_table");
-    StructType schema = new StructType();
-    when(spannerInfoSchema.tableExists(any(ReadContext.class), any(String.class))).thenReturn(true);
-    thrown.expect(TableAlreadyExistsException.class);
-    catalog.createTable(ident, schema, null, Collections.emptyMap());
-  }
-
-  @Test
-  public void createTableShouldThrowExceptionOnNoPrimaryKey() throws TableAlreadyExistsException {
+  public void createTableShouldThrowExceptionOnNoPrimaryKey() {
     Identifier ident = Identifier.of(new String[] {"p", "i", "d"}, "no_pk_table");
     StructType schema =
         new StructType(
@@ -205,14 +202,12 @@ public class SpannerCatalogTest {
               new StructField("id", DataTypes.LongType, false, Metadata.empty()),
               new StructField("name", DataTypes.StringType, true, Metadata.empty())
             });
-    when(spannerInfoSchema.tableExists(any(ReadContext.class), any(String.class)))
-        .thenReturn(false);
 
     thrown.expect(SpannerConnectorException.class);
     thrown.expectMessage(
         "No primary key found for table no_pk_table. Please specify at least one primary key column.");
 
-    catalog.createTable(ident, schema, null, Collections.emptyMap());
+    SpannerInformationSchema.create(dialect).toDdl(ident, schema);
   }
 
   @Test
@@ -284,7 +279,7 @@ public class SpannerCatalogTest {
               new StructField("price", DataTypes.createDecimalType(10, 2), true, Metadata.empty()),
             });
 
-    String ddl = SpannerCatalog.toDdl(ident, schema, dialect);
+    String ddl = SpannerInformationSchema.create(dialect).toDdl(ident, schema);
 
     if (dialect == Dialect.POSTGRESQL) {
       assertEquals(

@@ -109,7 +109,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
             projectId, instanceId, databaseId, properties.get("emulatorHost"))) {
       boolean isPostgreSql = checkIsPostgreSql(conn);
 
-      this.tableName = isPostgreSql ? tableNameOption.toLowerCase() : tableNameOption;
+      this.tableName = tableNameOption;
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.databaseId = databaseId;

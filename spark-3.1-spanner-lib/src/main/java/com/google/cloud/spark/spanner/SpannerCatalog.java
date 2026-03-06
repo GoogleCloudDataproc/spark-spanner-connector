@@ -41,6 +41,7 @@ import org.apache.spark.sql.connector.catalog.TableChange;
 import org.apache.spark.sql.connector.expressions.Transform;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.MetadataBuilder;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
@@ -160,6 +161,33 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
     return SpannerGraphBuilder.build(allOptions);
   }
 
+  static StructType enrichSchemaWithPrimaryKeys(StructType schema, Map<String, String> properties) {
+    String pkCols = properties.get("primaryKeys");
+    if (pkCols == null || pkCols.isEmpty()) {
+      return schema;
+    }
+    java.util.Set<String> pkSet = new java.util.HashSet<>();
+    for (String col : pkCols.split(",")) {
+      pkSet.add(col.trim());
+    }
+    StructField[] enrichedFields = new StructField[schema.fields().length];
+    for (int i = 0; i < schema.fields().length; i++) {
+      StructField field = schema.fields()[i];
+      if (pkSet.contains(field.name())) {
+        Metadata merged =
+            new MetadataBuilder()
+                .withMetadata(field.metadata())
+                .putBoolean(SpannerUtils.PRIMARY_KEY_TAG, true)
+                .build();
+        enrichedFields[i] =
+            new StructField(field.name(), field.dataType(), field.nullable(), merged);
+      } else {
+        enrichedFields[i] = field;
+      }
+    }
+    return new StructType(enrichedFields);
+  }
+
   @Override
   public Table createTable(
       Identifier ident, StructType schema, Transform[] partitions, Map<String, String> properties) {
@@ -167,7 +195,8 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
     DatabaseClient dbClient = getDatabaseClient();
     Dialect dialect = dbClient.getDialect();
     SpannerInformationSchema schemaInfo = createSchemaInfo(dialect);
-    String ddl = schemaInfo.toDdl(ident, schema);
+    StructType enrichedSchema = enrichSchemaWithPrimaryKeys(schema, properties);
+    String ddl = schemaInfo.createTableDdl(ident, enrichedSchema);
     DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         dbAdminClient.updateDatabaseDdl(
@@ -216,12 +245,14 @@ public class SpannerCatalog implements TableCatalog, AutoCloseable {
   public boolean dropTable(Identifier ident) {
     DatabaseClient dbClient = getDatabaseClient();
     SpannerInformationSchema schemaInfo = createSchemaInfo(dbClient.getDialect());
-    String ddl = "DROP TABLE " + schemaInfo.quoteIdentifier(ident.name());
 
     DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         dbAdminClient.updateDatabaseDdl(
-            instanceId, databaseId, Collections.singletonList(ddl), null);
+            instanceId,
+            databaseId,
+            Collections.singletonList(schemaInfo.dropTableDdl(ident.name())),
+            null);
 
     try {
       op.get();

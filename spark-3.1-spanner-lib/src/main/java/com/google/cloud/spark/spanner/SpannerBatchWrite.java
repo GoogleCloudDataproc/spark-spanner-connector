@@ -19,6 +19,7 @@ import org.apache.spark.sql.connector.write.DataWriterFactory;
 import org.apache.spark.sql.connector.write.LogicalWriteInfo;
 import org.apache.spark.sql.connector.write.PhysicalWriteInfo;
 import org.apache.spark.sql.connector.write.WriterCommitMessage;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,15 +27,17 @@ public class SpannerBatchWrite implements BatchWrite {
   private static final Logger log = LoggerFactory.getLogger(SpannerBatchWrite.class);
 
   private final LogicalWriteInfo info;
+  private final CaseInsensitiveStringMap properties;
 
-  public SpannerBatchWrite(LogicalWriteInfo info) {
+  public SpannerBatchWrite(LogicalWriteInfo info, CaseInsensitiveStringMap properties) {
     this.info = info;
+    this.properties = properties;
     log.info("Creating SpannerBatchWrite for queryId {}", info.queryId());
   }
 
   @Override
   public DataWriterFactory createBatchWriterFactory(PhysicalWriteInfo info) {
-    return new SpannerDataWriterFactory(this.info.options(), this.info.schema());
+    return new SpannerDataWriterFactory(this.properties, this.info.schema());
   }
 
   @Override

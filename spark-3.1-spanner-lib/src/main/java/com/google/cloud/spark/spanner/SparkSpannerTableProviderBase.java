@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.connector.catalog.Identifier;
-import org.apache.spark.sql.connector.catalog.SupportsCatalogOptions;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
@@ -29,8 +28,7 @@ import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-public abstract class SparkSpannerTableProviderBase
-    implements SupportsCatalogOptions, DataSourceRegister, TableProvider {
+public abstract class SparkSpannerTableProviderBase implements DataSourceRegister, TableProvider {
 
   private static final Gson GSON = new Gson();
 
@@ -105,7 +103,6 @@ public abstract class SparkSpannerTableProviderBase
     }
   }
 
-  @Override
   public Identifier extractIdentifier(CaseInsensitiveStringMap options) {
     String table = options.get("table");
     if (table != null) {
@@ -126,8 +123,7 @@ public abstract class SparkSpannerTableProviderBase
     return null;
   }
 
-  @Override
   public String extractCatalog(CaseInsensitiveStringMap options) {
-    return options.getOrDefault("catalog", "spanner");
+    return options.getOrDefault("catalog", "spark_catalog");
   }
 }

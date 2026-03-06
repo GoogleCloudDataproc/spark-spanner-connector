@@ -17,16 +17,19 @@ package com.google.cloud.spark.spanner;
 import org.apache.spark.sql.connector.write.BatchWrite;
 import org.apache.spark.sql.connector.write.LogicalWriteInfo;
 import org.apache.spark.sql.connector.write.WriteBuilder;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public class SpannerWriteBuilder implements WriteBuilder {
   private final LogicalWriteInfo info;
+  private final CaseInsensitiveStringMap properties;
 
-  public SpannerWriteBuilder(LogicalWriteInfo info) {
+  public SpannerWriteBuilder(LogicalWriteInfo info, CaseInsensitiveStringMap properties) {
     this.info = info;
+    this.properties = properties;
   }
 
   @Override
   public BatchWrite buildForBatch() {
-    return new SpannerBatchWrite(info);
+    return new SpannerBatchWrite(info, properties);
   }
 }

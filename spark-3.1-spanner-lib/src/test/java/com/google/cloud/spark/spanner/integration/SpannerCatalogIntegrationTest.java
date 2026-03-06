@@ -48,7 +48,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class SpannerCatalogIntegrationTest extends SparkSpannerIntegrationTestBase {
+public class SpannerCatalogIntegrationTest extends SparkCatalogSpannerIntegrationTestBase {
 
   private SpannerCatalog catalog;
   private final boolean usePostgresSql;

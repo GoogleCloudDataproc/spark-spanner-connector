@@ -186,6 +186,6 @@ public class SparkSpannerTableProviderBaseTest {
             });
     assertEquals("cat", provider.extractCatalog(options));
     CaseInsensitiveStringMap options2 = new CaseInsensitiveStringMap(new HashMap<>());
-    assertEquals("spanner", provider.extractCatalog(options2));
+    assertEquals("spark_catalog", provider.extractCatalog(options2));
   }
 }

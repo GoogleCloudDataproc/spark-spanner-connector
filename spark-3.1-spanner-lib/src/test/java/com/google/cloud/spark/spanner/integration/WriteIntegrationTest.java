@@ -23,11 +23,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-import com.google.cloud.spanner.ErrorCode;
-import com.google.cloud.spanner.SpannerException;
-import com.google.cloud.spark.spanner.SpannerCatalog;
 import com.google.cloud.spark.spanner.TestData;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -102,11 +98,6 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
     initialDf.write().format("cloud-spanner").options(getBaseProps()).mode(SaveMode.Append).save();
     return initialDf;
-  }
-
-  private Dataset<Row> setupInitialData(StructType schema) {
-    final long[] ids = new long[] {201L, 202L};
-    return setupInitialData(schema, ids);
   }
 
   public WriteIntegrationTest(boolean usePostgresSql) {
@@ -918,169 +909,5 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   private BigDecimal[] rowToDecimalArray(Row row, int index) {
     final List<BigDecimal> actualList = row.getList(index);
     return actualList.toArray(new BigDecimal[0]);
-  }
-
-  @Test
-  public void testIgnoreSaveMode() {
-    String tableName = TestData.WRITE_TABLE_NAME + "_IGNORE";
-    spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
-
-    // 1. Define schema and initial data
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField(
-                  "long_col", DataTypes.LongType, false, SpannerCatalog.PRIMARY_KEY_METADATA),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
-
-    List<Row> initialRows = Collections.singletonList(RowFactory.create(501L, "initial-data"));
-    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
-
-    Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", tableName);
-
-    // 2. Write the initial data. This should create the table.
-    initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.ErrorIfExists).save();
-
-    // 3. Verify the initial write.
-    Dataset<Row> dfAfterInitialWrite = spark.read().format("cloud-spanner").options(props).load();
-    assertEquals(1, dfAfterInitialWrite.count());
-    assertEquals("initial-data", dfAfterInitialWrite.first().getString(1));
-
-    // 4. Prepare new data.
-    List<Row> newRows = Collections.singletonList(RowFactory.create(502L, "ignored-data"));
-    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
-
-    // 5. Attempt to write with Ignore mode. This should be a no-op since the table exists.
-    newDf.write().format("cloud-spanner").options(props).mode(SaveMode.Ignore).save();
-
-    // 6. Verify that the table content is unchanged.
-    Dataset<Row> finalDf = spark.read().format("cloud-spanner").options(props).load();
-    assertEquals(1, finalDf.count());
-    Row finalRow = finalDf.first();
-    assertEquals(501L, finalRow.getLong(0));
-    assertEquals("initial-data", finalRow.getString(1));
-  }
-
-  @Test
-  public void testCreateTableWithArrayColumns() {
-    String tableName = TestData.WRITE_TABLE_NAME + "_ARR_DDL";
-    try {
-      spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
-
-    } catch (SpannerException e) {
-      // it's ok if table does not exist -- we are cleaning up
-      if (e.getErrorCode() != ErrorCode.NOT_FOUND) {
-        throw e;
-      }
-    }
-
-    // Schema includes array columns so that sparkTypeToSpannerType must handle ArrayType.
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField(
-                  "id", DataTypes.LongType, false, SpannerCatalog.PRIMARY_KEY_METADATA),
-              DataTypes.createStructField(
-                  "long_array", DataTypes.createArrayType(DataTypes.LongType), true),
-              DataTypes.createStructField(
-                  "str_array", DataTypes.createArrayType(DataTypes.StringType), true),
-            });
-
-    Long[] longArr = new Long[] {10L, 20L, 30L};
-    Object[] strArr = new Object[] {"hello", "world"};
-
-    List<Row> rows = Collections.singletonList(RowFactory.create(1L, longArr, strArr));
-    Dataset<Row> df = spark.createDataFrame(rows, schema);
-
-    Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", tableName);
-
-    // ErrorIfExists triggers createTable -> toDdl -> sparkTypeToSpannerType.
-    // If sparkTypeToSpannerType does not support ArrayType, this will throw.
-    df.write().format("cloud-spanner").options(props).mode(SaveMode.ErrorIfExists).save();
-
-    Dataset<Row> readBack =
-        spark.read().format("cloud-spanner").options(props).load().filter("id = 1");
-    assertEquals(1, readBack.count());
-
-    Row row = readBack.first();
-    assertThat(row.getLong(0)).isEqualTo(1L);
-    assertArrayEquals(longArr, row.getList(1).toArray(new Long[0]));
-    assertArrayEquals(strArr, row.getList(2).toArray());
-  }
-
-  @Test
-  public void testErrorIfExists() {
-
-    // 1. Write initial data.
-
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField(
-                  "long_col", DataTypes.LongType, false, SpannerCatalog.PRIMARY_KEY_METADATA),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-              DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
-              DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
-              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
-              DataTypes.createStructField("date_col", DataTypes.DateType, true),
-              DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
-              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
-            });
-
-    List<Row> initialRows =
-        Collections.singletonList(
-            RowFactory.create(
-                301L,
-                "three-oh-one",
-                true,
-                3.14,
-                java.sql.Timestamp.valueOf("2023-03-03 03:03:03"),
-                java.sql.Date.valueOf("2023-03-03"),
-                new byte[] {1, 2, 3},
-                new java.math.BigDecimal("3.14")));
-
-    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
-
-    Map<String, String> props = connectionProperties(usePostgresSql);
-
-    props.put("table", TestData.WRITE_TABLE_NAME + "_EIE");
-
-    initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.ErrorIfExists).save();
-
-    // 2. Try to write again with ErrorIfExists.
-
-    List<Row> newRows =
-        Collections.singletonList(
-            RowFactory.create(
-                302L,
-                "three-oh-two",
-                false,
-                6.28,
-                java.sql.Timestamp.valueOf("2023-06-06 06:06:06"),
-                java.sql.Date.valueOf("2023-06-06"),
-                new byte[] {4, 5, 6},
-                new java.math.BigDecimal("6.28")));
-
-    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
-
-    try {
-
-      newDf.write().format("cloud-spanner").options(props).mode(SaveMode.ErrorIfExists).save();
-
-      fail("Expected AnalysisException was not thrown");
-
-    } catch (Exception e) {
-
-      // In Spark 3, this is an AnalysisException.
-
-      // For now, let's just check the message.
-
-      assertTrue(
-          "Expected exception message about table already exists, but got: " + e.getMessage(),
-          e.getMessage().contains("already exists"));
-    }
   }
 }

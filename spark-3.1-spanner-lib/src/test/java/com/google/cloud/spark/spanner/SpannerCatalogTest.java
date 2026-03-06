@@ -207,7 +207,7 @@ public class SpannerCatalogTest {
     thrown.expectMessage(
         "No primary key found for table no_pk_table. Please specify at least one primary key column.");
 
-    SpannerInformationSchema.create(dialect).toDdl(ident, schema);
+    SpannerInformationSchema.create(dialect).createTableDdl(ident, schema);
   }
 
   @Test
@@ -279,7 +279,7 @@ public class SpannerCatalogTest {
               new StructField("price", DataTypes.createDecimalType(10, 2), true, Metadata.empty()),
             });
 
-    String ddl = SpannerInformationSchema.create(dialect).toDdl(ident, schema);
+    String ddl = SpannerInformationSchema.create(dialect).createTableDdl(ident, schema);
 
     if (dialect == Dialect.POSTGRESQL) {
       assertEquals(
@@ -295,5 +295,52 @@ public class SpannerCatalogTest {
               + "`created_on` DATE, `price` NUMERIC, PRIMARY KEY (`id`, `id2`))",
           ddl);
     }
+  }
+
+  @Test
+  public void enrichSchemaWithPrimaryKeysShouldAddMetadata() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, Metadata.empty()),
+              new StructField("name", DataTypes.StringType, true, Metadata.empty()),
+            });
+    Map<String, String> props = new HashMap<>();
+    props.put("primaryKeys", "id");
+
+    StructType enriched = SpannerCatalog.enrichSchemaWithPrimaryKeys(schema, props);
+    assertTrue(enriched.fields()[0].metadata().getBoolean(SpannerUtils.PRIMARY_KEY_TAG));
+    assertFalse(enriched.fields()[1].metadata().contains(SpannerUtils.PRIMARY_KEY_TAG));
+  }
+
+  @Test
+  public void enrichSchemaWithPrimaryKeysShouldHandleMultipleKeys() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, Metadata.empty()),
+              new StructField("id2", DataTypes.StringType, false, Metadata.empty()),
+              new StructField("name", DataTypes.StringType, true, Metadata.empty()),
+            });
+    Map<String, String> props = new HashMap<>();
+    props.put("primaryKeys", "id, id2");
+
+    StructType enriched = SpannerCatalog.enrichSchemaWithPrimaryKeys(schema, props);
+    assertTrue(enriched.fields()[0].metadata().getBoolean(SpannerUtils.PRIMARY_KEY_TAG));
+    assertTrue(enriched.fields()[1].metadata().getBoolean(SpannerUtils.PRIMARY_KEY_TAG));
+    assertFalse(enriched.fields()[2].metadata().contains(SpannerUtils.PRIMARY_KEY_TAG));
+  }
+
+  @Test
+  public void enrichSchemaWithPrimaryKeysShouldBeNoOpWhenAbsent() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, Metadata.empty()),
+            });
+    Map<String, String> props = new HashMap<>();
+
+    StructType enriched = SpannerCatalog.enrichSchemaWithPrimaryKeys(schema, props);
+    assertFalse(enriched.fields()[0].metadata().contains(SpannerUtils.PRIMARY_KEY_TAG));
   }
 }

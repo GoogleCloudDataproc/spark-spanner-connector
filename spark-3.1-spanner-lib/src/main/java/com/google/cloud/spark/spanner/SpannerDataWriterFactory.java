@@ -42,7 +42,8 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
     SessionPoolOptions sessionPoolOptions =
         SessionPoolOptions.newBuilder().setMinSessions(1).setMaxSessions(numThreads).build();
     BatchClientWithCloser batchClient =
-        SpannerUtils.batchClientFromProperties(properties, sessionPoolOptions);
+        SpannerUtils.batchClientFromProperties(
+            new CaseInsensitiveStringMap(properties), sessionPoolOptions);
     ExecutorService executor = Executors.newFixedThreadPool(numThreads);
     ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 

@@ -2,6 +2,11 @@
 
 ## Next
 
+*   Add the tool to run write only performance benchmarks.
+*   Support array type and add solution for struct type in write connector.
+*   Add the different mutation mode support (INSERT/UPDATE/UPSERT/REPLACE).
+*   Add the spark catalog support and ErrorIfExists,Ignore,Override save mode.
+
 ## 1.2.2 - 2026-02-05
 
 *   Artifacts are now published to Maven Central.

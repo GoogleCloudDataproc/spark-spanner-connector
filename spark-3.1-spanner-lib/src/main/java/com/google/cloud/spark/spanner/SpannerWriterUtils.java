@@ -20,10 +20,7 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -194,10 +191,30 @@ public class SpannerWriterUtils {
     return constructor.apply(convertedList);
   }
 
+  private static Mutation.WriteBuilder createBuilder(String tableName, Mutation.Op mode) {
+    switch (Objects.requireNonNull(mode)) {
+      case INSERT:
+        return Mutation.newInsertBuilder(tableName);
+      case UPDATE:
+        return Mutation.newUpdateBuilder(tableName);
+      case REPLACE:
+        return Mutation.newReplaceBuilder(tableName);
+      case DELETE:
+        throw new UnsupportedOperationException("Unsupported Spanner write mode: DELETE");
+      default:
+        return Mutation.newInsertOrUpdateBuilder(tableName);
+    }
+  }
+
   public static Mutation internalRowToMutation(
       String tableName, InternalRow record, StructType schema) {
+    return internalRowToMutation(tableName, record, schema, Mutation.Op.INSERT_OR_UPDATE);
+  }
 
-    Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(tableName);
+  public static Mutation internalRowToMutation(
+      String tableName, InternalRow record, StructType schema, Mutation.Op mode) {
+
+    Mutation.WriteBuilder builder = createBuilder(tableName, mode);
 
     for (int i = 0; i < schema.length(); i++) {
       StructField field = schema.fields()[i];

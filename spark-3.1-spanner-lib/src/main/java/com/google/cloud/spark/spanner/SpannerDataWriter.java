@@ -66,6 +66,8 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   private final int maxPendingTransactions;
 
+  private final Mutation.Op mutationType;
+
   // Buffers
   private final List<Mutation> mutationBuffer = new ArrayList<>();
   private final BatchClientWithCloser batchClient;
@@ -111,16 +113,39 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
         Integer.parseInt(
             caseInsensitiveStringMap.getOrDefault(
                 "maxPendingTransactions", MAX_PENDING_TRANSACTIONS_DEFAULT_STR));
+    this.mutationType = parseMutationType(properties.getOrDefault("mutationType", null));
 
     this.batchClient = batchClient;
     this.executor = executor;
     this.scheduler = scheduler;
   }
 
+  private Mutation.Op parseMutationType(String mutationTypeProperty) {
+    if (mutationTypeProperty == null) {
+      return Mutation.Op.INSERT_OR_UPDATE;
+    }
+    switch (mutationTypeProperty.toLowerCase(java.util.Locale.ROOT)) {
+      case "insert":
+        return Mutation.Op.INSERT;
+      case "update":
+        return Mutation.Op.UPDATE;
+      case "replace":
+        return Mutation.Op.REPLACE;
+      case "insert_or_update":
+        return Mutation.Op.INSERT_OR_UPDATE;
+      default:
+        throw new IllegalArgumentException(
+            "Invalid value for mutationType: "
+                + mutationTypeProperty
+                + ". Supported values are: insert, update, replace, insert_or_update.");
+    }
+  }
+
   @Override
   public void write(InternalRow record) throws IOException {
     // 1. Convert to Spanner Mutation
-    Mutation mutation = SpannerWriterUtils.internalRowToMutation(tableName, record, schema);
+    Mutation mutation =
+        SpannerWriterUtils.internalRowToMutation(tableName, record, schema, mutationType);
 
     // 2. Estimate Size (Crucial for preventing OOM)
     long mutationSize = estimateMutationSize(record, schema);

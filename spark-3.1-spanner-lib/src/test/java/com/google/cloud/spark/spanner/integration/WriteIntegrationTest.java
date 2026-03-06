@@ -46,6 +46,7 @@ import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -61,6 +62,51 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   @Parameters
   public static Collection<Object[]> usePostgresSqlValues() {
     return Arrays.asList(new Object[][] {{false}, {true}});
+  }
+
+  private final StructType SCHEMA =
+      new StructType(
+              new StructField[] {
+                      DataTypes.createStructField("long_col", DataTypes.LongType, false),
+                      DataTypes.createStructField("string_col", DataTypes.StringType, true),
+                      DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
+                      DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
+                      DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
+                      DataTypes.createStructField("date_col", DataTypes.DateType, true),
+                      DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
+                      DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
+              });
+
+  private Map<String, String> getBaseProps() {
+    Map<String, String> props = connectionProperties(usePostgresSql);
+    props.put("table", TestData.WRITE_TABLE_NAME);
+    props.put("enablePartialRowUpdates", "true");
+    return props;
+  }
+
+  /**
+   * Sets up initial data with a given list of row IDs. Used to avoid ID clashes between different
+   * tests.
+   *
+   * @param schema schema of table columns being used in test.
+   * @param ids IDs used in the test
+   * @return The dataframe defining the data being written
+   */
+  private Dataset<Row> setupInitialData(StructType schema, long[] ids) {
+    if (ids.length != 2) Assert.fail("Invalid number of id's provided");
+    List<Row> initialRows =
+        Arrays.asList(
+            RowFactory.create(ids[0], "original twenty-one"),
+            RowFactory.create(ids[1], "original twenty-two"));
+
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+    initialDf.write().format("cloud-spanner").options(getBaseProps()).mode(SaveMode.Append).save();
+    return initialDf;
+  }
+
+  private Dataset<Row> setupInitialData(StructType schema) {
+    final long[] ids = new long[] {201L, 202L};
+    return setupInitialData(schema, ids);
   }
 
   public WriteIntegrationTest(boolean usePostgresSql) {
@@ -133,28 +179,11 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   @Test
   public void testIdempotentWrite() {
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-              DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
-              DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
-              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
-              DataTypes.createStructField("date_col", DataTypes.DateType, true),
-              DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
-              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
-            });
+    List<Row> rows = Arrays.asList(RowFactory.create(4L, "four"), RowFactory.create(5L, "five"));
 
-    List<Row> rows =
-        Arrays.asList(
-            RowFactory.create(4L, "four", null, null, null, null, null, null),
-            RowFactory.create(5L, "five", null, null, null, null, null, null));
+    Dataset<Row> df = spark.createDataFrame(rows, SCHEMA);
 
-    Dataset<Row> df = spark.createDataFrame(rows, schema);
-
-    Map<String, String> props = connectionProperties(usePostgresSql);
-    props.put("table", TestData.WRITE_TABLE_NAME);
+    Map<String, String> props = getBaseProps();
     props.put("assumeIdempotentWrites", "true");
 
     df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
@@ -175,20 +204,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   @Test
   public void testEmptyDataFrameWrite() {
-    StructType schema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("long_col", DataTypes.LongType, false),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-              DataTypes.createStructField("bool_col", DataTypes.BooleanType, true),
-              DataTypes.createStructField("double_col", DataTypes.DoubleType, true),
-              DataTypes.createStructField("timestamp_col", DataTypes.TimestampType, true),
-              DataTypes.createStructField("date_col", DataTypes.DateType, true),
-              DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
-              DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true)
-            });
 
-    Dataset<Row> df = spark.createDataFrame(Collections.emptyList(), schema);
+    Dataset<Row> df = spark.createDataFrame(Collections.emptyList(), SCHEMA);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
@@ -206,6 +223,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
   @Test
   public void testUpsert() {
+    // 1. Write initial data using unique keys.
+    setupInitialData(SCHEMA);
 
     // 1. Define the full schema
     StructType fullSchema =
@@ -267,7 +286,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
         spark
             .read()
             .format("cloud-spanner")
-            .options(props)
+            .options(getBaseProps())
             .load()
             .filter("long_col IN (201, 202, 301)");
 
@@ -297,8 +316,123 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   }
 
   @Test
-  public void testUpdateSetColumnToNull() {
-    // 1. Write initial data with a non-null string value
+  public void testInsert() {
+    // 1. Write initial data using unique keys.
+    setupInitialData(SCHEMA, new long[] {211L, 212L});
+
+    // 2. Write a second DataFrame to update one row and insert another.
+    List<Row> newRows =
+        Arrays.asList(
+            RowFactory.create(211L, "new twenty-one"), // Update 211
+            RowFactory.create(213L, "new twenty-three") // Insert 213
+            );
+
+    // To make tests reproducable, set repartition to 1 so all rows are handled in an atomic
+    // transaction.
+    Dataset<Row> newDf = spark.createDataFrame(newRows, SCHEMA).repartition(1);
+
+    Map<String, String> insertProps = getBaseProps();
+    insertProps.put("mutationType", "insert");
+
+    try {
+      newDf.write().format("cloud-spanner").options(insertProps).mode(SaveMode.Append).save();
+      Assert.fail();
+    } catch (Exception e) {
+      // 3. Verify that row 211 cannot be inserted again.
+      assertThat(e.getCause().getMessage()).contains("ALREADY_EXISTS: Row [211]");
+    }
+
+    // 4. Insert 213, happy path
+    List<Row> successfulInsertRows =
+        Collections.singletonList(
+            RowFactory.create(213L, "new twenty-three") // Insert 213
+            );
+    Dataset<Row> successfulDf = spark.createDataFrame(successfulInsertRows, SCHEMA);
+    successfulDf.write().format("cloud-spanner").options(insertProps).mode(SaveMode.Append).save();
+
+    // 5. Verify the final state of the rows involved in this test.
+    Dataset<Row> finalDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(getBaseProps())
+            .load()
+            .filter("long_col IN (211, 212, 213)");
+
+    assertEquals(3, finalDf.count());
+
+    Map<Long, Row> finalRows =
+        finalDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 211 was not updated.
+    assertThat(finalRows.get(211L).getString(1)).isEqualTo("original twenty-one");
+    // Check that row 212 was not touched.
+    assertThat(finalRows.get(212L).getString(1)).isEqualTo("original twenty-two");
+    // Check that row 213 was inserted.
+    assertThat(finalRows.get(213L).getString(1)).isEqualTo("new twenty-three");
+  }
+
+  @Test
+  public void testUpdate() {
+    // 1. Write initial data using unique keys
+    setupInitialData(SCHEMA, new long[] {221L, 222L});
+
+    // 2. Write a second DataFrame to update an existing row and update a non-existent row.
+    List<Row> errorRows =
+        Arrays.asList(
+            RowFactory.create(221L, "new twenty-one"), // Update 221
+            RowFactory.create(223L, "new twenty-three") // Update 223
+            );
+
+    // To make tests reproducable, set repartition to 1 so all rows are handled in atomic
+    // transaction.
+    Dataset<Row> errorDf = spark.createDataFrame(errorRows, SCHEMA).repartition(1);
+
+    Map<String, String> updateProps = getBaseProps();
+    updateProps.put("mutationType", "update");
+
+    try {
+      errorDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
+      Assert.fail();
+    } catch (Exception e) {
+      // 3. Verify that row 223 cannot be updated before it exists
+      assertThat(e.getCause().getMessage()).contains("NOT_FOUND: Row [223]");
+    }
+
+    // 4. Update existing 222, happy path
+    List<Row> successfulUpdateRows =
+        Collections.singletonList(
+            RowFactory.create(222L, "new twenty-two") // Update 222
+            );
+    Dataset<Row> successfulDf = spark.createDataFrame(successfulUpdateRows, SCHEMA);
+
+    successfulDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
+
+    // 5. Verify the final state of the rows involved in this test.
+    Dataset<Row> finalDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(getBaseProps())
+            .load()
+            .filter("long_col IN (221, 222)");
+
+    assertEquals(2, finalDf.count());
+
+    Map<Long, Row> finalRows =
+        finalDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 221 was not updated.
+    assertThat(finalRows.get(221L).getString(1)).isEqualTo("original twenty-one");
+    // Check that row 222 was updated.
+    assertThat(finalRows.get(222L).getString(1)).isEqualTo("new twenty-two");
+  }
+
+  @Test
+  public void testReplace() {
+    // 1. Write initial data using unique keys.
     StructType schema =
         new StructType(
             new StructField[] {
@@ -321,7 +455,98 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     Row nullValue = RowFactory.create(20L, null, null, null, null, null, null, null);
 
     List<Row> initialRows = Collections.singletonList(originalValue);
+    List<Row> initialRows =
+        Arrays.asList(
+            RowFactory.create(
+                201L, "original twenty-one", java.sql.Timestamp.valueOf("2023-01-01 10:10:10")),
+            RowFactory.create(
+                202L, "original twenty-two", java.sql.Timestamp.valueOf("2024-01-01 10:10:10")));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
+
+    Map<String, String> upsertProps = getBaseProps();
+
+    initialDf.write().format("cloud-spanner").options(upsertProps).mode(SaveMode.Append).save();
+
+    // 2. Write a second DataFrame to replace two rows.
+    List<Row> newRows =
+        Arrays.asList(
+            RowFactory.create(
+                201L,
+                "new twenty-one",
+                java.sql.Timestamp.valueOf("2025-01-01 10:10:10")), // Replace 201 with 3 columns
+            RowFactory.create(
+                202L,
+                "new twenty-two",
+                java.sql.Timestamp.valueOf("2026-01-01 10:10:10")) // Replace 202 with 3 columns
+            );
+    Dataset<Row> newDf = spark.createDataFrame(newRows, schema);
+
+    Map<String, String> replaceProps = getBaseProps();
+    replaceProps.put("mutationType", "replace");
+
+    newDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
+
+    // 3. Verify the state of the rows involved in this test.
+    Dataset<Row> nextDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(upsertProps)
+            .load()
+            .filter("long_col IN (201, 202)");
+
+    assertEquals(2, nextDf.count());
+
+    Map<Long, Row> nextRows =
+        nextDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 201 was replaced.
+    assertThat(nextRows.get(201L).getString(1)).isEqualTo("new twenty-one");
+    assertThat(nextRows.get(201L).getTimestamp(4))
+        .isEqualTo(java.sql.Timestamp.valueOf("2025-01-01 10:10:10"));
+    // Check that row 202 was replaced.
+    assertThat(nextRows.get(202L).getString(1)).isEqualTo("new twenty-two");
+    assertThat(nextRows.get(202L).getTimestamp(4))
+        .isEqualTo(java.sql.Timestamp.valueOf("2026-01-01 10:10:10"));
+
+    // 4. Write two rows with one column missing
+    List<Row> shortRows =
+        Arrays.asList(
+            RowFactory.create(201L, "short twenty-one"),
+            RowFactory.create(202L, "short twenty-two"));
+    Dataset<Row> shortDf = spark.createDataFrame(shortRows, SCHEMA);
+
+    shortDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
+
+    // 5. Verify the final state of the rows involved in this test.
+    Dataset<Row> finalDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(upsertProps)
+            .load()
+            .filter("long_col IN (201, 202)");
+
+    assertEquals(2, finalDf.count());
+
+    Map<Long, Row> finalRows =
+        finalDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    // Check that row 201 was replaced.
+    assertThat(finalRows.get(201L).getString(1)).isEqualTo("short twenty-one");
+    assertThat(finalRows.get(201L).isNullAt(4)).isTrue();
+    // Check that row 202 was replaced.
+    assertThat(finalRows.get(202L).getString(1)).isEqualTo("short twenty-two");
+    assertThat(finalRows.get(202L).isNullAt(4)).isTrue();
+  }
+
+  @Test
+  public void testUpdateSetColumnToNull() {
+    // 1. Write initial data with a non-null string value
+    List<Row> initialRows = Collections.singletonList(RowFactory.create(20L, "originalValue"));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
     props.put("table", TestData.WRITE_TABLE_NAME);
@@ -336,8 +561,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(dfAfterInitialWrite.first().getString(1)).isEqualTo("originalValue");
 
     // 2. Update the existing row, setting string_col to null
-    List<Row> updateRows = Collections.singletonList(nullValue);
-    Dataset<Row> updateDf = spark.createDataFrame(updateRows, schema);
+    List<Row> updateRows = Collections.singletonList(RowFactory.create(20L, null));
+    Dataset<Row> updateDf = spark.createDataFrame(updateRows, SCHEMA);
 
     updateDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 

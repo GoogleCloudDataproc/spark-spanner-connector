@@ -51,6 +51,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -70,6 +71,19 @@ import org.apache.spark.unsafe.types.UTF8String;
 import org.threeten.bp.Duration;
 
 public class SpannerUtils {
+
+  // GCP project ID naming rules (also allows legacy domain-scoped projects like
+  // "example.com:my-project" and numeric project IDs):
+  //   https://cloud.google.com/resource-manager/docs/creating-managing-projects
+  private static final Pattern VALID_PROJECT_ID_PATTERN =
+      Pattern.compile("^[a-z][a-z0-9.:-]*[a-z0-9]$|^[0-9]+$");
+
+  // Spanner resource ID naming rules (superset covering both instance and database IDs):
+  // Instance IDs: [a-z][-a-z0-9]*[a-z0-9], 2-64 chars.
+  //   https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/create
+  // Database IDs: [a-z][a-z0-9_\-]*[a-z0-9], 2-30 chars.
+  //   https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create
+  private static final Pattern VALID_ID_PATTERN = Pattern.compile("^[a-z][a-z0-9_-]*[a-z0-9]$");
 
   private static final RetrySettings RETRY_SETTING =
       RetrySettings.newBuilder()
@@ -181,9 +195,13 @@ public class SpannerUtils {
     Verify.verifyNotNull(projectId, "projectId");
     Verify.verifyNotNull(instanceId, "instanceId");
     Verify.verifyNotNull(databaseId, "databaseId");
+    validateProjectId(projectId);
+    validateResourceId(instanceId, "instanceId");
+    validateResourceId(databaseId, "databaseId");
 
     String connUriPrefix = "cloudspanner:";
     if (emulatorHost != null) {
+      validateEmulatorHost(emulatorHost);
       connUriPrefix = "cloudspanner://" + emulatorHost;
     }
 
@@ -201,6 +219,39 @@ public class SpannerUtils {
     // TODO: Fix out how to add the gRPC UserAgent when creating this Connection.
     ConnectionOptions opts = builder.build();
     return opts.getConnection();
+  }
+
+  @VisibleForTesting
+  static void validateProjectId(String value) {
+    if (!VALID_PROJECT_ID_PATTERN.matcher(value).matches()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "Invalid projectId: '"
+              + value
+              + "'. Must contain only lowercase letters, digits, hyphens, dots, and colons.");
+    }
+  }
+
+  @VisibleForTesting
+  static void validateResourceId(String value, String name) {
+    if (!VALID_ID_PATTERN.matcher(value).matches()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "Invalid "
+              + name
+              + ": '"
+              + value
+              + "'. Must contain only lowercase letters, digits, hyphens, and underscores.");
+    }
+  }
+
+  @VisibleForTesting
+  static void validateEmulatorHost(String host) {
+    if (host.contains("?") || host.contains(";") || host.contains(" ") || host.contains("/")) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "Invalid emulatorHost: '" + host + "'. Must not contain URI-sensitive characters.");
+    }
   }
 
   public static BatchClientWithCloser batchClientFromProperties(

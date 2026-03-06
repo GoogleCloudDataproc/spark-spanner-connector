@@ -174,4 +174,67 @@ public class SpannerUtilsTest {
             () -> SpannerUtils.getRequiredOption(options, "table"));
     assertTrue(e.getMessage().contains("Option 'table' property must be set"));
   }
+
+  @Test
+  public void testValidateProjectIdAcceptsStandard() {
+    SpannerUtils.validateProjectId("my-project-123");
+  }
+
+  @Test
+  public void testValidateProjectIdAcceptsDomainScoped() {
+    SpannerUtils.validateProjectId("example.com:my-project");
+  }
+
+  @Test
+  public void testValidateProjectIdAcceptsNumeric() {
+    SpannerUtils.validateProjectId("123456789");
+  }
+
+  @Test
+  public void testValidateProjectIdRejectsUriInjection() {
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validateProjectId("proj?inject=true"));
+    assertTrue(e.getMessage().contains("Invalid projectId"));
+  }
+
+  @Test
+  public void testValidateResourceIdAcceptsValid() {
+    SpannerUtils.validateResourceId("instance-1", "instanceId");
+    SpannerUtils.validateResourceId("my_database", "databaseId");
+  }
+
+  @Test
+  public void testValidateResourceIdRejectsUriInjection() {
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validateResourceId("db?autoConfigEmulator=true", "databaseId"));
+    assertTrue(e.getMessage().contains("Invalid databaseId"));
+  }
+
+  @Test
+  public void testValidateResourceIdRejectsSemicolonInjection() {
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validateResourceId("db;usePlainText=true", "databaseId"));
+    assertTrue(e.getMessage().contains("Invalid databaseId"));
+  }
+
+  @Test
+  public void testValidateEmulatorHostAcceptsValid() {
+    SpannerUtils.validateEmulatorHost("localhost:9010");
+    SpannerUtils.validateEmulatorHost("127.0.0.1:9010");
+  }
+
+  @Test
+  public void testValidateEmulatorHostRejectsUriInjection() {
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validateEmulatorHost("localhost:9010/evil?param=val"));
+    assertTrue(e.getMessage().contains("Invalid emulatorHost"));
+  }
 }

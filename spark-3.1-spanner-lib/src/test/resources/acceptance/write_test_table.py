@@ -18,9 +18,9 @@ import sys
 import logging
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, BinaryType, TimestampType, DecimalType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, BinaryType, TimestampType, DecimalType, BooleanType, DoubleType, DateType
 
 def main():
 
@@ -40,15 +40,18 @@ def main():
         StructField("B", StringType(), True),
         StructField("C", BinaryType(), True),
         StructField("D", TimestampType(), True),
-        StructField("E", DecimalType(38, 9), True)
+        StructField("E", DecimalType(38, 9), True),
+        StructField("F", BooleanType(), True),
+        StructField("G", DoubleType(), True),
+        StructField("H", DateType(), True)
     ])
 
     # 2. Prepare Data as a list of tuples
     logging.info('writeTest step 2')
     data = [
-        (1,  "2",  None, datetime.fromisoformat("2023-08-22T12:22:00"), Decimal("1000.282111401")),
-        (10, "20", None, datetime.fromisoformat("2023-08-22T12:23:00"), Decimal("10000.282111603")),
-        (30, "30", None, datetime.fromisoformat("2023-08-22T12:24:00"), Decimal("30000.282111805"))
+        (1,  "2",  None, datetime.fromisoformat("2023-08-22T12:22:00"), Decimal("1000.282111401"), True, 123.456, date(2023, 12, 25)),
+        (10, "20", None, datetime.fromisoformat("2023-08-22T12:23:00"), Decimal("10000.282111603"), False, 987.654, date(2023, 12, 24)),
+        (30, "30", None, datetime.fromisoformat("2023-08-22T12:24:00"), Decimal("30000.282111805"), True, -2121.1212, date(2023, 12, 23))
     ]
 
     # 3. Create the DataFrame

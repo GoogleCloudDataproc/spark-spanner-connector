@@ -98,8 +98,8 @@ public class CatalogWriteIntegrationTest extends SparkCatalogSpannerIntegrationT
     assertEquals(1, dfAfterInitialWrite.count());
     assertEquals("initial-data", dfAfterInitialWrite.first().getString(1));
 
-    // 4. Attempt to create with IF NOT EXISTS (Ignore mode). This should be a no-op since the
-    // table exists.
+    // 4. CREATE TABLE IF NOT EXISTS is the catalog Ignore mode. This should be a no-op since the
+    // table already exists. There is no DataFrameWriterV2 equivalent for Ignore semantics.
     spark.sql(
         "CREATE TABLE IF NOT EXISTS spanner."
             + tableName
@@ -129,13 +129,11 @@ public class CatalogWriteIntegrationTest extends SparkCatalogSpannerIntegrationT
     // 2. Insert initial data.
     spark.sql("INSERT INTO spanner." + tableName + " VALUES (301, 'three-oh-one')");
 
-    // 3. Try to create the table again (without IF NOT EXISTS). This should fail.
+    // 3. writeTo().create() is the catalog ErrorIfExists: it should fail since the table exists.
+    Dataset<Row> newDf =
+        spark.sql("SELECT CAST(302 AS BIGINT) AS long_col, 'three-oh-two' AS string_col");
     try {
-      spark.sql(
-          "CREATE TABLE spanner."
-              + tableName
-              + " (long_col BIGINT NOT NULL, string_col STRING) USING `cloud-spanner`"
-              + " TBLPROPERTIES('primaryKeys' = 'long_col')");
+      newDf.writeTo("spanner." + tableName).create();
       fail("Expected exception was not thrown");
     } catch (Exception e) {
       assertTrue(

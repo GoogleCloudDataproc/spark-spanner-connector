@@ -54,12 +54,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class SpannerTestBase {
+  private static final boolean spannerUseExistingDb =
+      Boolean.parseBoolean(System.getenv("SPANNER_USE_EXISTING_DATABASE"));
 
   // Since in the teardown we delete the Cloud Spanner database, here we append a random value to
   // the database ID to avoid any cross-pollution between concurrently running tests.
   // Note that a database ID must be 2-30 characters long.
   private static final String databaseId =
-      System.getenv("SPANNER_DATABASE_ID") + "-" + new Random().nextInt(10000000);
+      spannerUseExistingDb
+          ? System.getenv("SPANNER_DATABASE_ID")
+          : System.getenv("SPANNER_DATABASE_ID") + "-" + new Random().nextInt(10000000);
   private static final String databaseIdPg = databaseId + "-pg";
   private static final String instanceId = System.getenv("SPANNER_INSTANCE_ID");
   private static final String projectId = System.getenv("SPANNER_PROJECT_ID");
@@ -167,6 +171,10 @@ class SpannerTestBase {
       return;
     }
 
+    if (spannerUseExistingDb) {
+      return;
+    }
+
     // Create the instance.
     InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
 
@@ -205,6 +213,9 @@ class SpannerTestBase {
   }
 
   private static void cleanupDatabase() {
+    if (spannerUseExistingDb) {
+      return;
+    }
     log.info("\033[33mCleaning up databases\033[00m");
     DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
     databaseAdminClient.dropDatabase(instanceId, databaseId);
@@ -234,26 +245,20 @@ class SpannerTestBase {
   }
 
   protected static Map<String, String> connectionPropertiesLowerCase(boolean usePostgreSql) {
-    Map<String, String> props = new HashMap<>();
-    if (usePostgreSql) {
-      props.put("databaseid", databaseIdPg);
-      props.put("table", tablePg);
-    } else {
-      props.put("databaseid", databaseId);
-      props.put("table", table);
+    Map<String, String> props = connectionProperties(usePostgreSql);
+    Map<String, String> lowerCasedProps = new HashMap<>();
+    for (Map.Entry<String, String> entry : props.entrySet()) {
+      lowerCasedProps.put(entry.getKey().toLowerCase(), entry.getValue());
     }
-    props.put("instanceid", instanceId);
-    props.put("projectid", projectId);
-    if (emulatorHost != null) {
-      props.put("emulatorhost", emulatorHost);
-    }
-    props.put("enablepartialrowupdates", "true");
-
-    return props;
+    return lowerCasedProps;
   }
 
-  protected static Map<String, String> connectionProperties() {
-    return connectionProperties(false);
+  protected Map<String, String> connectionProperties() {
+    return connectionProperties(getUsePostgreSql());
+  }
+
+  protected boolean getUsePostgreSql() {
+    return false;
   }
 
   static InternalRow makeInternalRow(int A, String B, double C) {

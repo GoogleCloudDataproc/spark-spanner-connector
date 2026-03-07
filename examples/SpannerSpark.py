@@ -64,5 +64,18 @@ def main():
         .mode("append") \
         .save()
 
+    # --- Write via the catalog (SQL) ---
+    # INSERT INTO uses the catalog, so no connection options are needed.
+    spark.sql("""
+        INSERT INTO spanner.people
+        VALUES (3, 'Bob Smith', 'bob@example.com')
+    """)
+
+    # --- Write via the catalog (DataFrame) ---
+    # writeTo references the catalog table directly.
+    write_df2 = spark.createDataFrame(
+        [(4, 'Alice Wong', 'alice@example.com')], columns)
+    write_df2.writeTo("spanner.people").append()
+
 if __name__ == '__main__':
     main()

@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.analysis.TableAlreadyExistsException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -83,28 +84,25 @@ public class CatalogWriteIntegrationTest extends SparkCatalogSpannerIntegrationT
     String tableName = TestData.WRITE_TABLE_NAME + "_IGNORE";
     spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
 
-    // 1. Create the table.
-    spark.sql(
-        "CREATE TABLE spanner."
+    String createSql =
+        "CREATE TABLE IF NOT EXISTS spanner."
             + tableName
             + " (long_col BIGINT NOT NULL, string_col STRING) USING `cloud-spanner`"
-            + " TBLPROPERTIES('primaryKeys' = 'long_col')");
+            + " TBLPROPERTIES('primaryKeys' = 'long_col')";
+
+    // 1. First CREATE TABLE IF NOT EXISTS creates the table.
+    spark.sql(createSql);
 
     // 2. Insert initial data.
     spark.sql("INSERT INTO spanner." + tableName + " VALUES (501, 'initial-data')");
 
     // 3. Verify the initial write.
-    Dataset<Row> dfAfterInitialWrite = spark.sql("SELECT * FROM spanner." + tableName);
-    assertEquals(1, dfAfterInitialWrite.count());
-    assertEquals("initial-data", dfAfterInitialWrite.first().getString(1));
+    Dataset<Row> dfAfterFirstCreate = spark.sql("SELECT * FROM spanner." + tableName);
+    assertEquals(1, dfAfterFirstCreate.count());
+    assertEquals("initial-data", dfAfterFirstCreate.first().getString(1));
 
-    // 4. CREATE TABLE IF NOT EXISTS is the catalog Ignore mode. This should be a no-op since the
-    // table already exists. There is no DataFrameWriterV2 equivalent for Ignore semantics.
-    spark.sql(
-        "CREATE TABLE IF NOT EXISTS spanner."
-            + tableName
-            + " (long_col BIGINT NOT NULL, string_col STRING) USING `cloud-spanner`"
-            + " TBLPROPERTIES('primaryKeys' = 'long_col')");
+    // 4. Second CREATE TABLE IF NOT EXISTS (Ignore mode) should be a no-op.
+    spark.sql(createSql);
 
     // 5. Verify that the table content is unchanged.
     Dataset<Row> finalDf = spark.sql("SELECT * FROM spanner." + tableName);
@@ -115,25 +113,26 @@ public class CatalogWriteIntegrationTest extends SparkCatalogSpannerIntegrationT
   }
 
   @Test
-  public void testErrorIfExists() {
+  public void testErrorIfExistsSaveMode() throws TableAlreadyExistsException {
     String tableName = TestData.WRITE_TABLE_NAME + "_EIE";
     spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
 
-    // 1. Create the table.
-    spark.sql(
-        "CREATE TABLE spanner."
-            + tableName
-            + " (long_col BIGINT NOT NULL, string_col STRING) USING `cloud-spanner`"
-            + " TBLPROPERTIES('primaryKeys' = 'long_col')");
+    // 1. First writeTo().create() (ErrorIfExists) should succeed and create the table.
+    Dataset<Row> firstDf =
+        spark.sql("SELECT CAST(301 AS BIGINT) AS long_col, 'three-oh-one' AS string_col");
+    String catalogTable = "spanner." + tableName;
+    firstDf.writeTo(catalogTable).tableProperty("primaryKeys", "long_col").create();
 
-    // 2. Insert initial data.
-    spark.sql("INSERT INTO spanner." + tableName + " VALUES (301, 'three-oh-one')");
+    // 2. Verify the first write.
+    Dataset<Row> dfAfterFirstCreate = spark.sql("SELECT * FROM spanner." + tableName);
+    assertEquals(1, dfAfterFirstCreate.count());
+    assertEquals("three-oh-one", dfAfterFirstCreate.first().getString(1));
 
-    // 3. writeTo().create() is the catalog ErrorIfExists: it should fail since the table exists.
-    Dataset<Row> newDf =
+    // 3. Second writeTo().create() (ErrorIfExists) should fail since the table already exists.
+    Dataset<Row> secondDf =
         spark.sql("SELECT CAST(302 AS BIGINT) AS long_col, 'three-oh-two' AS string_col");
     try {
-      newDf.writeTo("spanner." + tableName).create();
+      secondDf.writeTo(catalogTable).tableProperty("primaryKeys", "long_col").create();
       fail("Expected exception was not thrown");
     } catch (Exception e) {
       assertTrue(

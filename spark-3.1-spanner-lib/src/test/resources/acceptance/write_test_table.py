@@ -13,14 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
-import logging
 from datetime import datetime, date
 from decimal import Decimal
 from pyspark.sql import SparkSession, Row
-from pyspark.sql.functions import col
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, BinaryType, TimestampType, DecimalType, BooleanType, DoubleType, DateType
+from pyspark.sql.types import StructType, StructField, StringType, LongType, BinaryType, TimestampType, DecimalType, BooleanType, DoubleType, DateType
 
 def main():
 
@@ -95,15 +92,23 @@ def verify_data_to_df(df_expected, df_actual, spark):
     issues = []
 
     # 1. Validation Logic
-    if df_expected.count() != df_actual.count():
-        issues.append(f"Count mismatch: {df_expected.count()} vs {df_actual.count()}")
-
     if df_expected.schema != df_actual.schema:
         issues.append("Schema mismatch")
 
-    missing = df_expected.subtract(df_actual).count()
-    if missing > 0:
-        issues.append(f"Missing rows: {missing}")
+    # Cache DFs for performance since we'll perform multiple actions.
+    df_expected.cache()
+    df_actual.cache()
+
+    missing_rows_count = df_expected.subtract(df_actual).count()
+    if missing_rows_count > 0:
+        issues.append(f"Missing rows in actual: {missing_rows_count}")
+
+    extra_rows_count = df_actual.subtract(df_expected).count()
+    if extra_rows_count > 0:
+        issues.append(f"Extra rows in actual: {extra_rows_count}")
+
+    df_expected.unpersist()
+    df_actual.unpersist()
 
     # 2. Determine Final Status
     status_msg = "PASS" if not issues else "FAIL: " + " | ".join(issues)

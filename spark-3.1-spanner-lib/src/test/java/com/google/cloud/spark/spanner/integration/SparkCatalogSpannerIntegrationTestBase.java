@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ import org.apache.spark.sql.SparkSession;
 import org.junit.After;
 import org.junit.Before;
 
-public class SparkSpannerIntegrationTestBase extends SpannerTestBase {
+public class SparkCatalogSpannerIntegrationTestBase extends SpannerTestBase {
 
   protected SparkSession spark;
 
-  public SparkSpannerIntegrationTestBase() {}
+  public SparkCatalogSpannerIntegrationTestBase() {}
 
   @Before
   public void setUpSpark() {
@@ -33,6 +33,10 @@ public class SparkSpannerIntegrationTestBase extends SpannerTestBase {
             .master("local")
             .appName("SparkSpannerIntegrationTest")
             .config("spark.ui.enabled", "false")
+            .config("spark.sql.catalog.spanner", "com.google.cloud.spark.spanner.SpannerCatalog")
+            .config("spark.sql.catalog.spanner.projectId", catalogProps.get("projectId"))
+            .config("spark.sql.catalog.spanner.instanceId", catalogProps.get("instanceId"))
+            .config("spark.sql.catalog.spanner.databaseId", catalogProps.get("databaseId"))
             .config("spark.default.parallelism", 20)
             .getOrCreate();
 

@@ -183,6 +183,11 @@ public class DataprocAcceptanceTestBase {
     Map<String, String> properties =
         clusterProperties.stream()
             .collect(Collectors.toMap(ClusterProperty::getKey, ClusterProperty::getValue));
+    properties.put(
+        "spark:spark.sql.catalog.spanner", "com.google.cloud.spark.spanner.SpannerCatalog");
+    properties.put("spark:spark.sql.catalog.spanner.projectId", PROJECT_ID);
+    properties.put("spark:spark.sql.catalog.spanner.instanceId", INSTANCE_ID);
+    properties.put("spark:spark.sql.catalog.spanner.databaseId", DATABASE_ID);
     String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
     String connectorJarUri = testBaseGcsDir + "/connector.jar";
     AcceptanceTestUtils.uploadConnectorJar(

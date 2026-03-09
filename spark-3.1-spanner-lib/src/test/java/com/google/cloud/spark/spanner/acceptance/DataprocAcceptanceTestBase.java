@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner.acceptance;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.dataproc.v1.*;
@@ -101,7 +102,7 @@ public class DataprocAcceptanceTestBase {
             120);
     assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
-    assertThat(output.trim()).isEqualTo("41");
+    assertTrue(output.trim().startsWith("PASS"));
   }
 
   private Job createAndRunPythonJob(

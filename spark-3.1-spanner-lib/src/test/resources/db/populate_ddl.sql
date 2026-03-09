@@ -56,9 +56,7 @@ CREATE TABLE AWriteTable (
   E NUMERIC,
   F BOOL,
   G FLOAT64,
-  H DATE,
-  I JSON,
-  J ARRAY<STRING(MAX)>
+  H DATE
 ) PRIMARY KEY(A);
 
 CREATE TABLE compositeTable (

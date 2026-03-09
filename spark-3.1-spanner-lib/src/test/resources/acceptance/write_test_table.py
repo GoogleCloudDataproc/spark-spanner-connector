@@ -16,25 +16,18 @@
 import os
 import sys
 import logging
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
 from datetime import datetime, date
 from decimal import Decimal
+from pyspark.sql import SparkSession, Row
+from pyspark.sql.functions import col
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, BinaryType, TimestampType, DecimalType, BooleanType, DoubleType, DateType
 
 def main():
-
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
 
     # Initialize Spark Session
     spark = SparkSession.builder.appName('Write Acceptance Test on Spark').getOrCreate()
 
     # 1. Define the Schema (Column Name, Type, Nullable)
-    logging.info('writeTest step 1')
     schema = StructType([
         StructField("A", LongType(), False),
         StructField("B", StringType(), True),
@@ -47,7 +40,6 @@ def main():
     ])
 
     # 2. Prepare Data as a list of tuples
-    logging.info('writeTest step 2')
     data = [
         (1,  "2",  None, datetime.fromisoformat("2023-08-22T12:22:00"), Decimal("1000.282111401"), True, 123.456, date(2023, 12, 25)),
         (10, "20", None, datetime.fromisoformat("2023-08-22T12:23:00"), Decimal("10000.282111603"), False, 987.654, date(2023, 12, 24)),
@@ -55,7 +47,6 @@ def main():
     ]
 
     # 3. Create the DataFrame
-    logging.info('writeTest step 3')
     dfw = spark.createDataFrame(data, schema)
     dfw.show()
 
@@ -79,29 +70,46 @@ def main():
         **spanner_base_options
     }
 
-    logging.info('writeTest write')
-
-    new_dfw = dfw.write.format('cloud-spanner') \
+    dfw.write.format('cloud-spanner') \
         .options(**spanner_write_options) \
         .mode("append") \
         .save()
 
     # Read the table to verify the write operation
-    logging.info('writeTest read')
     df = spark.read.format('cloud-spanner') \
       .options(**spanner_read_options) \
       .load(table)
 
     print('The resulting schema is')
     df.printSchema()
-
-    df = df.select("A", "B", "D", "E")
-    df = df.groupBy().sum('A')
-
-    print('Table:')
     df.show()
 
-    df.write.csv(sys.argv[1])
+    df_result = verify_data_to_df(dfw, df, spark)
+    df_result.show()
+
+    # coalesce 1 to ensure results are written in single partition and avoid empty file creation.
+    df_result.coalesce(1).write.csv(sys.argv[1])
+
+
+def verify_data_to_df(df_expected, df_actual, spark):
+    issues = []
+
+    # 1. Validation Logic
+    if df_expected.count() != df_actual.count():
+        issues.append(f"Count mismatch: {df_expected.count()} vs {df_actual.count()}")
+
+    if df_expected.schema != df_actual.schema:
+        issues.append("Schema mismatch")
+
+    missing = df_expected.subtract(df_actual).count()
+    if missing > 0:
+        issues.append(f"Missing rows: {missing}")
+
+    # 2. Determine Final Status
+    status_msg = "PASS" if not issues else "FAIL: " + " | ".join(issues)
+
+    # 3. Create a DataFrame from the result string
+    return spark.createDataFrame([Row(summary=status_msg)])
 
 if __name__ == '__main__':
   main()

@@ -52,6 +52,13 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class SpannerCatalogIntegrationTest extends SparkCatalogSpannerIntegrationTestBase {
 
+  public static final StructType SIMPLE_SCHEMA =
+      new StructType(
+          new StructField[] {
+            DataTypes.createStructField(
+                "long_col", DataTypes.LongType, false, SpannerCatalog.PRIMARY_KEY_METADATA),
+            DataTypes.createStructField("string_col", DataTypes.StringType, true),
+          });
   private SpannerCatalog catalog;
   private final boolean usePostgresSql;
 
@@ -210,15 +217,56 @@ public class SpannerCatalogIntegrationTest extends SparkCatalogSpannerIntegratio
     testOverwriteImpl("truncate");
   }
 
-  private void testOverwriteImpl(String mode) {
-    final StructType SIMPLE_SCHEMA =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField(
-                  "long_col", DataTypes.LongType, false, SpannerCatalog.PRIMARY_KEY_METADATA),
-              DataTypes.createStructField("string_col", DataTypes.StringType, true),
-            });
+  @Test
+  public void testOverwriteCreatesTableRecreateMode() {
+    testOverwriteCreatesTableImpl("recreate");
+  }
 
+  @Test
+  public void testOverwriteCreatesTableTruncateMode() {
+    testOverwriteCreatesTableImpl("truncate");
+  }
+
+  private void testOverwriteCreatesTableImpl(String mode) {
+
+    String tableName = TestData.WRITE_TABLE_NAME + "_overwrite_creates_" + mode;
+    String qualifiedTableName = "spanner." + tableName;
+    spark.sql("DROP TABLE IF EXISTS " + qualifiedTableName);
+
+    Map<String, String> props = connectionProperties(usePostgresSql);
+    props.put("table", tableName);
+    props.put("overwriteMode", mode);
+
+    // Verify the table does not exist before the overwrite call
+    Identifier ident = Identifier.of(new String[0], tableName);
+    assertFalse(catalog.tableExists(ident));
+
+    // Write data with Overwrite mode to a non-existent table
+    List<Row> rows = Arrays.asList(RowFactory.create(1L, "one"), RowFactory.create(2L, "two"));
+    Dataset<Row> df = spark.createDataFrame(rows, SIMPLE_SCHEMA);
+
+    df.write()
+        .format("cloud-spanner")
+        .options(props)
+        .mode(SaveMode.Overwrite)
+        .saveAsTable(qualifiedTableName);
+
+    // Verify the table was created and contains the expected data
+    assertTrue(catalog.tableExists(ident));
+
+    Dataset<Row> resultDf =
+        spark.read().format("cloud-spanner").options(props).load(qualifiedTableName);
+    assertEquals(2, resultDf.count());
+
+    Map<Long, Row> resultRows =
+        resultDf.collectAsList().stream()
+            .collect(java.util.stream.Collectors.toMap(r -> r.getLong(0), r -> r));
+
+    assertThat(resultRows.get(1L).getString(1)).isEqualTo("one");
+    assertThat(resultRows.get(2L).getString(1)).isEqualTo("two");
+  }
+
+  private void testOverwriteImpl(String mode) {
     String tableName = TestData.WRITE_TABLE_NAME + "_" + mode;
     String qualifiedTableName = "spanner." + tableName;
     spark.sql("DROP TABLE IF EXISTS " + qualifiedTableName);

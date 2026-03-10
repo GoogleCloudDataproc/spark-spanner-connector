@@ -116,7 +116,7 @@ public class SpannerWriteBuilder implements WriteBuilder, SupportsTruncate {
       truncateTable(dbClient, tableName, informationSchema);
     } catch (SpannerException e) {
       throw new SpannerConnectorException(
-          SpannerErrorCode.DDL_EXCEPTION, "Error truncating table " + tableName, e);
+          SpannerErrorCode.SPANNER_FAILED_TO_EXECUTE_QUERY, "Error truncating table " + tableName, e);
     }
   }
 

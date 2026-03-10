@@ -38,9 +38,9 @@ def main():
 
     # 2. Prepare Data as a list of tuples
     data = [
-        (1,  "2",  None, datetime.fromisoformat("2023-08-22T12:22:00"), Decimal("1000.282111401"), True, 123.456, date(2023, 12, 25)),
-        (10, "20", None, datetime.fromisoformat("2023-08-22T12:23:00"), Decimal("10000.282111603"), False, 987.654, date(2023, 12, 24)),
-        (30, "30", None, datetime.fromisoformat("2023-08-22T12:24:00"), Decimal("30000.282111805"), True, -2121.1212, date(2023, 12, 23))
+        (1,  "2",  None, datetime.fromisoformat("2023-08-22T12:22:00"), Decimal("1000.282111401"), True, 123.0, date(2023, 12, 25)),
+        (10, "20", None, datetime.fromisoformat("2023-08-22T12:23:00"), Decimal("10000.282111603"), False, 987.0, date(2023, 12, 24)),
+        (30, "30", None, datetime.fromisoformat("2023-08-22T12:24:00"), Decimal("30000.282111805"), True, -2121.0, date(2023, 12, 23))
     ]
 
     # 3. Create the DataFrame
@@ -59,8 +59,7 @@ def main():
 
     spanner_write_options = {
         **spanner_base_options,
-        "mutationType": "insert_or_update", # Use this to avoid ALREADY_EXISTS errors
-        "enablePartialRowUpdates": "true"   # Required since not all columns are being populated
+        "mutationType": "insert_or_update" # Use this to avoid ALREADY_EXISTS errors
     }
 
     spanner_read_options = {
@@ -94,21 +93,21 @@ def verify_data_to_df(df_expected, df_actual, spark):
     # 1. Validation Logic
     if df_expected.schema != df_actual.schema:
         issues.append("Schema mismatch")
+    else:
+        # Cache DFs for performance since we'll perform multiple actions.
+        df_expected.cache()
+        df_actual.cache()
 
-    # Cache DFs for performance since we'll perform multiple actions.
-    df_expected.cache()
-    df_actual.cache()
+        missing_rows_count = df_expected.subtract(df_actual).count()
+        if missing_rows_count > 0:
+            issues.append(f"Missing rows in actual: {missing_rows_count}")
 
-    missing_rows_count = df_expected.subtract(df_actual).count()
-    if missing_rows_count > 0:
-        issues.append(f"Missing rows in actual: {missing_rows_count}")
+        extra_rows_count = df_actual.subtract(df_expected).count()
+        if extra_rows_count > 0:
+            issues.append(f"Extra rows in actual: {extra_rows_count}")
 
-    extra_rows_count = df_actual.subtract(df_expected).count()
-    if extra_rows_count > 0:
-        issues.append(f"Extra rows in actual: {extra_rows_count}")
-
-    df_expected.unpersist()
-    df_actual.unpersist()
+        df_expected.unpersist()
+        df_actual.unpersist()
 
     # 2. Determine Final Status
     status_msg = "PASS" if not issues else "FAIL: " + " | ".join(issues)

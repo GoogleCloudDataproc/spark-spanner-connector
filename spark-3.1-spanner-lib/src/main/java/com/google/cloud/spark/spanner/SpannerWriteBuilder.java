@@ -53,7 +53,7 @@ public class SpannerWriteBuilder implements WriteBuilder, SupportsTruncate {
 
   @Override
   public WriteBuilder truncate() {
-    CaseInsensitiveStringMap opts = new CaseInsensitiveStringMap(this.info.options());
+    CaseInsensitiveStringMap opts = this.info.options();
     String overwriteMode = opts.getOrDefault("overwriteMode", "truncate");
 
     if (overwriteMode.equalsIgnoreCase("recreate")) {

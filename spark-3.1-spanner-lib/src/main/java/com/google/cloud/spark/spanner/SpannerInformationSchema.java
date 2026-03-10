@@ -70,6 +70,10 @@ public interface SpannerInformationSchema {
     return ddl.toString();
   }
 
+  default Statement truncateTableDml(String tableName) {
+    return Statement.of("DELETE FROM " + quoteIdentifier(tableName) + " WHERE true");
+  }
+
   default String dropTableDdl(String tableName) {
     return "DROP TABLE " + quoteIdentifier(tableName);
   }

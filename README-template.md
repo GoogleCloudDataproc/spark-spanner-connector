@@ -190,8 +190,8 @@ The connector supports the following Spark save modes:
 
 Save Mode|Behavior
 ---|---
-`append`|Inserts rows into the existing Spanner table (default).
-`overwrite`|Clears the existing data before writing. The behavior can be modified by the `overwriteMode` option (see below).
+`Append`|Inserts rows into the existing Spanner table (default).
+`Overwrite`|Clears the existing data before writing. The behavior can be modified by the `overwriteMode` option (see below).
 `ErrorIfExists`|Creates a new table and writes data. Fails if the table already exists. Requires [Spark Catalog support](#spark-catalog-support).
 `Ignore`|Creates the table and writes data only if the table does not already exist. A no-op if the table exists. Requires [Spark Catalog support](#spark-catalog-support).
 
@@ -274,7 +274,7 @@ Spark Array Element Type|Spanner PostgreSql Array Type
 > - Column value size is limited to 10MB,
 > - In GoogleSQL, `NUMERIC` type is limited to 9 digits of scale, Spark supports up to 38.
 
-### Spark Catalog Support
+### Spark Catalog Support {#spark-catalog-support}
 
 The connector implements the Spark
 [TableCatalog](https://spark.apache.org/docs/latest/api/java/org/apache/spark/sql/connector/catalog/TableCatalog.html)

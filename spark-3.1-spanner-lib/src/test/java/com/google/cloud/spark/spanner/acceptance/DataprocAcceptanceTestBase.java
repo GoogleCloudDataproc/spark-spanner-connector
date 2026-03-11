@@ -63,7 +63,6 @@ public class DataprocAcceptanceTestBase {
       Preconditions.checkNotNull(
           System.getenv("SPANNER_INSTANCE_ID"),
           "Please set the 'SPANNER_INSTANCE_ID' environment variable");
-  private static final String TABLE = "ATable";
   private static Spanner spanner =
       SpannerOptions.newBuilder().setProjectId(PROJECT_ID).build().getService();
   private static final Logger logger = LoggerFactory.getLogger(DataprocAcceptanceTestBase.class);
@@ -87,6 +86,22 @@ public class DataprocAcceptanceTestBase {
     assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
     assertThat(output.trim()).isEqualTo("41");
+  }
+
+  @Test
+  public void testWrite() throws Exception {
+    logger.info("testWrite started");
+    String testName = "test-write";
+    Job result =
+        createAndRunPythonJob(
+            testName,
+            "write_test_table.py",
+            null,
+            Arrays.asList(context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID),
+            120);
+    assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).startsWith("PASS");
   }
 
   private Job createAndRunPythonJob(

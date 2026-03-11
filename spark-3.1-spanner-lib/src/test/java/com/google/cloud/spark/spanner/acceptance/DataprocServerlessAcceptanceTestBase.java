@@ -139,6 +139,22 @@ public class DataprocServerlessAcceptanceTestBase {
     assertThat(output.trim()).isEqualTo("41");
   }
 
+  @Test
+  public void testWrite() throws Exception {
+    OperationSnapshot operationSnapshot =
+        createAndRunPythonBatch(
+            context,
+            testName,
+            "write_test_table.py",
+            null,
+            Arrays.asList(
+                context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID));
+    assertThat(operationSnapshot.isDone()).isTrue();
+    assertThat(operationSnapshot.getErrorMessage()).isEmpty();
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).startsWith("PASS");
+  }
+
   protected static void createSpannerDataset() throws Exception {
     // 1. Create the Spanner instance.
     InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();

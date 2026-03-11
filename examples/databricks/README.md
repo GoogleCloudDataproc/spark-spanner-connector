@@ -36,6 +36,10 @@ Before you begin, ensure you have the following:
 ---
 
 ## Step 2: Acquire the Connector JAR
+> **Note:**
+The connector is also available from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.spark.spanner).
+If you prefer to use Maven coordinates instead of a downloaded JAR, skip this step and install the library directly
+when configuring your cluster (see [Install Library](#5-create-and-configure-a-databricks-cluster)).
 
 Download the pre-compiled Spark Spanner Connector JAR from the official GitHub releases page.
 
@@ -43,7 +47,7 @@ Download the pre-compiled Spark Spanner Connector JAR from the official GitHub r
 2.  Find the version of the connector you wish to use.
 3.  From the "Assets" section, download the JAR file that matches your Databricks cluster's Spark version (e.g., `spark-3.3-spanner-..jar` for a cluster with Spark 3.3).
 
-Keep track of this downloaded file, as you will upload it to a Unity Catalog Volume later.
+If you downloaded the JAR, keep track of the file — you will upload it to a Unity Catalog Volume later.
 
 ---
 
@@ -171,9 +175,9 @@ Create a cluster with the following settings:
     /Volumes/${DATABRICKS_CATALOG}/default/spanner_connector_assets/setup_gcp_credentials.sh
     ```
 
-5.  **Install Library**: Under the **Libraries** tab, install the connector JAR from your Volume.
-    *   **Install new** > **Library Source/Volumes**.
-    *   Use the path to the JAR in your Volume, e.g., `/Volumes/${DATABRICKS_CATALOG}/default/spanner_connector_assets/<connector-jar-filename>`.
+5.  **Install Library**: Under the **Libraries** tab, install the connector. You can use either option:
+    *   **From a downloaded JAR**: **Install new** > **Library Source / Volumes**. Use the path to the JAR in your Volume, e.g., `/Volumes/${DATABRICKS_CATALOG}/default/spanner_connector_assets/<connector-jar-filename>`.
+    *   **From Maven**: **Install new** > **Library Source / Maven**. Enter the Maven coordinates for your Spark version, e.g., `com.google.cloud.spark.spanner:spark-3.5-spanner:<version>`.
 
 6.  Start (or restart) the cluster.
 

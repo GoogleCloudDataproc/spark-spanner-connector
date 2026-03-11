@@ -274,7 +274,7 @@ Spark Array Element Type|Spanner PostgreSql Array Type
 > - Column value size is limited to 10MB,
 > - In GoogleSQL, `NUMERIC` type is limited to 9 digits of scale, Spark supports up to 38.
 
-### Spark Catalog Support {#spark-catalog-support}
+### Spark Catalog Support <a id="spark-catalog-support"></a>
 
 The connector implements the Spark
 [TableCatalog](https://spark.apache.org/docs/latest/api/java/org/apache/spark/sql/connector/catalog/TableCatalog.html)

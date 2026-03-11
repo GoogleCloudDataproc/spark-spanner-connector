@@ -593,20 +593,14 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
               DataTypes.createStructField("string_col", DataTypes.StringType, true),
             });
 
-    List<Row> partialRows =
-        Collections.singletonList(RowFactory.create(231L, "updated value"));
+    List<Row> partialRows = Collections.singletonList(RowFactory.create(231L, "updated value"));
     Dataset<Row> partialDf = spark.createDataFrame(partialRows, partialSchema);
 
     partialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
 
     // 3. Read back and verify only string_col changed; all other columns remain untouched.
     Dataset<Row> finalDf =
-        spark
-            .read()
-            .format("cloud-spanner")
-            .options(props)
-            .load()
-            .filter("long_col = 231");
+        spark.read().format("cloud-spanner").options(props).load().filter("long_col = 231");
 
     assertEquals(1, finalDf.count());
     Row row = finalDf.first();

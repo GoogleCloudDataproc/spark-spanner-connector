@@ -39,7 +39,7 @@ Before you begin, ensure you have the following:
 > **Note:**
 The connector is also available from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.spark.spanner).
 If you prefer to use Maven coordinates instead of a downloaded JAR, skip this step and install the library directly
-when configuring your cluster (see [Install Library](install-connector-library)).
+when configuring your cluster (see [Install Library](#install-connector-library)).
 
 Download the pre-compiled Spark Spanner Connector JAR from the official GitHub releases page.
 

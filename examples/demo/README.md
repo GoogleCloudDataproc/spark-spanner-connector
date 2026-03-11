@@ -86,7 +86,7 @@ Upload the locally-built JAR using the Databricks CLI:
 ```bash
 # Upload to a Unity Catalog Volume
 databricks fs cp "$CONNECTOR_JAR" \
-    "dbfs:/Volumes/<CATALOG>/default/spanner_connector_assets/spark-3.1-spanner-0.0.1-SNAPSHOT.jar"
+    "dbfs:/Volumes/spark_spanner_connector_ws/default/connector-jars/mksyunz/spark-3.1-spanner-0.0.1-SNAPSHOT.jar"
 ```
 
 Or upload via the Databricks UI: **Catalog** → select your Volume →

@@ -39,7 +39,7 @@ Before you begin, ensure you have the following:
 > **Note:**
 The connector is also available from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.spark.spanner).
 If you prefer to use Maven coordinates instead of a downloaded JAR, skip this step and install the library directly
-when configuring your cluster (see [Install Library](#5-create-and-configure-a-databricks-cluster)).
+when configuring your cluster (see [Install Library](install-connector-library)).
 
 Download the pre-compiled Spark Spanner Connector JAR from the official GitHub releases page.
 
@@ -175,7 +175,7 @@ Create a cluster with the following settings:
     /Volumes/${DATABRICKS_CATALOG}/default/spanner_connector_assets/setup_gcp_credentials.sh
     ```
 
-5.  **Install Library**: Under the **Libraries** tab, install the connector. You can use either option:
+5.  **Install Library** {#install-connector-library}:  Under the **Libraries** tab, install the connector. You can use either option:
     *   **From a downloaded JAR**: **Install new** > **Library Source / Volumes**. Use the path to the JAR in your Volume, e.g., `/Volumes/${DATABRICKS_CATALOG}/default/spanner_connector_assets/<connector-jar-filename>`.
     *   **From Maven**: **Install new** > **Library Source / Maven**. Enter the Maven coordinates for your Spark version, e.g., `com.google.cloud.spark.spanner:spark-3.5-spanner:<version>`.
 

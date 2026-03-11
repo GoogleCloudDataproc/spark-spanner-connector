@@ -302,7 +302,7 @@ On Dataproc, you can pass these as cluster properties:
 
 ```shell
 gcloud dataproc clusters create "$MY_CLUSTER" \
-    --properties "spark:spark.sql.catalog.spanner=com.google.cloud.spark.spanner.SpannerCatalog,spark:spark.sql.catalog.spanner.projectId=$YourProjectId,spark:spark.sql.catalog.spanner.instanceId=$YourInstanceId,spark:spark.sql.catalog.spanner.databaseId=$YourDatabaseId"
+    --properties "spark:spark.sql.catalog.spanner=com.google.cloud.spark.spanner.SpannerCatalog,spark:spark.sql.catalog.spanner.projectId=<PROJECT_ID>,spark:spark.sql.catalog.spanner.instanceId=<SPANNER_INSTANCE_ID>,spark:spark.sql.catalog.spanner.databaseId=<SPANNER_DATABASE_ID>"
 ```
 
 #### Creating Tables

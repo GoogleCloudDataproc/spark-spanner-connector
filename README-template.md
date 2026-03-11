@@ -57,30 +57,66 @@ Note 1: Dataproc compatibility to be tested.
 
 ### Maven / Ivy Package
 
-The connector is also available from the
-[Maven Central](https://repo1.maven.org/maven2/com/google/cloud/spark/spanner/)
-repository. It can be used using the `--packages` option or the
-`spark.jars.packages` configuration property. Use the following value
+The connector is published to
+[Maven Central](https://repo1.maven.org/maven2/com/google/cloud/spark/spanner/).
+You can browse all available versions at
+[mvnrepository.com](https://mvnrepository.com/artifact/com.google.cloud.spark.spanner).
 
-| version    | Connector Artifact                                                                 |
-|------------|------------------------------------------------------------------------------------|
-| Spark 3.5  | `com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag}`                    |
-| Spark 3.3  | `com.google.cloud.spark.spanner:spark-3.3-spanner:${next-release-tag}`                    |
-| Spark 3.2  | `com.google.cloud.spark.spanner:spark-3.2-spanner:${next-release-tag}`                    |
-| Spark 3.1  | `com.google.cloud.spark.spanner:spark-3.1-spanner:${next-release-tag}`                    |
+Using published packages is the recommended way to consume the connector —
+no need to build from source. Supply the artifact coordinates via the
+`--packages` option or the `spark.jars.packages` configuration property:
+
+| version   | Connector Artifact                                                     |
+|-----------|------------------------------------------------------------------------|
+| Spark 3.5 | `com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag}` |
+| Spark 3.3 | `com.google.cloud.spark.spanner:spark-3.3-spanner:${next-release-tag}` |
+| Spark 3.2 | `com.google.cloud.spark.spanner:spark-3.2-spanner:${next-release-tag}` |
+| Spark 3.1 | `com.google.cloud.spark.spanner:spark-3.1-spanner:${next-release-tag}` |
+
+For example, to start a PySpark shell with the connector:
+
+```shell
+pyspark --packages com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag}
+```
+
+Or in a `spark-submit` job:
+
+```shell
+spark-submit --packages com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag} \
+    my_job.py
+```
+
+You can also set it programmatically when creating a `SparkSession`:
+
+```python
+spark = (SparkSession.builder
+         .config("spark.jars.packages",
+                 "com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag}")
+         .getOrCreate())
+```
 
 ### Specifying the Spark Spanner connector version in a Dataproc cluster
 
-You can use the standard `--jars` or `--packages` (or alternatively, the `spark.jars`/`spark.jars.packages` configuration) to specify the Spark Spanner connector. For example:
+You can use the standard `--packages` or `--jars` (or alternatively, the `spark.jars.packages`/`spark.jars` configuration) to specify the Spark Spanner connector.
+
+Using Maven coordinates (recommended):
 
 ```shell
 gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
-    --jars=gs://spark-lib/spanner/spark-3.1-spanner-${next-release-tag}.jar \
+    --packages=com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag} \
+    --region us-central1 examples/SpannerSpark.py
+```
+
+Using a JAR from Google Cloud Storage:
+
+```shell
+gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
+    --jars=gs://spark-lib/spanner/spark-3.5-spanner-${next-release-tag}.jar \
     --region us-central1 examples/SpannerSpark.py
 ```
 ## Usage
 
-The connector supports exporting both tables and graphs from Spanner, and importing to Spanner (Preview).
+The connector supports exporting both tables and graphs from Spanner, and importing to Spanner.
 It uses the cross language
 [Spark SQL Data Source API](https://spark.apache.org/docs/latest/sql-data-sources.html)
 to communicate with the
@@ -125,9 +161,9 @@ instanceId|String|The instanceID of the Cloud Spanner database
 databaseId|String|The databaseID of the Cloud Spanner database
 table|String|The Table of the Cloud Spanner database that you are reading from
 enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing).
+emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
 
-### Writing to Spanner Tables (Preview)
-> Note: Write support is a preview feature. Only "append" save mode is supported.
+### Writing to Spanner Tables
 
 Here is an example of using Python to write to a Spanner table.
 ```python
@@ -148,6 +184,19 @@ df.write.format('cloud-spanner') \
    .save()
 ```
 
+#### Save Modes
+
+The connector supports the following Spark save modes:
+
+Save Mode|Behavior
+---|---
+`Append`|Inserts rows into the existing Spanner table (default).
+`Overwrite`|Clears the existing data before writing. The behavior can be modified by the `overwriteMode` option (see below).
+`ErrorIfExists`|Creates a new table and writes data. Fails if the table already exists. Requires [Spark Catalog support](#spark-catalog-support).
+`Ignore`|Creates the table and writes data only if the table does not already exist. A no-op if the table exists. Requires [Spark Catalog support](#spark-catalog-support).
+
+#### Write Connector Options
+
 These are the options supported in the Spark Spanner connector for writing
 tables.
 
@@ -163,6 +212,9 @@ numWriteThreads| Integer    |The number of threads to use for writing per Spark 
 assumeIdempotentRows| Boolean    |When `true`, the connector uses a higher-throughput 'at-least-once' write mode. See [Spanner documentation](https://docs.cloud.google.com/spanner/docs/batch-write) for use cases and limitations. Default: `false`
 maxPendingTransactions| Integer    |The maximum number of concurrent batches that can be in-flight. This is used to control backpressure. Default: 20
 mutationType| String     |The row write mode used. Valid values are: insert, insert_or_update, replace, update. Default: insert_or_update
+overwriteMode| String     |Controls behavior when using `mode("overwrite")`. `truncate` (default) deletes all rows but keeps the table schema. `recreate` drops and recreates the table from the DataFrame schema.
+enablePartialRowUpdates| Boolean    |When `true`, the connector uses the DataFrame schema instead of the Spanner table schema, allowing writes with a subset of columns. Requires `mutationType` set to `update` or `insert_or_update`. Default: `false`
+emulatorHost| String     |The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
 
 `mutationsPerTransaction` and `bytesPerTransaction` are both used when building a transaction to send to spanner.
 
@@ -217,12 +269,90 @@ Spark Array Element Type|Spanner PostgreSql Array Type
 `TimestampType`|`timestamptz[]`/`timestamp with time zone[]`
 `DateType`|`date[]`
 `DecimalType`|`numeric[]`/`decimal[]`
-
-> Note: `StructType` is not currently supported and pre-existing Google Spanner limitations apply. Specifically:
+`StructType`|`JSON`
+> Pre-existing Google Spanner limitations apply. Specifically:
 > - Column value size is limited to 10MB,
 > - In GoogleSQL, `NUMERIC` type is limited to 9 digits of scale, Spark supports up to 38.
 
+### Spark Catalog Support <a id="spark-catalog-support"></a>
 
+The connector implements the Spark
+[TableCatalog](https://spark.apache.org/docs/latest/api/java/org/apache/spark/sql/connector/catalog/TableCatalog.html)
+interface, allowing you to manage Spanner tables using Spark SQL DDL statements
+such as `CREATE TABLE`, `DROP TABLE`, `INSERT INTO`, and `SELECT`.
+
+#### Configuring the Catalog
+
+Register the Spanner catalog in your Spark session configuration:
+
+```python
+from pyspark.sql import SparkSession
+
+spark = (SparkSession.builder
+         .appName("Spanner Catalog App")
+         .config("spark.sql.catalog.spanner",
+                 "com.google.cloud.spark.spanner.SpannerCatalog")
+         .config("spark.sql.catalog.spanner.projectId", "<PROJECT_ID>")
+         .config("spark.sql.catalog.spanner.instanceId", "<SPANNER_INSTANCE_ID>")
+         .config("spark.sql.catalog.spanner.databaseId", "<SPANNER_DATABASE_ID>")
+         .getOrCreate())
+```
+
+On Dataproc, you can pass these as cluster properties:
+
+```shell
+gcloud dataproc clusters create "$MY_CLUSTER" \
+    --properties "spark:spark.sql.catalog.spanner=com.google.cloud.spark.spanner.SpannerCatalog,spark:spark.sql.catalog.spanner.projectId=<PROJECT_ID>,spark:spark.sql.catalog.spanner.instanceId=<SPANNER_INSTANCE_ID>,spark:spark.sql.catalog.spanner.databaseId=<SPANNER_DATABASE_ID>"
+```
+
+#### Creating Tables
+
+Use `CREATE TABLE` with the `USING` clause and specify primary keys via
+`TBLPROPERTIES`:
+
+```sql
+CREATE TABLE spanner.my_table (
+    id BIGINT NOT NULL,
+    name STRING,
+    score DOUBLE
+) USING `cloud-spanner`
+TBLPROPERTIES('primaryKeys' = 'id')
+```
+
+For composite primary keys, provide a comma-separated list:
+
+```sql
+TBLPROPERTIES('primaryKeys' = 'id, name')
+```
+
+Use `CREATE TABLE IF NOT EXISTS` to skip creation when the table already exists
+(Ignore save mode).
+
+#### Inserting Data
+
+```sql
+INSERT INTO spanner.my_table VALUES (1, 'Alice', 95.5)
+```
+
+#### Querying Data
+
+```sql
+SELECT * FROM spanner.my_table WHERE score > 90
+```
+
+#### Dropping Tables
+
+```sql
+DROP TABLE spanner.my_table
+```
+
+#### Using the DataFrame API with the Catalog
+
+You can also use the DataFrame `writeTo` API for `ErrorIfExists` semantics:
+
+```python
+df.writeTo("spanner.my_table").tableProperty("primaryKeys", "id").create()
+```
 
 ### Exporting Spanner Graphs
 

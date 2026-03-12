@@ -569,6 +569,52 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertNull(dfAfterUpdate.first().get(7));
   }
 
+  @Test
+  public void testPartialRowUpdate() {
+    // 1. Write initial data with all columns populated.
+    java.sql.Timestamp ts = java.sql.Timestamp.valueOf("2024-06-15 12:30:00");
+    java.sql.Date dt = java.sql.Date.valueOf("2024-06-15");
+    byte[] b = "partial".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    java.math.BigDecimal num = new java.math.BigDecimal("999.111");
+
+    List<Row> initialRows =
+        Collections.singletonList(
+            RowFactory.create(231L, "original value", true, 3.14, ts, dt, b, num));
+    Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
+
+    Map<String, String> props = getBaseProps();
+    initialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    // 2. Write a partial update: only long_col (key) and string_col.
+    StructType partialSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("long_col", DataTypes.LongType, false),
+              DataTypes.createStructField("string_col", DataTypes.StringType, true),
+            });
+
+    List<Row> partialRows = Collections.singletonList(RowFactory.create(231L, "updated value"));
+    Dataset<Row> partialDf = spark.createDataFrame(partialRows, partialSchema);
+
+    partialDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+
+    // 3. Read back and verify only string_col changed; all other columns remain untouched.
+    Dataset<Row> finalDf =
+        spark.read().format("cloud-spanner").options(props).load().filter("long_col = 231");
+
+    assertEquals(1, finalDf.count());
+    Row row = finalDf.first();
+
+    assertThat(row.<Long>getAs("long_col")).isEqualTo(231L);
+    assertThat(row.<String>getAs("string_col")).isEqualTo("updated value");
+    assertThat(row.<Boolean>getAs("bool_col")).isEqualTo(true);
+    assertThat(row.<Double>getAs("double_col")).isEqualTo(3.14);
+    assertThat(row.<java.sql.Timestamp>getAs("timestamp_col")).isEqualTo(ts);
+    assertThat(row.<java.sql.Date>getAs("date_col")).isEqualTo(dt);
+    assertThat(row.<byte[]>getAs("bytes_col")).isEqualTo(b);
+    assertThat(row.<java.math.BigDecimal>getAs("numeric_col").compareTo(num)).isEqualTo(0);
+  }
+
   private void checkChildRow(Row row) {
     assertThat(row.<Long>getAs("long_field")).isEqualTo(100L);
     assertThat(row.<String>getAs("str_field")).isEqualTo("str_value");

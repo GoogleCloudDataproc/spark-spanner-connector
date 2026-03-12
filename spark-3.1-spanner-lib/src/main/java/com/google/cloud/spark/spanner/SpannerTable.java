@@ -16,12 +16,15 @@ package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.connection.Connection;
+import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
 import org.apache.spark.sql.connector.catalog.SupportsWrite;
 import org.apache.spark.sql.connector.catalog.Table;
@@ -49,63 +52,77 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   private final String projectId;
   private final SpannerTableSchema dbSchema;
-  private final StructType sparkSchema;
+  private final @Nullable StructType dfSchema;
   private static final ImmutableSet<TableCapability> tableCapabilities =
-      ImmutableSet.of(TableCapability.BATCH_READ, TableCapability.BATCH_WRITE);
-  private final Map<String, String> properties;
+      ImmutableSet.of(
+          TableCapability.BATCH_READ, TableCapability.BATCH_WRITE, TableCapability.TRUNCATE);
+  private final CaseInsensitiveStringMap properties;
 
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   public SpannerTable(Map<String, String> properties) {
-    this.properties = properties;
-    this.tableName = SpannerUtils.getRequiredOption(properties, "table");
-    this.projectId = SpannerUtils.getRequiredOption(properties, "projectId");
-    this.instanceId = SpannerUtils.getRequiredOption(properties, "instanceId");
-    this.databaseId = SpannerUtils.getRequiredOption(properties, "databaseId");
-    try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
-      boolean isPostgreSql;
-      if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
-        isPostgreSql = false;
-      } else if (conn.getDialect().equals(Dialect.POSTGRESQL)) {
-        isPostgreSql = true;
-      } else {
-        throw new SpannerConnectorException(
-            SpannerErrorCode.DATABASE_DIALECT_NOT_SUPPORTED,
-            "The dialect used "
-                + conn.getDialect()
-                + " in the Spanner table "
-                + tableName
-                + " is not supported.");
-      }
-      this.dbSchema = new SpannerTableSchema(conn, tableName, isPostgreSql);
-      this.sparkSchema = this.dbSchema.schema;
-    }
+    this(new CaseInsensitiveStringMap(properties), null);
   }
 
-  public SpannerTable(Map<String, String> properties, StructType dfSchema) {
-    this.properties = properties;
-    this.tableName = SpannerUtils.getRequiredOption(properties, "table");
-    this.projectId = SpannerUtils.getRequiredOption(properties, "projectId");
-    this.instanceId = SpannerUtils.getRequiredOption(properties, "instanceId");
-    this.databaseId = SpannerUtils.getRequiredOption(properties, "databaseId");
-    try (Connection conn = SpannerUtils.connectionFromProperties(properties)) {
-      boolean isPostgreSql;
-      if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
-        isPostgreSql = false;
-      } else if (conn.getDialect().equals(Dialect.POSTGRESQL)) {
-        isPostgreSql = true;
-      } else {
-        throw new SpannerConnectorException(
-            SpannerErrorCode.DATABASE_DIALECT_NOT_SUPPORTED,
-            "The dialect used "
-                + conn.getDialect()
-                + " in the Spanner table "
-                + tableName
-                + " is not supported.");
-      }
+  public SpannerTable(CaseInsensitiveStringMap properties, StructType dfSchema) {
+    this(
+        SpannerUtils.getRequiredOption(properties, "projectId"),
+        SpannerUtils.getRequiredOption(properties, "instanceId"),
+        SpannerUtils.getRequiredOption(properties, "databaseId"),
+        SpannerUtils.getRequiredOption(properties, "table"),
+        properties,
+        dfSchema);
+  }
+
+  private boolean checkIsPostgreSql(Connection conn) {
+    boolean isPostgreSql;
+    if (conn.getDialect().equals(Dialect.GOOGLE_STANDARD_SQL)) {
+      isPostgreSql = false;
+    } else if (conn.getDialect().equals(Dialect.POSTGRESQL)) {
+      isPostgreSql = true;
+    } else {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.DATABASE_DIALECT_NOT_SUPPORTED,
+          "The dialect used "
+              + conn.getDialect()
+              + " in the Spanner database "
+              + this.databaseId
+              + " is not supported.");
+    }
+    return isPostgreSql;
+  }
+
+  public SpannerTable(
+      String projectId,
+      String instanceId,
+      String databaseId,
+      String tableNameOption,
+      CaseInsensitiveStringMap properties,
+      StructType dfSchema) {
+    Verify.verifyNotNull(projectId, "projectId");
+    Verify.verifyNotNull(instanceId, "instanceId");
+    Verify.verifyNotNull(databaseId, "databaseId");
+    Verify.verifyNotNull(tableNameOption, "tableNameOption");
+    Verify.verifyNotNull(properties, "properties");
+
+    try (Connection conn =
+        SpannerUtils.connectionFromProperties(
+            projectId, instanceId, databaseId, properties.get("emulatorHost"))) {
+      boolean isPostgreSql = checkIsPostgreSql(conn);
+
+      this.tableName = tableNameOption;
+      this.projectId = projectId;
+      this.instanceId = instanceId;
+      this.databaseId = databaseId;
+
+      Map<String, String> combinedProps = new HashMap<>(properties.asCaseSensitiveMap());
+      combinedProps.putAll(getOpenLineageDatasetProperties());
+      combinedProps.put("table", tableName);
+      this.properties = new CaseInsensitiveStringMap(combinedProps);
+
       // Still get the DB schema for validation.
       this.dbSchema = new SpannerTableSchema(conn, tableName, isPostgreSql);
-      this.sparkSchema = dfSchema;
+      this.dfSchema = dfSchema;
     }
   }
 
@@ -257,7 +274,11 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public StructType schema() {
-    return this.sparkSchema;
+    if (this.properties.getOrDefault("enablePartialRowUpdates", "false").equalsIgnoreCase("true")
+        && dfSchema != null) {
+      return this.dfSchema;
+    }
+    return this.dbSchema.schema;
   }
 
   /*
@@ -277,25 +298,27 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {
-    return new SpannerScanBuilder(options);
+    return new SpannerScanBuilder(this);
   }
 
   @Override
   public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
     SpannerUtils.validateSchema(info.schema(), this.dbSchema.schema, this.tableName);
-    return new SpannerWriteBuilder(info);
+    return new SpannerWriteBuilder(info, this.properties);
   }
 
   @Override
-  public Map<String, String> properties() {
-    ImmutableMap.Builder<String, String> builder =
-        ImmutableMap.<String, String>builder()
-            .putAll(this.properties)
-            .put("openlineage.dataset.name", String.format("%s/%s", databaseId, tableName))
-            .put(
-                "openlineage.dataset.namespace",
-                String.format("spanner://%s/%s", projectId, instanceId))
-            .put("openlineage.dataset.storageDatasetFacet.storageLayer", "spanner");
-    return builder.build();
+  public CaseInsensitiveStringMap properties() {
+    return properties;
+  }
+
+  private Map<String, String> getOpenLineageDatasetProperties() {
+    return ImmutableMap.of(
+        "openlineage.dataset.name",
+        String.format("%s/%s", databaseId, tableName),
+        "openlineage.dataset.namespace",
+        String.format("%s/%s", projectId, instanceId),
+        "openlineage.dataset.storageDatasetFacet.storageLayer",
+        "spanner");
   }
 }

@@ -15,7 +15,12 @@
 package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
+import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.apache.spark.sql.connector.catalog.Identifier;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
@@ -24,6 +29,12 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public abstract class SparkSpannerTableProviderBase implements DataSourceRegister, TableProvider {
+
+  private static final Gson GSON = new Gson();
+
+  static final List<String> GRAPH_OPTION_KEYS =
+      ImmutableList.of(
+          "graph", "type", "enableDataBoost", "configs", "graphQuery", "timestamp", "viewsEnabled");
 
   /*
    * Infers the schema of the table identified by the given options.
@@ -43,7 +54,6 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
     final CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
     boolean enablePartialRowUpdates =
         Boolean.parseBoolean(options.getOrDefault("enablePartialRowUpdates", "false"));
-
     boolean hasTable = options.containsKey("table");
     boolean hasGraph = options.containsKey("graph");
     if (hasTable && !hasGraph) {
@@ -91,5 +101,29 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
           SpannerErrorCode.INVALID_ARGUMENT,
           "properties must contain one of \"table\" or \"graph\"");
     }
+  }
+
+  public Identifier extractIdentifier(CaseInsensitiveStringMap options) {
+    String table = options.get("table");
+    if (table != null) {
+      return Identifier.of(new String[0], table);
+    }
+    String graph = options.get("graph");
+    if (graph != null) {
+      Map<String, String> graphProps = new HashMap<>();
+      for (String key : GRAPH_OPTION_KEYS) {
+        String val = options.get(key);
+        if (val != null) {
+          graphProps.put(key, val);
+        }
+      }
+      return Identifier.of(
+          new String[0], SpannerCatalog.GRAPH_IDENTIFIER_PREFIX + GSON.toJson(graphProps));
+    }
+    return null;
+  }
+
+  public String extractCatalog(CaseInsensitiveStringMap options) {
+    return options.getOrDefault("catalog", "spark_catalog");
   }
 }

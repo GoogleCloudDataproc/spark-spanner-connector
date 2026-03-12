@@ -195,7 +195,7 @@ Save Mode|Behavior
 `ErrorIfExists`|Creates a new table and writes data. Fails if the table already exists. Requires [Spark Catalog support](#spark-catalog-support).
 `Ignore`|Creates the table and writes data only if the table does not already exist. A no-op if the table exists. Requires [Spark Catalog support](#spark-catalog-support).
 
-> **Note:** Writing to Spanner from Spark is not atomic when dataframe is larger than `bytesPerTransaction` or results in more than `mutationsPerTransaction` number of mutations.
+> **Note:** Writing a DataFrame to Spanner from Spark is not a single atomic operation. The connector splits large DataFrames into multiple transactions based on the `bytesPerTransaction` and `mutationsPerTransaction` limits.
 > 
 > Similarly, actions in `Overwrite` are not atomic either - truncate or recreate actions cannot be undone if subsequent write fails.
 

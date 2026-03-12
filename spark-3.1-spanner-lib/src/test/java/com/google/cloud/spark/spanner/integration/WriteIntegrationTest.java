@@ -605,14 +605,14 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertEquals(1, finalDf.count());
     Row row = finalDf.first();
 
-    assertThat(row.getLong(0)).isEqualTo(231L);
-    assertThat(row.getString(1)).isEqualTo("updated value");
-    assertThat(row.getBoolean(2)).isEqualTo(true);
-    assertThat(row.getDouble(3)).isEqualTo(3.14);
-    assertThat(row.getTimestamp(4)).isEqualTo(ts);
-    assertThat(row.getDate(5)).isEqualTo(dt);
-    assertThat(row.<byte[]>getAs(6)).isEqualTo(b);
-    assertThat(row.getDecimal(7).compareTo(num)).isEqualTo(0);
+    assertThat(row.<Long>getAs("long_col")).isEqualTo(231L);
+    assertThat(row.<String>getAs("string_col")).isEqualTo("updated value");
+    assertThat(row.<Boolean>getAs("bool_col")).isEqualTo(true);
+    assertThat(row.<Double>getAs("double_col")).isEqualTo(3.14);
+    assertThat(row.<java.sql.Timestamp>getAs("timestamp_col")).isEqualTo(ts);
+    assertThat(row.<java.sql.Date>getAs("date_col")).isEqualTo(dt);
+    assertThat(row.<byte[]>getAs("bytes_col")).isEqualTo(b);
+    assertThat(row.<java.math.BigDecimal>getAs("numeric_col").compareTo(num)).isEqualTo(0);
   }
 
   private void checkChildRow(Row row) {

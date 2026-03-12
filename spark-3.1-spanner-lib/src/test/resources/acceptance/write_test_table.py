@@ -97,17 +97,17 @@ def verify_data_to_df(df_expected, df_actual, spark):
         # Cache DFs for performance since we'll perform multiple actions.
         df_expected.cache()
         df_actual.cache()
+        try:
+            missing_rows_count = df_expected.subtract(df_actual).count()
+            if missing_rows_count > 0:
+                issues.append(f"Missing rows in actual: {missing_rows_count}")
 
-        missing_rows_count = df_expected.subtract(df_actual).count()
-        if missing_rows_count > 0:
-            issues.append(f"Missing rows in actual: {missing_rows_count}")
-
-        extra_rows_count = df_actual.subtract(df_expected).count()
-        if extra_rows_count > 0:
-            issues.append(f"Extra rows in actual: {extra_rows_count}")
-
-        df_expected.unpersist()
-        df_actual.unpersist()
+            extra_rows_count = df_actual.subtract(df_expected).count()
+            if extra_rows_count > 0:
+                issues.append(f"Extra rows in actual: {extra_rows_count}")
+        finally:
+            df_expected.unpersist()
+            df_actual.unpersist()
 
     # 2. Determine Final Status
     status_msg = "PASS" if not issues else "FAIL: " + " | ".join(issues)

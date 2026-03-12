@@ -81,6 +81,9 @@ public class DataprocServerlessAcceptanceTestBase {
   private static Spanner spanner =
       SpannerOptions.newBuilder().setProjectId(PROJECT_ID).build().getService();
 
+  private static String classConnectorJarUri;
+  private static String classTestBaseGcsDir;
+
   BatchControllerClient batchController;
   String testName =
       getClass()
@@ -89,28 +92,32 @@ public class DataprocServerlessAcceptanceTestBase {
           .toLowerCase(Locale.ENGLISH);
   String testId = String.format("%s-%s", testName, System.currentTimeMillis());
   String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
-  String connectorJarUri = testBaseGcsDir + "/connector.jar";
   AcceptanceTestContext context =
       new AcceptanceTestContext(
-          testId, generateClusterName(testId), testBaseGcsDir, connectorJarUri);
+          testId, generateClusterName(testId), testBaseGcsDir, classConnectorJarUri);
 
   private final String s8sImageVersion;
-  private final String connectorJarDirectory;
-  private final String connectorJarPrefix;
 
-  public DataprocServerlessAcceptanceTestBase(
-      String connectorJarDirectory, String connectorJarPrefix, String s8sImageVersion) {
-    this.connectorJarDirectory = connectorJarDirectory;
-    this.connectorJarPrefix = connectorJarPrefix;
+  public DataprocServerlessAcceptanceTestBase(String s8sImageVersion) {
     this.s8sImageVersion = s8sImageVersion;
+  }
+
+  protected static void setup(String connectorJarDirectory, String connectorJarPrefix)
+      throws Exception {
+    classTestBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir("shared-" + System.nanoTime());
+    classConnectorJarUri = classTestBaseGcsDir + "/connector.jar";
+    AcceptanceTestUtils.uploadConnectorJar(
+        connectorJarDirectory, connectorJarPrefix, classConnectorJarUri);
+    createSpannerDataset();
+  }
+
+  protected static void teardown() throws Exception {
+    deleteSpannerDatasetAndTables();
+    AcceptanceTestUtils.deleteGcsDir(classTestBaseGcsDir);
   }
 
   @Before
   public void createBatchControllerClient() throws Exception {
-    AcceptanceTestUtils.uploadConnectorJar(
-        connectorJarDirectory, connectorJarPrefix, context.connectorJarUri);
-    createSpannerDataset();
-
     batchController =
         BatchControllerClient.create(
             BatchControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT).build());
@@ -118,9 +125,10 @@ public class DataprocServerlessAcceptanceTestBase {
 
   @After
   public void tearDown() throws Exception {
-    batchController.close();
+    if (batchController != null) {
+      batchController.close();
+    }
     AcceptanceTestUtils.deleteGcsDir(context.testBaseGcsDir);
-    deleteSpannerDatasetAndTables();
   }
 
   @Test
@@ -137,6 +145,22 @@ public class DataprocServerlessAcceptanceTestBase {
     assertThat(operationSnapshot.getErrorMessage()).isEmpty();
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
     assertThat(output.trim()).isEqualTo("41");
+  }
+
+  @Test
+  public void testWrite() throws Exception {
+    OperationSnapshot operationSnapshot =
+        createAndRunPythonBatch(
+            context,
+            testName,
+            "write_test_table.py",
+            null,
+            Arrays.asList(
+                context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID));
+    assertThat(operationSnapshot.isDone()).isTrue();
+    assertThat(operationSnapshot.getErrorMessage()).isEmpty();
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).startsWith("PASS");
   }
 
   protected static void createSpannerDataset() throws Exception {

@@ -11,64 +11,74 @@
 # MAGIC
 # MAGIC ### Prerequisites
 # MAGIC - Cluster has the Spark Spanner Connector library installed (JAR or Maven).
-# MAGIC - Cluster environment variables: `GCP_PROJECT_ID`, `SPANNER_INSTANCE_ID`.
 # MAGIC - GCP credentials configured (e.g. via init script).
 
 # COMMAND ----------
 
-import os
-
-project_id  = os.environ["GCP_PROJECT_ID"]
-instance_id = os.environ["SPANNER_INSTANCE_ID"]
-database_id = "repo-test"
-
-# Common Spanner connection options
 SPANNER_OPTS = {
-    "projectId":  project_id,
-    "instanceId": instance_id,
-    "databaseId": database_id,
+    "projectId":  "improvingvancouver",
+    "instanceId": "mksyunz-spark-dev",
+    "databaseId": "repo-test",
 }
 
-print(f"Project: {project_id}  Instance: {instance_id}  Database: {database_id}")
+print(f"Spanner: {SPANNER_OPTS['projectId']}/{SPANNER_OPTS['instanceId']}/{SPANNER_OPTS['databaseId']}")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Setup — Configure the Spanner Catalog
+# MAGIC ## Setup — Spanner DDL Helper
 # MAGIC
-# MAGIC Register the Spanner catalog so we can use SQL to create/drop demo tables.
+# MAGIC Databricks Unity Catalog owns catalog resolution, so we cannot register a custom
+# MAGIC `TableCatalog` for Spanner. Instead, we call the Spanner Admin API directly
+# MAGIC via `spark._jvm` (the connector JAR is already on the classpath).
 
 # COMMAND ----------
 
-spark.conf.set("spark.sql.catalog.spanner",
-               "com.google.cloud.spark.spanner.SpannerCatalog")
-spark.conf.set("spark.sql.catalog.spanner.projectId",  project_id)
-spark.conf.set("spark.sql.catalog.spanner.instanceId", instance_id)
-spark.conf.set("spark.sql.catalog.spanner.databaseId", database_id)
-print("✓ Spanner catalog configured.")
+def spanner_ddl(ddl_statements):
+    """Execute DDL statements against Spanner using the connector's Java classes."""
+    jvm = spark._jvm
+    java_map = jvm.java.util.HashMap()
+    for k, v in SPANNER_OPTS.items():
+        java_map.put(k, v)
+    ci_map = jvm.org.apache.spark.sql.util.CaseInsensitiveStringMap(java_map)
+    spanner = jvm.com.google.cloud.spark.spanner.SpannerUtils \
+        .buildSpannerOptions(ci_map).getService()
+    try:
+        admin = spanner.getDatabaseAdminClient()
+        java_list = jvm.java.util.ArrayList()
+        for stmt in ddl_statements:
+            java_list.add(stmt)
+        admin.updateDatabaseDdl(
+            SPANNER_OPTS["instanceId"], SPANNER_OPTS["databaseId"], java_list, None
+        ).get()
+    finally:
+        spanner.close()
+
+print("✓ Spanner DDL helper ready.")
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Setup — Create demo table
 # MAGIC
-# MAGIC We create the target table from scratch using the catalog, then demonstrate writes with the DataFrame API.
+# MAGIC We create the target table from scratch using the Spanner Admin API, then demonstrate writes with the DataFrame API.
 
 # COMMAND ----------
 
-TABLE = "demo_df_write"
+try:
+    spanner_ddl(["DROP TABLE demo_df_write"])
+except Exception:
+    pass  # table may not exist yet
 
-spark.sql(f"DROP TABLE IF EXISTS spanner.{TABLE}")
-spark.sql(f"""
-    CREATE TABLE spanner.{TABLE} (
-        id     BIGINT NOT NULL,
-        name   STRING,
-        dept   STRING,
-        salary DOUBLE
-    ) USING `cloud-spanner`
-    TBLPROPERTIES('primaryKeys' = 'id')
-""")
-print(f"✓ Created table: {TABLE}")
+spanner_ddl(["""
+    CREATE TABLE demo_df_write (
+        id     INT64 NOT NULL,
+        name   STRING(MAX),
+        dept   STRING(MAX),
+        salary FLOAT64
+    ) PRIMARY KEY (id)
+"""])
+print("✓ Created table: demo_df_write")
 
 # COMMAND ----------
 
@@ -97,7 +107,7 @@ df = spark.createDataFrame(data, schema)
 
 (df.write.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .mode("append")
     .save())
 
@@ -108,7 +118,7 @@ print("✓ Wrote 3 rows with append mode.")
 # Read back and display
 (spark.read.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .load()
     .orderBy("id")
     .show())
@@ -131,7 +141,7 @@ new_row = spark.createDataFrame([(4, "Diana", "Sales", 105000.0)], schema)
 
 (new_row.write.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .option("mutationType", "insert")
     .mode("append")
     .save())
@@ -145,7 +155,7 @@ update_row = spark.createDataFrame([(2, "Bob", "Marketing", 100000.0)], schema)
 
 (update_row.write.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .option("mutationType", "update")
     .mode("append")
     .save())
@@ -156,7 +166,7 @@ print("✓ Updated row id=2 with mutationType='update'. Bob's salary is now 100k
 
 (spark.read.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .load()
     .orderBy("id")
     .show())
@@ -177,7 +187,7 @@ replacement = spark.createDataFrame([
 
 (replacement.write.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .option("overwriteMode", "truncate")
     .mode("overwrite")
     .save())
@@ -188,7 +198,7 @@ print("✓ Overwrote table with 2 new rows (truncate mode).")
 
 (spark.read.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .load()
     .orderBy("id")
     .show())
@@ -212,7 +222,7 @@ partial_df = spark.createDataFrame([(10, 150000.0)], partial_schema)
 
 (partial_df.write.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .option("mutationType", "update")
     .option("enablePartialRowUpdates", "true")
     .mode("append")
@@ -224,7 +234,7 @@ print("✓ Partial update: set salary=150k for id=10 (other columns unchanged)."
 
 (spark.read.format("cloud-spanner")
     .options(**SPANNER_OPTS)
-    .option("table", TABLE)
+    .option("table", "demo_df_write")
     .load()
     .orderBy("id")
     .show())
@@ -236,5 +246,5 @@ print("✓ Partial update: set salary=150k for id=10 (other columns unchanged)."
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS spanner.{TABLE}")
-print(f"✓ Dropped {TABLE}.")
+spanner_ddl(["DROP TABLE demo_df_write"])
+print("✓ Dropped demo_df_write.")

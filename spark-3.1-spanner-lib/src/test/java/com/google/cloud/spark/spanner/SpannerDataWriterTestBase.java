@@ -26,6 +26,7 @@ import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
@@ -55,6 +56,7 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -422,6 +424,40 @@ public abstract class SpannerDataWriterTestBase {
         assertThat(e.getCause().getMessage()).contains("Spanner BatchWrite failed with status");
       }
     }
+  }
+
+  @Test
+  public void testMutationTypeCamelCaseIsHonored() throws IOException {
+    properties.put("mutationType", "insert");
+    try (SpannerDataWriter writer = createWriter(properties)) {
+      when(mockDatabaseClient.write(any())).thenReturn(null);
+      writer.write(CreateInternalRow(1L));
+      writer.commit();
+    }
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<java.util.List<Mutation>> captor =
+        org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+    verify(mockDatabaseClient).write(captor.capture());
+    assertThat(captor.getValue().get(0).getOperation()).isEqualTo(Mutation.Op.INSERT);
+  }
+
+  @Test
+  public void testMutationTypeLowerCaseIsHonored() throws IOException {
+    // Simulate what happens when CaseInsensitiveStringMap lowercases keys:
+    // the key becomes "mutationtype" instead of "mutationType".
+    properties.put("mutationtype", "insert");
+    try (SpannerDataWriter writer = createWriter(properties)) {
+      when(mockDatabaseClient.write(any())).thenReturn(null);
+      writer.write(CreateInternalRow(1L));
+      writer.commit();
+    }
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<java.util.List<Mutation>> captor =
+        org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+    verify(mockDatabaseClient).write(captor.capture());
+    assertThat(captor.getValue().get(0).getOperation()).isEqualTo(Mutation.Op.INSERT);
   }
 
   private InternalRow CreateInternalRow(long i) {

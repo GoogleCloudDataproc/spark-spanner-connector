@@ -113,7 +113,8 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
         Integer.parseInt(
             caseInsensitiveStringMap.getOrDefault(
                 "maxPendingTransactions", MAX_PENDING_TRANSACTIONS_DEFAULT_STR));
-    this.mutationType = parseMutationType(properties.getOrDefault("mutationType", null));
+    this.mutationType =
+        parseMutationType(caseInsensitiveStringMap.getOrDefault("mutationType", null));
 
     this.batchClient = batchClient;
     this.executor = executor;

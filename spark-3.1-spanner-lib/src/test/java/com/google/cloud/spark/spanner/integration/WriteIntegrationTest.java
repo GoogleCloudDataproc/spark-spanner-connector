@@ -320,9 +320,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
       Assert.fail();
     } catch (Exception e) {
       // 3. Verify that row 211 cannot be inserted again.
-      //
-      String message = e.getCause() == null ? e.getMessage() : e.getCause().getMessage();
-      assertThat(message).contains("ALREADY_EXISTS: Row [211]");
+      assertThat(getExceptionMessage(e)).contains("ALREADY_EXISTS: Row [211]");
     }
 
     // 4. Insert 213, happy path
@@ -383,8 +381,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
       Assert.fail();
     } catch (Exception e) {
       // 3. Verify that row 223 cannot be updated before it exists
-      String message = e.getCause() == null ? e.getMessage() : e.getCause().getMessage();
-      assertThat(message).contains("NOT_FOUND: Row [223]");
+      assertThat(getExceptionMessage(e)).contains("NOT_FOUND: Row [223]");
     }
 
     // 4. Update existing 222, happy path
@@ -416,6 +413,14 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(finalRows.get(221L).getString(1)).isEqualTo("original twenty-one");
     // Check that row 222 was updated.
     assertThat(finalRows.get(222L).getString(1)).isEqualTo("new twenty-two");
+  }
+
+  /*
+   * Returns the exception message, or the cause's message if the exception has a cause.
+   * This behavior changed in Spark 3.5
+   */
+  private String getExceptionMessage(Exception e) {
+    return e.getCause() == null ? e.getMessage() : e.getCause().getMessage();
   }
 
   @Test

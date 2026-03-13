@@ -436,7 +436,7 @@ public abstract class SpannerDataWriterTestBase {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<java.util.List<Mutation>> captor =
-            org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+        org.mockito.ArgumentCaptor.forClass(java.util.List.class);
     verify(mockDatabaseClient).write(captor.capture());
     assertThat(captor.getValue().get(0).getOperation()).isEqualTo(Mutation.Op.INSERT);
   }

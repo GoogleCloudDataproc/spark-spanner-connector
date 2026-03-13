@@ -320,7 +320,9 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
       Assert.fail();
     } catch (Exception e) {
       // 3. Verify that row 211 cannot be inserted again.
-      assertThat(e.getCause().getMessage()).contains("ALREADY_EXISTS: Row [211]");
+      //
+      String message = e.getCause() == null ? e.getMessage() : e.getCause().getMessage();
+      assertThat(message).contains("ALREADY_EXISTS: Row [211]");
     }
 
     // 4. Insert 213, happy path
@@ -381,7 +383,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
       Assert.fail();
     } catch (Exception e) {
       // 3. Verify that row 223 cannot be updated before it exists
-      assertThat(e.getCause().getMessage()).contains("NOT_FOUND: Row [223]");
+      String message = e.getCause() == null ? e.getMessage() : e.getCause().getMessage();
+      assertThat(message).contains("NOT_FOUND: Row [223]");
     }
 
     // 4. Update existing 222, happy path

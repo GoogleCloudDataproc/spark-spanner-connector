@@ -87,14 +87,39 @@ def main():
     df_result.coalesce(1).write.csv(sys.argv[1])
 
 
+def schemas_equal_ignoring_metadata(schema1, schema2):
+    """Compare two schemas by field name, type, and nullability, ignoring metadata."""
+    if len(schema1.fields) != len(schema2.fields):
+        return False
+    for f1, f2 in zip(schema1.fields, schema2.fields):
+        if f1.name != f2.name or f1.dataType != f2.dataType or f1.nullable != f2.nullable:
+            return False
+    return True
+
+
+def verify_primary_key_metadata(schema, pk_columns):
+    """Verify that primary key columns have spanner.primaryKey metadata set to true."""
+    issues = []
+    for field in schema.fields:
+        has_pk_meta = field.metadata.get("spanner.primaryKey", False) if field.metadata else False
+        if field.name in pk_columns and not has_pk_meta:
+            issues.append(f"Column '{field.name}' should have spanner.primaryKey metadata")
+        elif field.name not in pk_columns and has_pk_meta:
+            issues.append(f"Column '{field.name}' should not have spanner.primaryKey metadata")
+    return issues
+
+
 def verify_data_to_df(df_expected, df_actual, spark):
     issues = []
 
-    # 1. Validation Logic
-    if df_expected.schema != df_actual.schema:
+    # 1. Validate schema (ignoring metadata which the connector enriches).
+    if not schemas_equal_ignoring_metadata(df_expected.schema, df_actual.schema):
         issues.append("Schema mismatch")
     else:
-        # Cache DFs for performance since we'll perform multiple actions.
+        # 1a. Verify primary key metadata on the read-back schema.
+        issues.extend(verify_primary_key_metadata(df_actual.schema, {"A"}))
+
+        # 1b. Cache DFs for performance since we'll perform multiple actions.
         df_expected.cache()
         df_actual.cache()
         try:

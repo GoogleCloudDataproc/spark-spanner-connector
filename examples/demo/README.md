@@ -1,17 +1,15 @@
-# Spark Spanner Connector — Live Demo
+# Spark Spanner Connector — Demo
 
-This folder contains demo scripts for showcasing write support and Spark Catalog
-features on **Dataproc** and **Databricks**.
+This folder contains a demo notebook for showcasing write support and Spark
+Catalog features on **Dataproc** with Jupyter.
 
 All demos create and clean up their own tables — no pre-requisite DDL needed.
 
 ## Demo Artifacts
 
-| File | Platform | What it shows |
-|------|----------|---------------|
-| `examples/demo/dataproc_write_demo.py` | Dataproc | DataFrame API writes (append, mutation types, overwrite) + Catalog SQL (CREATE/INSERT/SELECT/DROP) |
-| `examples/demo/databricks_dataframe_write.py` | Databricks | DataFrame API writes — append, mutation types, overwrite, partial row updates |
-| `examples/demo/databricks_catalog_sql.py` | Databricks | Catalog SQL — CREATE TABLE, INSERT INTO, SELECT, Ignore mode, ErrorIfExists, DROP TABLE |
+| File | What it shows |
+|------|---------------|
+| `examples/demo/dataproc_write_demo.py` | DataFrame API writes (append, mutation types, overwrite) + Catalog SQL (CREATE/INSERT/SELECT/DROP) |
 
 ---
 
@@ -56,90 +54,37 @@ export SPANNER_DATAPROC_BUCKET="<GCS_BUCKET>"
 gsutil cp "$CONNECTOR_JAR" "gs://${SPANNER_DATAPROC_BUCKET}/spark-spanner-connector.jar"
 ```
 
-### Submit the Job
+### Create a Dataproc Cluster with Jupyter Support
 
 ```bash
-gcloud dataproc jobs submit pyspark \
-    --cluster "$SPANNER_DATAPROC_CLUSTER" \
+gcloud dataproc clusters create "$SPANNER_DATAPROC_CLUSTER" \
     --region "$SPANNER_DATAPROC_REGION" \
-    --jars "gs://${SPANNER_DATAPROC_BUCKET}/spark-spanner-connector.jar" \
-    --properties "spark.dynamicAllocation.enabled=false,spark.spanner.projectId=$SPANNER_PROJECT_ID,spark.spanner.instanceId=$SPANNER_INSTANCE_ID,spark.spanner.databaseId=$SPANNER_DATABASE_ID" \
-    examples/demo/dataproc_write_demo.py
+    --optional-components=JUPYTER \
+    --enable-component-gateway \
+    --bucket "$SPANNER_DATAPROC_BUCKET" \
+    --properties "spark:spark.jars=gs://${SPANNER_DATAPROC_BUCKET}/spark-spanner-connector.jar,spark:spark.dynamicAllocation.enabled=false,spark:spark.spanner.projectId=$SPANNER_PROJECT_ID,spark:spark.spanner.instanceId=$SPANNER_INSTANCE_ID,spark:spark.spanner.databaseId=$SPANNER_DATABASE_ID"
 ```
+
+Once the cluster is running, open the **JupyterLab** link from the Dataproc
+cluster's **Web Interfaces** tab in the Cloud Console.
+
+> **Note:** The cluster's compute service account must have permissions to
+> connect to Spanner (e.g. the `roles/spanner.databaseUser` role). By default,
+> Dataproc VMs use the Compute Engine default service account — make sure it
+> has the necessary Spanner IAM bindings on your instance/database.
+
+### Run the Notebook
+
+1. Upload `examples/demo/dataproc_write_demo.py` to JupyterLab (or create a
+   new notebook and paste the contents).
+2. Run all cells top-to-bottom.
 
 The Spanner connection details are passed as Spark properties (`spark.spanner.*`)
-and read by the script at runtime. The Spanner catalog is configured inside the
-script itself.
-
----
-
-## Databricks
-
-### Upload JAR to Databricks
-
-```bash
-export DATABRICKS_HOST="<DATABRICKS_HOST>"
-```
-
-Upload the locally-built JAR using the Databricks CLI:
-
-```bash
-# Upload to a Unity Catalog Volume
-databricks fs cp "$CONNECTOR_JAR" \
-    "dbfs:/Volumes/spark_spanner_connector_ws/default/connector-jars/mksyunz/spark-3.1-spanner-0.0.1-SNAPSHOT.jar"
-```
-
-Or upload via the Databricks UI: **Catalog** → select your Volume →
-**Upload to this volume** → select the JAR file.
-
-### Cluster Configuration
-
-Your Databricks cluster needs:
-
-1. **Connector library**: Libraries tab → Install new → Library Source / Volumes →
-   `/Volumes/<CATALOG>/default/spanner_connector_assets/spark-3.1-spanner-0.0.1-SNAPSHOT.jar`
-
-2. **Environment variables** (Advanced Options → Spark → Environment Variables):
-   ```
-   GCP_PROJECT_ID=<PROJECT_ID>
-   SPANNER_INSTANCE_ID=<SPANNER_INSTANCE_ID>
-   GCP_CREDENTIALS={{secrets/<scope>/<key>}}
-   ```
-
-3. **Init script** for GCP credentials (see [`examples/databricks/setup_gcp_credentials.sh`](../databricks/setup_gcp_credentials.sh)).
-
-Restart the cluster after making changes.
-
-### Import & Run
-
-1. Import `examples/demo/databricks_dataframe_write.py` and `examples/demo/databricks_catalog_sql.py` into
-   your Databricks workspace.
-2. Attach each notebook to the configured cluster.
-3. Run all cells top-to-bottom.
-
-### Demo Flow
-
-**Notebook 1 — DataFrame API** (`examples/demo/databricks_dataframe_write.py`):
-- Creates a table via the catalog for the demo
-- Writes rows with `mode("append")`
-- Demonstrates `mutationType` options (`insert`, `update`)
-- Shows `mode("overwrite")` with `overwriteMode=truncate`
-- Partial row update with `enablePartialRowUpdates=true`
-- Cleans up
-
-**Notebook 2 — Catalog SQL** (`examples/demo/databricks_catalog_sql.py`):
-- `CREATE TABLE` with `TBLPROPERTIES('primaryKeys' = '...')`
-- `INSERT INTO` and `SELECT` via pure SQL cells
-- `CREATE TABLE IF NOT EXISTS` (Ignore mode) — second call is a no-op
-- `writeTo().create()` (ErrorIfExists) — second call raises an error
-- `DROP TABLE` cleanup
+set during cluster creation and read by the notebook at runtime. The Spanner
+catalog is configured inside the notebook itself.
 
 ---
 
 ## Notes
 
-- Both Databricks notebooks set the catalog config programmatically via
-  `spark.conf.set(...)`. If your cluster already has these in its Spark config,
-  you can remove the setup cells.
-- The `database_id` is hardcoded to `repo-test` in the Databricks notebooks.
 - All demo table names start with `demo_` for easy identification.

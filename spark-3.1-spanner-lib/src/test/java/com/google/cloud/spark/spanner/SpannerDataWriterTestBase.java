@@ -426,9 +426,8 @@ public abstract class SpannerDataWriterTestBase {
     }
   }
 
-  @Test
-  public void testMutationTypeCamelCaseIsHonored() throws IOException {
-    properties.put("mutationType", "insert");
+  private void testMutationTypeIsHonored(String mutationTypeKey) throws IOException {
+    properties.put(mutationTypeKey, "insert");
     try (SpannerDataWriter writer = createWriter(properties)) {
       when(mockDatabaseClient.write(any())).thenReturn(null);
       writer.write(CreateInternalRow(1L));
@@ -437,27 +436,21 @@ public abstract class SpannerDataWriterTestBase {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<java.util.List<Mutation>> captor =
-        org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+            org.mockito.ArgumentCaptor.forClass(java.util.List.class);
     verify(mockDatabaseClient).write(captor.capture());
     assertThat(captor.getValue().get(0).getOperation()).isEqualTo(Mutation.Op.INSERT);
+  }
+
+  @Test
+  public void testMutationTypeCamelCaseIsHonored() throws IOException {
+    testMutationTypeIsHonored("mutationType");
   }
 
   @Test
   public void testMutationTypeLowerCaseIsHonored() throws IOException {
     // Simulate what happens when CaseInsensitiveStringMap lowercases keys:
     // the key becomes "mutationtype" instead of "mutationType".
-    properties.put("mutationtype", "insert");
-    try (SpannerDataWriter writer = createWriter(properties)) {
-      when(mockDatabaseClient.write(any())).thenReturn(null);
-      writer.write(CreateInternalRow(1L));
-      writer.commit();
-    }
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<java.util.List<Mutation>> captor =
-        org.mockito.ArgumentCaptor.forClass(java.util.List.class);
-    verify(mockDatabaseClient).write(captor.capture());
-    assertThat(captor.getValue().get(0).getOperation()).isEqualTo(Mutation.Op.INSERT);
+    testMutationTypeIsHonored("mutationtype");
   }
 
   private InternalRow CreateInternalRow(long i) {

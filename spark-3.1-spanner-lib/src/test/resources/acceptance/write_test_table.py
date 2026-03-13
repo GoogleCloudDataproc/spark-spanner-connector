@@ -80,7 +80,7 @@ def main():
     df.printSchema()
     df.show()
 
-    df_result = verify_data_to_df(dfw, df, spark)
+    df_result = verify_data_to_df(dfw, df, spark, {"A"})
     df_result.show()
 
     # coalesce 1 to ensure results are written in single partition and avoid empty file creation.
@@ -109,7 +109,7 @@ def verify_primary_key_metadata(schema, pk_columns):
     return issues
 
 
-def verify_data_to_df(df_expected, df_actual, spark):
+def verify_data_to_df(df_expected, df_actual, spark, pk_columns):
     issues = []
 
     # 1. Validate schema (ignoring metadata which the connector enriches).
@@ -117,7 +117,7 @@ def verify_data_to_df(df_expected, df_actual, spark):
         issues.append("Schema mismatch")
     else:
         # 1a. Verify primary key metadata on the read-back schema.
-        issues.extend(verify_primary_key_metadata(df_actual.schema, {"A"}))
+        issues.extend(verify_primary_key_metadata(df_actual.schema, pk_columns))
 
         # 1b. Cache DFs for performance since we'll perform multiple actions.
         df_expected.cache()

@@ -1,15 +1,17 @@
 # Spark Spanner Connector — Demo
 
 This folder contains a demo notebook for showcasing write support and Spark
-Catalog features on **Dataproc** with Jupyter.
+Catalog features on **Dataproc** with Jupyter as well as a notebook showing how to map from Spark
+`STRUCT` to Spanner `JSON` and back.
 
 All demos create and clean up their own tables — no pre-requisite DDL needed.
 
 ## Demo Artifacts
 
-| File | What it shows |
-|------|---------------|
+| File                                   | What it shows                                                                                      |
+|----------------------------------------|----------------------------------------------------------------------------------------------------|
 | `examples/demo/dataproc_write_demo.py` | DataFrame API writes (append, mutation types, overwrite) + Catalog SQL (CREATE/INSERT/SELECT/DROP) |
+| `examples/demo/dataproc_json_demo.py`  | Working with Spark `STRUCT` and Spanner `JSON`                                                     |
 
 ---
 
@@ -75,7 +77,7 @@ cluster's **Web Interfaces** tab in the Cloud Console.
 
 ### Run the Notebook
 
-1. Upload `examples/demo/dataproc_write_demo.py` to JupyterLab (or create a
+1. Upload `examples/demo/dataproc_write_demo.py` and `examples/demo/dataproc_json_demo.py` to JupyterLab (or create a
    new notebook and paste the contents).
 2. Run all cells top-to-bottom.
 

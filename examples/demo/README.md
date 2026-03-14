@@ -10,8 +10,8 @@ All demos create and clean up their own tables — no pre-requisite DDL needed.
 
 | File                                   | What it shows                                                                                      |
 |----------------------------------------|----------------------------------------------------------------------------------------------------|
-| `examples/demo/dataproc_write_demo.py` | DataFrame API writes (append, mutation types, overwrite) + Catalog SQL (CREATE/INSERT/SELECT/DROP) |
-| `examples/demo/dataproc_json_demo.py`  | Working with Spark `STRUCT` and Spanner `JSON`                                                     |
+| `examples/demo/dataproc_write_demo.ipynb` | DataFrame API writes (append, mutation types, overwrite) + Catalog SQL (CREATE/INSERT/SELECT/DROP) |
+| `examples/demo/dataproc_json_demo.ipynb`  | Working with Spark `STRUCT` and Spanner `JSON`                                                     |
 
 ---
 

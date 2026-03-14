@@ -64,7 +64,7 @@ gcloud dataproc clusters create "$SPANNER_DATAPROC_CLUSTER" \
     --optional-components=JUPYTER \
     --enable-component-gateway \
     --bucket "$SPANNER_DATAPROC_BUCKET" \
-    --properties "spark:spark.jars=gs://${SPANNER_DATAPROC_BUCKET}/spark-spanner-connector.jar,spark:spark.dynamicAllocation.enabled=false,spark:spark.spanner.projectId=$SPANNER_PROJECT_ID,spark:spark.spanner.instanceId=$SPANNER_INSTANCE_ID,spark:spark.spanner.databaseId=$SPANNER_DATABASE_ID"
+    --properties "spark:spark.jars=gs://${SPANNER_DATAPROC_BUCKET}/spark-spanner-connector.jar,spark:spark.dynamicAllocation.enabled=false"
 ```
 
 Once the cluster is running, open the **JupyterLab** link from the Dataproc
@@ -75,9 +75,24 @@ cluster's **Web Interfaces** tab in the Cloud Console.
 > Dataproc VMs use the Compute Engine default service account — make sure it
 > has the necessary Spanner IAM bindings on your instance/database.
 
+### Upload the SparkSQL Magic Wheel
+
+The demo notebooks use the
+[`sparksql_magic`](https://github.com/cryeo/sparksql-magic) IPython extension to
+render SQL results as formatted tables. Download the wheel from PyPI and upload
+it to the same GCS bucket so the notebooks can install it at runtime:
+
+```bash
+pip download sparksql-magic --no-deps -d .
+gsutil cp sparksql_magic*.whl "gs://${SPANNER_DATAPROC_BUCKET}/spark-sql/"
+```
+
+Each notebook's first code cell copies the wheel from GCS and runs
+`%pip install` automatically — no manual installation is needed.
+
 ### Run the Notebook
 
-1. Upload `examples/demo/dataproc_write_demo.py` and `examples/demo/dataproc_json_demo.py` to JupyterLab (or create a
+1. Upload `examples/demo/dataproc_write_demo.ipynb` and `examples/demo/dataproc_json_demo.ipynb` to JupyterLab (or create a
    new notebook and paste the contents).
 2. Run all cells top-to-bottom.
 

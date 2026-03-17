@@ -85,21 +85,27 @@ public class DataprocServerlessAcceptanceTestBase {
   private static String classTestBaseGcsDir;
 
   BatchControllerClient batchController;
-  String testName =
-      getClass()
-          .getSimpleName()
-          .substring(0, getClass().getSimpleName().length() - 32)
-          .toLowerCase(Locale.ENGLISH);
-  String testId = String.format("%s-%s", testName, System.currentTimeMillis());
-  String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
-  AcceptanceTestContext context =
-      new AcceptanceTestContext(
-          testId, generateClusterName(testId), testBaseGcsDir, classConnectorJarUri);
-
   private final String s8sImageVersion;
+  String testName;
+  String testId;
+  String testBaseGcsDir;
+  AcceptanceTestContext context;
 
   public DataprocServerlessAcceptanceTestBase(String s8sImageVersion) {
     this.s8sImageVersion = s8sImageVersion;
+    testName =
+        getClass()
+            .getSimpleName()
+            .substring(0, getClass().getSimpleName().length() - 32)
+            .toLowerCase(Locale.ENGLISH);
+    testId =
+        String.format(
+            "%s%s-%s",
+            testName, s8sImageVersion.replace(".", ""), System.currentTimeMillis());
+    testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
+    context =
+        new AcceptanceTestContext(
+            testId, generateClusterName(testId), testBaseGcsDir, classConnectorJarUri);
   }
 
   protected static void setup(String connectorJarDirectory, String connectorJarPrefix)

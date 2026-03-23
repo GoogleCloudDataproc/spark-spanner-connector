@@ -22,6 +22,7 @@ import static org.apache.spark.sql.functions.to_json;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.spark.spanner.TestData;
@@ -315,13 +316,19 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     Map<String, String> insertProps = getBaseProps();
     insertProps.put("mutationType", "insert");
 
-    try {
-      newDf.write().format("cloud-spanner").options(insertProps).mode(SaveMode.Append).save();
-      Assert.fail();
-    } catch (Exception e) {
-      // 3. Verify that row 211 cannot be inserted again.
-      assertThat(getExceptionMessage(e)).contains("ALREADY_EXISTS: Row [211]");
-    }
+    Exception e =
+        assertThrows(
+            Exception.class,
+            () -> {
+              newDf
+                  .write()
+                  .format("cloud-spanner")
+                  .options(insertProps)
+                  .mode(SaveMode.Append)
+                  .save();
+            });
+    // 3. Verify that row 211 cannot be inserted again.
+    assertThat(getExceptionMessage(e)).contains("ALREADY_EXISTS: Row [211]");
 
     // 4. Insert 213, happy path
     List<Row> successfulInsertRows =
@@ -376,13 +383,19 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     Map<String, String> updateProps = getBaseProps();
     updateProps.put("mutationType", "update");
 
-    try {
-      errorDf.write().format("cloud-spanner").options(updateProps).mode(SaveMode.Append).save();
-      Assert.fail();
-    } catch (Exception e) {
-      // 3. Verify that row 223 cannot be updated before it exists
-      assertThat(getExceptionMessage(e)).contains("NOT_FOUND: Row [223]");
-    }
+    Exception e =
+        assertThrows(
+            Exception.class,
+            () -> {
+              errorDf
+                  .write()
+                  .format("cloud-spanner")
+                  .options(updateProps)
+                  .mode(SaveMode.Append)
+                  .save();
+            });
+    // 3. Verify that row 223 cannot be updated before it exists
+    assertThat(getExceptionMessage(e)).contains("NOT_FOUND: Row [223]");
 
     // 4. Update existing 222, happy path
     List<Row> successfulUpdateRows =

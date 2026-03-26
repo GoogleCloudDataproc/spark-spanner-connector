@@ -85,21 +85,26 @@ public class DataprocServerlessAcceptanceTestBase {
   private static String classTestBaseGcsDir;
 
   BatchControllerClient batchController;
-  String testName =
-      getClass()
-          .getSimpleName()
-          .substring(0, getClass().getSimpleName().length() - 32)
-          .toLowerCase(Locale.ENGLISH);
-  String testId = String.format("%s-%s", testName, System.currentTimeMillis());
-  String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
-  AcceptanceTestContext context =
-      new AcceptanceTestContext(
-          testId, generateClusterName(testId), testBaseGcsDir, classConnectorJarUri);
-
   private final String s8sImageVersion;
+  private final String testName;
+  private final String testId;
+  private final String testBaseGcsDir;
+  private final AcceptanceTestContext context;
 
   public DataprocServerlessAcceptanceTestBase(String s8sImageVersion) {
     this.s8sImageVersion = s8sImageVersion;
+    // Cluster name has a length limit of 63 characters.  Given currentTimeMillis returns 13 digits
+    // (until the year 2286),
+    // and the prefix is 39 characters ("dataproc-serverless-acceptance-test-"), we only have 11
+    // characters left for the image version.
+    // To prevent naming collisions, we'll use just the image version as the test name.
+    // The image version will be something like "latest" or "2.2", so we'll remove the dot.
+    testName = s8sImageVersion.replace(".", "").toLowerCase(Locale.ENGLISH);
+    testId = String.format("%s-%s", testName, System.currentTimeMillis());
+    testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
+    context =
+        new AcceptanceTestContext(
+            testId, generateClusterName(testId), testBaseGcsDir, classConnectorJarUri);
   }
 
   protected static void setup(String connectorJarDirectory, String connectorJarPrefix)

@@ -303,6 +303,11 @@
             <version>${openlineage.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+          <groupId>com.google.api</groupId>
+          <artifactId>gax</artifactId>
+          <!-- Version is managed by the gax-bom in dependencyManagement -->
+        </dependency>
     </dependencies>
     <build>
         <pluginManagement>

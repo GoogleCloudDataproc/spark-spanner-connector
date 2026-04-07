@@ -106,14 +106,14 @@ public class DataprocServerlessAcceptanceTestBase {
     //
     // To prevent naming collisions it will be made unique as follows:
     //
-    // prefix ("spanner-connector-serverless-acceptance-"): 40 characters
+    // prefix ("spanner-serverless-acceptance-"): 30 characters
     // testName - we'll use just the image version as the test name: 2 characters
     //   The image version will be something like "latest" or "2.2", so we'll remove the dot.
     // - : 1 character
     // testId a unique name for the individual test: maximum 6 characters
     // - : 1 character
     // time in milliseconds - currentTimeMillis returns 13 digits (until the year 2286),
-    // Total 63 characters
+    // Total 55 characters
     final String testUniqueId =
         String.format("%s-%s-%s", testName, testId, System.currentTimeMillis());
     final String clusterName = generateClusterName(testUniqueId);
@@ -140,8 +140,8 @@ public class DataprocServerlessAcceptanceTestBase {
 
   @Before
   public void createBatchControllerClient() throws Exception {
-    // Define the timeout duration (matches SERVERLESS_BATCH_TIMEOUT_IN_SECONDS)
-    org.threeten.bp.Duration totalTimeout = org.threeten.bp.Duration.ofMinutes(10);
+    org.threeten.bp.Duration totalTimeout =
+        org.threeten.bp.Duration.ofSeconds(SERVERLESS_BATCH_TIMEOUT_IN_SECONDS);
 
     BatchControllerSettings.Builder settingsBuilder =
         BatchControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT);
@@ -322,7 +322,7 @@ public class DataprocServerlessAcceptanceTestBase {
   }
 
   public static String generateClusterName(String testId) {
-    String clusterName = String.format("spanner-connector-serverless-acceptance-%s", testId);
+    String clusterName = String.format("spanner-serverless-acceptance-%s", testId);
     // cluster name must conform to pattern '[a-z0-9][a-z0-9\-]{2,61}[a-z0-9]'
     return clusterName.toLowerCase().substring(0, Math.min(clusterName.length(), 63));
   }

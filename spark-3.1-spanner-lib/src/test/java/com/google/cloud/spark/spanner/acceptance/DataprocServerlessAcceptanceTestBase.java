@@ -324,6 +324,6 @@ public class DataprocServerlessAcceptanceTestBase {
   public static String generateClusterName(String testId) {
     String clusterName = String.format("spanner-serverless-acceptance-%s", testId);
     // cluster name must conform to pattern '[a-z0-9][a-z0-9\-]{2,61}[a-z0-9]'
-    return clusterName.toLowerCase().substring(0, Math.min(clusterName.length(), 63));
+    return clusterName.toLowerCase();
   }
 }

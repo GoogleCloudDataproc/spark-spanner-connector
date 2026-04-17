@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner;
 
+import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
@@ -22,7 +23,12 @@ import org.apache.spark.sql.types.StructType;
 public class Spark31SpannerDataWriterTest extends SpannerDataWriterTestBase {
 
   @Override
-  protected ExpressionEncoder<Row> getEncoder(StructType schema) {
+  protected void localSetup() {
+    serializer = ((ExpressionEncoder<Row>) encoder).createSerializer();
+  }
+
+  @Override
+  protected Encoder<Row> getEncoder(StructType schema) {
     return RowEncoder.apply(schema);
   }
 }

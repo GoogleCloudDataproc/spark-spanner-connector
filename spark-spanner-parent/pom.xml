@@ -69,6 +69,8 @@
         <deploy.skip>true</deploy.skip>
         <nexus.remote.skip>false</nexus.remote.skip>
         <shade.skip>true</shade.skip>
+        <!-- Initialize to empty to avoid "not defined" error -->
+        <argLine></argLine>
         <!-- checkstyle
         <checkstyle.header.file>${reactor.project.basedir}/java.header</checkstyle.header.file>
         -->
@@ -517,6 +519,18 @@
                         <skip>${deploy.skip}</skip>
                     </configuration>
                 </plugin>
+                <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-toolchains-plugin</artifactId>
+                  <version>3.2.0</version>
+                  <executions>
+                    <execution>
+                      <goals>
+                        <goal>toolchain</goal>
+                      </goals>
+                    </execution>
+                  </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -533,7 +547,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>${argLine}</argLine>
+                    <argLine>
+                      ${argLine}
+                    </argLine>
                     <excludes>
                         <exclude>**/*AcceptanceTest.java</exclude>
                         <exclude>**/*IntegrationTest.java</exclude>

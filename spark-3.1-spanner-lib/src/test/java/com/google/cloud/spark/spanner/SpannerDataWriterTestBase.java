@@ -45,6 +45,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -69,10 +70,11 @@ public abstract class SpannerDataWriterTestBase {
 
   private final ScheduledExecutorService scheduledExecutor =
       TestingExecutors.sameThreadScheduledExecutor();
-  private StructType schema;
+  protected StructType schema;
   private Map<String, String> properties;
   private BatchClientWithCloser batchClientWithCloser;
-  private ExpressionEncoder.Serializer<Row> serializer;
+  protected ExpressionEncoder.Serializer<Row> serializer;
+  protected Encoder<Row> encoder;
   @Mock private ExecutorService mockExecutor;
   @Mock private ScheduledExecutorService mockScheduledExecutor;
 
@@ -89,20 +91,23 @@ public abstract class SpannerDataWriterTestBase {
               DataTypes.createStructField("string_col", DataTypes.StringType, true),
             });
 
-    ExpressionEncoder<Row> encoder = getEncoder(schema);
-    serializer = encoder.createSerializer();
+    encoder = getEncoder(schema);
+    localSetup();
     properties = new HashMap<>();
     properties.put("table", "testTable");
     properties.put("mutationsPerBatch", "2"); // Use a small batch size for tests
   }
 
+  /** Provides Spark version specific set up. */
+  protected abstract void localSetup();
+
   /**
    * Gets an ExpressionEncoder, the implementation of which depends on the version of Spark used.
    *
    * @param struct used to determine the Encoder.
-   * @return The ExpressionEncoder.
+   * @return The Encoder.
    */
-  protected abstract ExpressionEncoder<Row> getEncoder(StructType struct);
+  protected abstract Encoder<Row> getEncoder(StructType struct);
 
   private SpannerDataWriter createWriter(Map<String, String> props) {
     return new SpannerDataWriter(
@@ -453,7 +458,10 @@ public abstract class SpannerDataWriterTestBase {
     testMutationTypeIsHonored("mutationtype");
   }
 
-  private InternalRow CreateInternalRow(long i) {
+  protected InternalRow CreateInternalRow(long i) {
+    //    ExpressionEncoder<Row> exprEncoder = (ExpressionEncoder<Row>) encoder;
+    //    ExpressionEncoder.Serializer<Row> serializer = exprEncoder.createSerializer();
+    //    return serializer.apply(RowFactory.create(i, "row" + i));
     return serializer.apply(RowFactory.create(i, "row" + i));
   }
 }

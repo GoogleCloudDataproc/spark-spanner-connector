@@ -14,15 +14,29 @@
 
 package com.google.cloud.spark.spanner;
 
+import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.catalyst.CatalystTypeConverters;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.StructType;
 
 public class Spark40SpannerDataWriterTest extends SpannerDataWriterTestBase {
 
   @Override
-  protected ExpressionEncoder<Row> getEncoder(StructType schema) {
-    return (ExpressionEncoder<Row>) Encoders.row(schema);
+  protected void localSetup() {}
+
+  @Override
+  protected Encoder<Row> getEncoder(StructType schema) {
+    // In Spark 4.0, this returns an AgnosticEncoder which implements Encoder
+    return Encoders.row(schema);
+  }
+
+  @Override
+  protected InternalRow CreateInternalRow(long i) {
+    Row row = RowFactory.create(i, "row" + i);
+
+    return (InternalRow) CatalystTypeConverters.createToCatalystConverter(schema).apply(row);
   }
 }

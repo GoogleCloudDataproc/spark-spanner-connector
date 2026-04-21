@@ -16,6 +16,7 @@
     <spark.version>4.0.1</spark.version>
     <scala.version>2.13</scala.version>
     <shade.skip>true</shade.skip>
+    <toolchain.jdk.version>17</toolchain.jdk.version>
   </properties>
   <licenses>
     <license>
@@ -50,14 +51,6 @@
   </dependencies>
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.11.0</version>
-        <configuration>
-          <release>17</release>
-        </configuration>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-toolchains-plugin</artifactId>

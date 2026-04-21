@@ -32,42 +32,4 @@
       <scope>provided</scope>
     </dependency>
   </dependencies>
-  <profiles>
-    <profile>
-      <id>integration</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <configuration>
-              <argLine>${argLine}</argLine>
-              <forkCount>7</forkCount>
-              <reuseForks>false</reuseForks>
-              <includes>
-                <include>**/*IntegrationTest.java</include>
-              </includes>
-            </configuration>
-            <executions>
-              <execution>
-                <id>integration-test</id>
-                <goals>
-                  <goal>integration-test</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>verify</id>
-                <goals>
-                  <goal>verify</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>

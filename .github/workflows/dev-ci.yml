@@ -11,11 +11,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up JDK 8
+      - name: Set up JDK 8 and 17
         uses: actions/setup-java@v4
         with:
-          java-version: '8'
+          java-version: |
+            8
+            17
           distribution: 'temurin'
+          check-latest: false
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -35,6 +38,9 @@ jobs:
       - name: Build for Spark 3.5
         run: |
           mvn -B -e install -P3.5 -DskipTests
+      - name: Build for Spark 4.0
+        run: |
+          mvn -B -e install -P4.0 -DskipTests
       - name: Get short commit hash
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -42,6 +48,12 @@ jobs:
         run: |
           mkdir shaded-jars
           for file in spark-3.*/target/spark-3.*.jar; do
+            if [[ "$file" == *"lib"* || "$file" == *"original"* ]]; then
+              continue
+            fi
+            cp "$file" shaded-jars/
+          done
+          for file in spark-4.*/target/spark-4.*.jar; do
             if [[ "$file" == *"lib"* || "$file" == *"original"* ]]; then
               continue
             fi

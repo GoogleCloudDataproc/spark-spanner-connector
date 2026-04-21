@@ -17,8 +17,8 @@ package com.google.cloud.spark.spanner.integration;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.cloud.spark.spanner.TestData;
 import java.util.Arrays;
@@ -131,13 +131,14 @@ public class CatalogWriteIntegrationTest extends SparkCatalogSpannerIntegrationT
     // 3. Second writeTo().create() (ErrorIfExists) should fail since the table already exists.
     Dataset<Row> secondDf =
         spark.sql("SELECT CAST(302 AS BIGINT) AS long_col, 'three-oh-two' AS string_col");
-    try {
-      secondDf.writeTo(catalogTable).tableProperty("primaryKeys", "long_col").create();
-      fail("Expected exception was not thrown");
-    } catch (Exception e) {
-      assertTrue(
-          "Expected exception message about table already exists, but got: " + e.getMessage(),
-          e.getMessage().contains("already exists"));
-    }
+    TableAlreadyExistsException e =
+        assertThrows(
+            TableAlreadyExistsException.class,
+            () -> {
+              secondDf.writeTo(catalogTable).tableProperty("primaryKeys", "long_col").create();
+            });
+    assertTrue(
+        "Expected exception message about table already exists, but got: " + e.getMessage(),
+        e.getMessage().contains("already exists"));
   }
 }

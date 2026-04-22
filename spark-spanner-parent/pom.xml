@@ -530,7 +530,7 @@
                   <executions>
                     <execution>
                       <goals>
-                        <goal>toolchain</goal>
+                        <goal>select-jdk-toolchain</goal>
                       </goals>
                     </execution>
                   </executions>
@@ -563,6 +563,9 @@
                     but apparently the excludes filters above fail to exclude
                     all integration tests (e.g., ReadIntegrationTestBase.java,
                     SpannerInputPartitionReaderContextTest.java) -->
+                  <jdkToolchain>
+                    <version>${toolchain.jdk.version}</version>
+                  </jdkToolchain>
                 </configuration>
             </plugin>
             <plugin>
@@ -766,6 +769,9 @@
                             <includes>
                                 <include>**/*IntegrationTest.java</include>
                             </includes>
+                            <jdkToolchain>
+                              <version>${toolchain.jdk.version}</version>
+                            </jdkToolchain>
                         </configuration>
                         <executions>
                             <execution>

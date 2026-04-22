@@ -50,21 +50,6 @@
       <version>${project.version}</version>
     </dependency>
   </dependencies>
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-toolchains-plugin</artifactId>
-        <configuration>
-          <toolchains>
-            <jdk>
-              <version>17</version>
-            </jdk>
-          </toolchains>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
   <profiles>
     <profile>
       <id>integration</id>
@@ -99,6 +84,9 @@
                 --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
                 @{argLine}
               </argLine>
+              <jdkToolchain>
+                <version>${toolchain.jdk.version}</version>
+              </jdkToolchain>
             </configuration>
             <executions>
               <execution>

@@ -70,17 +70,6 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-toolchains-plugin</artifactId>
-        <configuration>
-          <toolchains>
-            <jdk>
-              <version>8</version>
-            </jdk>
-          </toolchains>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
 </project>

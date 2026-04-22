@@ -24,8 +24,12 @@ import org.apache.spark.sql.types.StructType;
 
 public class Spark40SpannerDataWriterTest extends SpannerDataWriterTestBase {
 
+  private scala.Function1<Object, Object> converter;
+
   @Override
-  protected void localSetup() {}
+  protected void localSetup() {
+    converter = CatalystTypeConverters.createToCatalystConverter(schema);
+  }
 
   @Override
   protected Encoder<Row> getEncoder(StructType schema) {
@@ -37,6 +41,6 @@ public class Spark40SpannerDataWriterTest extends SpannerDataWriterTestBase {
   protected InternalRow CreateInternalRow(long i) {
     Row row = RowFactory.create(i, "row" + i);
 
-    return (InternalRow) CatalystTypeConverters.createToCatalystConverter(schema).apply(row);
+    return (InternalRow) converter.apply(row);
   }
 }

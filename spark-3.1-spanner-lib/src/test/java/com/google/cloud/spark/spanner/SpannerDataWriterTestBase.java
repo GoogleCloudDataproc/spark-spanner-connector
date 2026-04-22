@@ -459,9 +459,6 @@ public abstract class SpannerDataWriterTestBase {
   }
 
   protected InternalRow CreateInternalRow(long i) {
-    //    ExpressionEncoder<Row> exprEncoder = (ExpressionEncoder<Row>) encoder;
-    //    ExpressionEncoder.Serializer<Row> serializer = exprEncoder.createSerializer();
-    //    return serializer.apply(RowFactory.create(i, "row" + i));
     return serializer.apply(RowFactory.create(i, "row" + i));
   }
 }

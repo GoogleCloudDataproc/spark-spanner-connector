@@ -16,7 +16,7 @@
     <spark.version>4.0.1</spark.version>
     <scala.version>2.13</scala.version>
     <shade.skip>true</shade.skip>
-    <toolchain.jdk.version>17</toolchain.jdk.version>
+    <toolchain.jdk.version>[17,18)</toolchain.jdk.version>
     <maven.compiler.release>17</maven.compiler.release>
   </properties>
   <licenses>

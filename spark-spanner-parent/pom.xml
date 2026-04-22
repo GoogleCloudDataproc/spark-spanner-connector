@@ -74,7 +74,7 @@
         <!-- checkstyle
         <checkstyle.header.file>${reactor.project.basedir}/java.header</checkstyle.header.file>
         -->
-      <toolchain.jdk.version>1.8</toolchain.jdk.version>
+      <toolchain.jdk.version>[1.8,9)</toolchain.jdk.version>
       <maven.compiler.release></maven.compiler.release>
       <maven.compiler.source>1.8</maven.compiler.source>
       <maven.compiler.target>1.8</maven.compiler.target>

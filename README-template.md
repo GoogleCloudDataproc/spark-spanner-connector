@@ -59,7 +59,8 @@ Note 1: Dataproc compatibility to be tested.
 
 ### Connector to Java Compatibility
 
-Spark 3.x connectors require Java 8 or 11.
+Spark 3.1, 3.2 connectors require Java 8 or 11.
+Spark 3.3,3.5 connectors require Java 8, 11 or 17
 Spark 4.x connectors require Java 17+.
 
 ### Maven / Ivy Package

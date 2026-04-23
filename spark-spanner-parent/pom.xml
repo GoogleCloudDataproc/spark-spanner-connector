@@ -48,6 +48,7 @@
     </distributionManagement>
 
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <gpg.skip>true</gpg.skip>
         <revision>0.0.1-SNAPSHOT</revision>
 

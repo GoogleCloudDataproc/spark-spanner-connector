@@ -15,7 +15,8 @@
 
 set -euxo pipefail
 
-readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository"
+readonly MVN_NT="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository"
+readonly MVN="${MVN_NT} -t toolchains.xml"
 readonly STEP=$1
 
 cd /workspace
@@ -23,13 +24,16 @@ cd /workspace
 case $STEP in
   # Download maven and all the dependencies
   init)
-    $MVN install -DskipTests -P3.1,3.2,3.3,3.5
+    $MVN_NT toolchains:generate-jdk-toolchains-xml -Dtoolchain.file=toolchains.xml
+    cat toolchains.xml
+
+    $MVN install -DskipTests -P3.1,3.2,3.3,3.5,4.0
     exit
     ;;
 
   # Run unit tests
   unittest)
-    $MVN test -T 1C -P3.1,3.2,3.3,3.5
+    $MVN test -T 1C -P3.1,3.2,3.3,3.5,4.0
     ;;
 
 

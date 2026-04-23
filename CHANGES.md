@@ -2,6 +2,8 @@
 
 ## Next
 
+*   Debug the acceptance test flakiness.
+
 ## 1.3.0 - 2026-03-13
 
 *   Add a tool to run write-only performance benchmarks.

@@ -18,6 +18,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.api.gax.longrunning.OperationSnapshot;
+import com.google.api.gax.longrunning.OperationTimedPollAlgorithm;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.dataproc.v1.*;
 import com.google.cloud.dataproc.v1.Batch;
 import com.google.cloud.dataproc.v1.BatchControllerClient;
@@ -49,12 +51,16 @@ import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The acceptance test on the Dataproc Serverless. The test have to be running on the project with
  * requireOsLogin disabled, otherwise an org policy violation error will be thrown.
  */
 public class DataprocServerlessAcceptanceTestBase {
+  private static final Logger logger =
+      LoggerFactory.getLogger(DataprocServerlessAcceptanceTestBase.class);
   public static final String REGION = "us-central1";
   public static final String DATAPROC_ENDPOINT = REGION + "-dataproc.googleapis.com:443";
   public static final String PROJECT_ID =
@@ -85,21 +91,37 @@ public class DataprocServerlessAcceptanceTestBase {
   private static String classTestBaseGcsDir;
 
   BatchControllerClient batchController;
-  String testName =
-      getClass()
-          .getSimpleName()
-          .substring(0, getClass().getSimpleName().length() - 32)
-          .toLowerCase(Locale.ENGLISH);
-  String testId = String.format("%s-%s", testName, System.currentTimeMillis());
-  String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
-  AcceptanceTestContext context =
-      new AcceptanceTestContext(
-          testId, generateClusterName(testId), testBaseGcsDir, classConnectorJarUri);
-
   private final String s8sImageVersion;
+  private final String testName;
+  private AcceptanceTestContext context;
 
   public DataprocServerlessAcceptanceTestBase(String s8sImageVersion) {
     this.s8sImageVersion = s8sImageVersion;
+    testName = s8sImageVersion.replace(".", "").toLowerCase(Locale.ENGLISH);
+  }
+
+  private AcceptanceTestContext generateContext(String testId) {
+    // Cluster name has a length limit of 63 characters. The name format is:
+    // <prefix><testName>-<testId>-<time in milliseconds>
+    //
+    // To prevent naming collisions it will be made unique as follows:
+    //
+    // prefix ("spanner-serverless-acceptance-"): 30 characters
+    // testName - we'll use just the image version as the test name: 2 characters
+    //   The image version will be something like "latest" or "2.2", so we'll remove the dot.
+    // - : 1 character
+    // testId a unique name for the individual test: maximum 6 characters
+    // - : 1 character
+    // time in milliseconds - currentTimeMillis returns 13 digits (until the year 2286),
+    // Total 55 characters
+    final String testUniqueId =
+        String.format("%s-%s-%s", testName, testId, System.currentTimeMillis());
+    final String clusterName = generateClusterName(testUniqueId);
+
+    logger.info("clusterName: {}", clusterName);
+
+    final String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testUniqueId);
+    return new AcceptanceTestContext(testId, clusterName, testBaseGcsDir, classConnectorJarUri);
   }
 
   protected static void setup(String connectorJarDirectory, String connectorJarPrefix)
@@ -118,14 +140,31 @@ public class DataprocServerlessAcceptanceTestBase {
 
   @Before
   public void createBatchControllerClient() throws Exception {
-    batchController =
-        BatchControllerClient.create(
-            BatchControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT).build());
+    org.threeten.bp.Duration totalTimeout =
+        org.threeten.bp.Duration.ofSeconds(SERVERLESS_BATCH_TIMEOUT_IN_SECONDS);
+
+    BatchControllerSettings.Builder settingsBuilder =
+        BatchControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT);
+
+    // Configure the polling algorithm for the 'createBatch' operation
+    settingsBuilder
+        .createBatchOperationSettings()
+        .setPollingAlgorithm(
+            OperationTimedPollAlgorithm.create(
+                RetrySettings.newBuilder()
+                    .setInitialRetryDelay(org.threeten.bp.Duration.ofSeconds(5))
+                    .setRetryDelayMultiplier(1.5)
+                    .setMaxRetryDelay(org.threeten.bp.Duration.ofMinutes(1))
+                    .setTotalTimeout(totalTimeout) // Ensures
+                    .build()));
+
+    batchController = BatchControllerClient.create(settingsBuilder.build());
   }
 
   @After
   public void tearDown() throws Exception {
     if (batchController != null) {
+      logger.info("Tearing down batchController...");
       batchController.close();
     }
     AcceptanceTestUtils.deleteGcsDir(context.testBaseGcsDir);
@@ -133,6 +172,8 @@ public class DataprocServerlessAcceptanceTestBase {
 
   @Test
   public void testBatch() throws Exception {
+    // Provide a unique test name to identify the batch associated with this test.
+    context = generateContext("batch");
     OperationSnapshot operationSnapshot =
         createAndRunPythonBatch(
             context,
@@ -149,6 +190,8 @@ public class DataprocServerlessAcceptanceTestBase {
 
   @Test
   public void testWrite() throws Exception {
+    // Provide a unique test name to identify the batch associated with this test.
+    context = generateContext("write");
     OperationSnapshot operationSnapshot =
         createAndRunPythonBatch(
             context,
@@ -279,6 +322,8 @@ public class DataprocServerlessAcceptanceTestBase {
   }
 
   public static String generateClusterName(String testId) {
-    return String.format("spanner-connector-serverless-acceptance-%s", testId);
+    String clusterName = String.format("spanner-serverless-acceptance-%s", testId);
+    // cluster name must conform to pattern '[a-z0-9][a-z0-9\-]{2,61}[a-z0-9]'
+    return clusterName.toLowerCase();
   }
 }

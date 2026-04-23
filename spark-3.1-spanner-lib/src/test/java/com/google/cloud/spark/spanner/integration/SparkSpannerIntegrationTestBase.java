@@ -34,6 +34,7 @@ public class SparkSpannerIntegrationTestBase extends SpannerTestBase {
             .appName("SparkSpannerIntegrationTest")
             .config("spark.ui.enabled", "false")
             .config("spark.default.parallelism", 20)
+            .config("spark.sql.legacy.timeParserPolicy", "LEGACY")
             .getOrCreate();
 
     if (catalogProps.get("emulatorHost") != null) {

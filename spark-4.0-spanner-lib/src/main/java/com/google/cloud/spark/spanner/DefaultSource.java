@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,21 +14,4 @@
 
 package com.google.cloud.spark.spanner;
 
-import org.apache.spark.sql.Encoder;
-import org.apache.spark.sql.Encoders;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
-import org.apache.spark.sql.types.StructType;
-
-public class Spark35SpannerDataWriterTest extends SpannerDataWriterTestBase {
-
-  @Override
-  protected void localSetup() {
-    serializer = ((ExpressionEncoder<Row>) encoder).createSerializer();
-  }
-
-  @Override
-  protected Encoder<Row> getEncoder(StructType schema) {
-    return Encoders.row(schema);
-  }
-}
+public class DefaultSource extends Spark40SpannerTableProvider {}

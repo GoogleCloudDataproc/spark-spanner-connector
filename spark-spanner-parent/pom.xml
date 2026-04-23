@@ -69,9 +69,15 @@
         <deploy.skip>true</deploy.skip>
         <nexus.remote.skip>false</nexus.remote.skip>
         <shade.skip>true</shade.skip>
+        <!-- Initialize to empty to avoid "not defined" error -->
+        <argLine></argLine>
         <!-- checkstyle
         <checkstyle.header.file>${reactor.project.basedir}/java.header</checkstyle.header.file>
         -->
+      <toolchain.jdk.version>[1.8,9)</toolchain.jdk.version>
+      <maven.compiler.release></maven.compiler.release>
+      <maven.compiler.source>1.8</maven.compiler.source>
+      <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -517,23 +523,38 @@
                         <skip>${deploy.skip}</skip>
                     </configuration>
                 </plugin>
+                <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-toolchains-plugin</artifactId>
+                  <version>3.2.0</version>
+                  <executions>
+                    <execution>
+                      <goals>
+                        <goal>select-jdk-toolchain</goal>
+                      </goals>
+                    </execution>
+                  </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <version>3.11.0</version>
+              <configuration>
+                <jdkToolchain>
+                  <version>${toolchain.jdk.version}</version>
+                </jdkToolchain>
+              </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>${argLine}</argLine>
+                    <argLine>
+                      ${argLine}
+                    </argLine>
                     <excludes>
                         <exclude>**/*AcceptanceTest.java</exclude>
                         <exclude>**/*IntegrationTest.java</exclude>
@@ -542,6 +563,9 @@
                     but apparently the excludes filters above fail to exclude
                     all integration tests (e.g., ReadIntegrationTestBase.java,
                     SpannerInputPartitionReaderContextTest.java) -->
+                  <jdkToolchain>
+                    <version>${toolchain.jdk.version}</version>
+                  </jdkToolchain>
                 </configuration>
             </plugin>
             <plugin>
@@ -745,6 +769,9 @@
                             <includes>
                                 <include>**/*IntegrationTest.java</include>
                             </includes>
+                            <jdkToolchain>
+                              <version>${toolchain.jdk.version}</version>
+                            </jdkToolchain>
                         </configuration>
                         <executions>
                             <execution>

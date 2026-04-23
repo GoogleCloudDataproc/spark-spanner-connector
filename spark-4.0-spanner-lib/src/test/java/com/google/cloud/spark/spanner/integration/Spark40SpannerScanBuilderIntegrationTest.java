@@ -12,23 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.integration;
 
-import org.apache.spark.sql.Encoder;
-import org.apache.spark.sql.Encoders;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
-import org.apache.spark.sql.types.StructType;
-
-public class Spark35SpannerDataWriterTest extends SpannerDataWriterTestBase {
-
-  @Override
-  protected void localSetup() {
-    serializer = ((ExpressionEncoder<Row>) encoder).createSerializer();
-  }
-
-  @Override
-  protected Encoder<Row> getEncoder(StructType schema) {
-    return Encoders.row(schema);
-  }
-}
+public class Spark40SpannerScanBuilderIntegrationTest
+    extends SpannerScanBuilderIntegrationTestBase {}

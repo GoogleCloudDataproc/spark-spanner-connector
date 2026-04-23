@@ -33,6 +33,7 @@ import com.google.cloud.spanner.Value;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Verify;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import java.io.IOException;
@@ -50,6 +51,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -64,10 +66,24 @@ import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.threeten.bp.Duration;
 
 public class SpannerUtils {
+
+  // GCP project ID naming rules (also allows legacy domain-scoped projects like
+  // "example.com:my-project" and numeric project IDs):
+  //   https://cloud.google.com/resource-manager/docs/creating-managing-projects
+  private static final Pattern VALID_PROJECT_ID_PATTERN =
+      Pattern.compile("^[a-z][a-z0-9.:-]*[a-z0-9]$|^[0-9]+$");
+
+  // Spanner resource ID naming rules (superset covering both instance and database IDs):
+  // Instance IDs: [a-z][-a-z0-9]*[a-z0-9], 2-64 chars.
+  //   https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/create
+  // Database IDs: [a-z][a-z0-9_\-]*[a-z0-9], 2-30 chars.
+  //   https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create
+  private static final Pattern VALID_ID_PATTERN = Pattern.compile("^[a-z][a-z0-9_-]*[a-z0-9]$");
 
   private static final RetrySettings RETRY_SETTING =
       RetrySettings.newBuilder()
@@ -94,6 +110,8 @@ public class SpannerUtils {
   static final String CONNECTOR_VERSION = loadConnectorVersion();
 
   public static final String COLUMN_TYPE = "col_type";
+
+  public static final String PRIMARY_KEY_TAG = "spanner.primaryKey";
 
   public static Long SECOND_TO_DAYS = 60 * 60 * 24L;
 
@@ -162,9 +180,28 @@ public class SpannerUtils {
   }
 
   public static Connection connectionFromProperties(Map<String, String> properties) {
+    CaseInsensitiveStringMap caseInsensitiveOptions = new CaseInsensitiveStringMap(properties);
+
+    return connectionFromProperties(
+        caseInsensitiveOptions.get("projectId"),
+        caseInsensitiveOptions.get("instanceId"),
+        caseInsensitiveOptions.get("databaseId"),
+        caseInsensitiveOptions.get("emulatorHost"));
+  }
+
+  public static Connection connectionFromProperties(
+      String projectId, String instanceId, String databaseId, @Nullable String emulatorHost) {
+
+    Verify.verifyNotNull(projectId, "projectId");
+    Verify.verifyNotNull(instanceId, "instanceId");
+    Verify.verifyNotNull(databaseId, "databaseId");
+    validateProjectId(projectId);
+    validateResourceId(instanceId, "instanceId");
+    validateResourceId(databaseId, "databaseId");
+
     String connUriPrefix = "cloudspanner:";
-    String emulatorHost = properties.get("emulatorHost");
     if (emulatorHost != null) {
+      validateEmulatorHost(emulatorHost);
       connUriPrefix = "cloudspanner://" + emulatorHost;
     }
 
@@ -172,9 +209,9 @@ public class SpannerUtils {
         String.format(
             connUriPrefix
                 + "/projects/%s/instances/%s/databases/%s?autoConfigEmulator=%s;usePlainText=%s",
-            properties.get("projectId"),
-            properties.get("instanceId"),
-            properties.get("databaseId"),
+            projectId,
+            instanceId,
+            databaseId,
             emulatorHost != null,
             emulatorHost != null);
 
@@ -184,12 +221,61 @@ public class SpannerUtils {
     return opts.getConnection();
   }
 
-  public static BatchClientWithCloser batchClientFromProperties(Map<String, String> properties) {
+  @VisibleForTesting
+  static void validateProjectId(String value) {
+    if (!VALID_PROJECT_ID_PATTERN.matcher(value).matches()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "Invalid projectId: '"
+              + value
+              + "'. Must contain only lowercase letters, digits, hyphens, dots, and colons.");
+    }
+  }
+
+  @VisibleForTesting
+  static void validateResourceId(String value, String name) {
+    if (!VALID_ID_PATTERN.matcher(value).matches()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "Invalid "
+              + name
+              + ": '"
+              + value
+              + "'. Must contain only lowercase letters, digits, hyphens, and underscores.");
+    }
+  }
+
+  @VisibleForTesting
+  static void validateEmulatorHost(String host) {
+    if (host.contains("?") || host.contains(";") || host.contains(" ") || host.contains("/")) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "Invalid emulatorHost: '" + host + "'. Must not contain URI-sensitive characters.");
+    }
+  }
+
+  public static BatchClientWithCloser batchClientFromProperties(
+      CaseInsensitiveStringMap properties) {
     return batchClientFromProperties(properties, defaultSessionPoolOptions);
   }
 
   public static BatchClientWithCloser batchClientFromProperties(
-      Map<String, String> properties, SessionPoolOptions sessionPoolOptions) {
+      CaseInsensitiveStringMap properties, SessionPoolOptions sessionPoolOptions) {
+    SpannerOptions options = buildSpannerOptions(properties, sessionPoolOptions);
+    Spanner spanner = options.getService();
+    DatabaseId databaseId =
+        DatabaseId.of(
+            options.getProjectId(), properties.get("instanceId"), properties.get("databaseId"));
+    return new BatchClientWithCloser(
+        spanner, spanner.getBatchClient(databaseId), spanner.getDatabaseClient(databaseId));
+  }
+
+  public static SpannerOptions buildSpannerOptions(CaseInsensitiveStringMap properties) {
+    return buildSpannerOptions(properties, defaultSessionPoolOptions);
+  }
+
+  public static SpannerOptions buildSpannerOptions(
+      CaseInsensitiveStringMap properties, SessionPoolOptions sessionPoolOptions) {
     SpannerOptions.Builder builder =
         SpannerOptions.newBuilder()
             .setSessionPoolOption(sessionPoolOptions)
@@ -222,13 +308,7 @@ public class SpannerUtils {
     }
     System.setProperty("com.google.cloud.spanner.watchdogTimeoutSeconds", "7200");
 
-    SpannerOptions options = builder.build();
-    Spanner spanner = options.getService();
-    DatabaseId databaseId =
-        DatabaseId.of(
-            options.getProjectId(), properties.get("instanceId"), properties.get("databaseId"));
-    return new BatchClientWithCloser(
-        spanner, spanner.getBatchClient(databaseId), spanner.getDatabaseClient(databaseId));
+    return builder.build();
   }
 
   public static void toSparkDecimal(GenericInternalRow dest, java.math.BigDecimal v, int at) {
@@ -503,13 +583,13 @@ public class SpannerUtils {
     return prunedSchema;
   }
 
-  static String getRequiredOption(Map<String, String> properties, String option) {
-    String tableName = properties.get(option);
-    if (tableName == null) {
+  static String getRequiredOption(CaseInsensitiveStringMap properties, String option) {
+    String value = properties.get(option);
+    if (value == null) {
       throw new SpannerConnectorException(
           SpannerErrorCode.INVALID_ARGUMENT, "Option '" + option + "' property must be set");
     }
-    return tableName;
+    return value;
   }
 
   public static void validateSchema(

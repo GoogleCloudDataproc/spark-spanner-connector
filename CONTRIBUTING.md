@@ -43,13 +43,74 @@ a GCP Project with a valid service account.
 For instructions on how to generate a service account and corresponding
 credentials JSON see: [Creating a Service Account][1].
 
-Then run the following to build, package, run all unit tests and run all
-integration tests.
+Then run the following to build, package, and run all integration tests.
+There are two profiles for different test suites:
+1. `integration`: for integration tests (`*IntegrationTest.java`)
+2. `acceptance`: for acceptance tests (`*AcceptanceTest.java`)
 
 ```bash
+# To run all integration tests:
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service/account.json
-mvn -Penable-integration-tests clean verify
+mvn clean verify -Pintegration
+
+# To run all acceptance tests:
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service/account.json
+mvn clean verify -Pacceptance
 ```
+
+#### Integration Test Setup
+
+The integration tests require a Cloud Spanner instance and database. There are two ways to set this up:
+
+1.  **Automatic Test-Managed Database (for CI/temporary use):**
+    By default, the test suite will automatically create a temporary database with a unique name for the test run and delete it afterwards. It will also attempt to create a Spanner instance if one is not found. This is convenient for isolated test runs.
+
+2.  **User-Managed Database (for local development):**
+    For local development, it's often better to use a stable, long-lived database. The provided `scripts/setup-test-db.sh` script is the recommended way to do this.
+
+    The script will:
+    *   Create a Cloud Spanner instance if it doesn't exist.
+    *   Create (or drop and recreate) GoogleSQL and PostgreSQL-dialect databases.
+    *   Populate the databases with the required schema and test data.
+
+    To use this script, first set the required environment variables, then run it:
+    ```bash
+    ./scripts/setup-test-db.sh
+    ```
+
+    After running the script, you must set an additional environment variable to tell the test suite to use this pre-existing database and not create a temporary one:
+    ```bash
+    export SPANNER_USE_EXISTING_DATABASE=true
+    ```
+
+#### Environment Variables
+
+The integration tests are configured through the following environment variables:
+
+*   `SPANNER_PROJECT_ID`: Your Google Cloud project ID.
+*   `SPANNER_INSTANCE_ID`: The ID for the Cloud Spanner instance to use or create.
+*   `SPANNER_DATABASE_ID`: The base name for the test databases. The setup script will create a GoogleSQL database with this name and a PostgreSQL database named `${SPANNER_DATABASE_ID}-pg`.
+*   `GOOGLE_APPLICATION_CREDENTIALS`: (Optional if you have already authenticated with `gcloud auth application-default login`) Path to your service account credentials JSON file.
+*   `SPANNER_USE_EXISTING_DATABASE`: If set to `true`, the tests will use the database specified by `SPANNER_DATABASE_ID` and `SPANNER_INSTANCE_ID` without trying to create or delete it. This is useful for running tests against a database created with `scripts/setup-test-db.sh`.
+*   `SPANNER_EMULATOR_HOST`: (Optional) If you are running a local Cloud Spanner emulator, set this to the emulator's address (e.g., `localhost:9010`). Note that the emulator does not support PostgreSQL dialect tests.
+
+#### Running Specific Tests
+
+You can run a single integration test class or a specific test method using Maven.
+
+To run all tests in `Spark31WriteIntegrationTest`, which is in the `spark-3.1-spanner-lib` module:
+```bash
+mvn verify -Pintegration -Dtest=com.google.cloud.spark.spanner.integration.Spark31WriteIntegrationTest
+```
+
+To run a specific method, like `testWriteWithNulls`, within that class:
+```bash
+mvn verify -Pintegration -Dtest=com.google.cloud.spark.spanner.integration.Spark31WriteIntegrationTest#testWriteWithNulls
+```
+
+*Note: Some test classes like `Spark31WriteIntegrationTest` may be subclasses that inherit tests from a base class. You should specify the concrete subclass in the test command.*
+
+The same principles apply to other test classes, modules, and profiles like `-Pacceptance`.
 
 ## Code Samples
 

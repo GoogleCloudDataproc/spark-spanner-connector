@@ -18,6 +18,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.api.gax.longrunning.OperationSnapshot;
+import com.google.api.gax.longrunning.OperationTimedPollAlgorithm;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.dataproc.v1.*;
 import com.google.cloud.dataproc.v1.Batch;
 import com.google.cloud.dataproc.v1.BatchControllerClient;
@@ -49,12 +51,16 @@ import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The acceptance test on the Dataproc Serverless. The test have to be running on the project with
  * requireOsLogin disabled, otherwise an org policy violation error will be thrown.
  */
 public class DataprocServerlessAcceptanceTestBase {
+  private static final Logger logger =
+      LoggerFactory.getLogger(DataprocServerlessAcceptanceTestBase.class);
   public static final String REGION = "us-central1";
   public static final String DATAPROC_ENDPOINT = REGION + "-dataproc.googleapis.com:443";
   public static final String PROJECT_ID =
@@ -81,50 +87,93 @@ public class DataprocServerlessAcceptanceTestBase {
   private static Spanner spanner =
       SpannerOptions.newBuilder().setProjectId(PROJECT_ID).build().getService();
 
+  private static String classConnectorJarUri;
+  private static String classTestBaseGcsDir;
+
   BatchControllerClient batchController;
-  String testName =
-      getClass()
-          .getSimpleName()
-          .substring(0, getClass().getSimpleName().length() - 32)
-          .toLowerCase(Locale.ENGLISH);
-  String testId = String.format("%s-%s", testName, System.currentTimeMillis());
-  String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
-  String connectorJarUri = testBaseGcsDir + "/connector.jar";
-  AcceptanceTestContext context =
-      new AcceptanceTestContext(
-          testId, generateClusterName(testId), testBaseGcsDir, connectorJarUri);
-
   private final String s8sImageVersion;
-  private final String connectorJarDirectory;
-  private final String connectorJarPrefix;
+  private final String testName;
+  private AcceptanceTestContext context;
 
-  public DataprocServerlessAcceptanceTestBase(
-      String connectorJarDirectory, String connectorJarPrefix, String s8sImageVersion) {
-    this.connectorJarDirectory = connectorJarDirectory;
-    this.connectorJarPrefix = connectorJarPrefix;
+  public DataprocServerlessAcceptanceTestBase(String s8sImageVersion) {
     this.s8sImageVersion = s8sImageVersion;
+    testName = s8sImageVersion.replace(".", "").toLowerCase(Locale.ENGLISH);
+  }
+
+  private AcceptanceTestContext generateContext(String testId) {
+    // Cluster name has a length limit of 63 characters. The name format is:
+    // <prefix><testName>-<testId>-<time in milliseconds>
+    //
+    // To prevent naming collisions it will be made unique as follows:
+    //
+    // prefix ("spanner-serverless-acceptance-"): 30 characters
+    // testName - we'll use just the image version as the test name: 2 characters
+    //   The image version will be something like "latest" or "2.2", so we'll remove the dot.
+    // - : 1 character
+    // testId a unique name for the individual test: maximum 6 characters
+    // - : 1 character
+    // time in milliseconds - currentTimeMillis returns 13 digits (until the year 2286),
+    // Total 55 characters
+    final String testUniqueId =
+        String.format("%s-%s-%s", testName, testId, System.currentTimeMillis());
+    final String clusterName = generateClusterName(testUniqueId);
+
+    logger.info("clusterName: {}", clusterName);
+
+    final String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testUniqueId);
+    return new AcceptanceTestContext(testId, clusterName, testBaseGcsDir, classConnectorJarUri);
+  }
+
+  protected static void setup(String connectorJarDirectory, String connectorJarPrefix)
+      throws Exception {
+    classTestBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir("shared-" + System.nanoTime());
+    classConnectorJarUri = classTestBaseGcsDir + "/connector.jar";
+    AcceptanceTestUtils.uploadConnectorJar(
+        connectorJarDirectory, connectorJarPrefix, classConnectorJarUri);
+    createSpannerDataset();
+  }
+
+  protected static void teardown() throws Exception {
+    deleteSpannerDatasetAndTables();
+    AcceptanceTestUtils.deleteGcsDir(classTestBaseGcsDir);
   }
 
   @Before
   public void createBatchControllerClient() throws Exception {
-    AcceptanceTestUtils.uploadConnectorJar(
-        connectorJarDirectory, connectorJarPrefix, context.connectorJarUri);
-    createSpannerDataset();
+    org.threeten.bp.Duration totalTimeout =
+        org.threeten.bp.Duration.ofSeconds(SERVERLESS_BATCH_TIMEOUT_IN_SECONDS);
 
-    batchController =
-        BatchControllerClient.create(
-            BatchControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT).build());
+    BatchControllerSettings.Builder settingsBuilder =
+        BatchControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT);
+
+    // Configure the polling algorithm for the 'createBatch' operation
+    settingsBuilder
+        .createBatchOperationSettings()
+        .setPollingAlgorithm(
+            OperationTimedPollAlgorithm.create(
+                RetrySettings.newBuilder()
+                    .setInitialRetryDelay(org.threeten.bp.Duration.ofSeconds(5))
+                    .setRetryDelayMultiplier(1.5)
+                    .setMaxRetryDelay(org.threeten.bp.Duration.ofMinutes(1))
+                    .setTotalTimeout(totalTimeout) // Ensures
+                    .build()));
+
+    batchController = BatchControllerClient.create(settingsBuilder.build());
   }
 
   @After
   public void tearDown() throws Exception {
-    batchController.close();
+    if (batchController != null) {
+      logger.info("Tearing down batchController...");
+      batchController.close();
+    }
     AcceptanceTestUtils.deleteGcsDir(context.testBaseGcsDir);
-    deleteSpannerDatasetAndTables();
   }
 
   @Test
   public void testBatch() throws Exception {
+    // Provide a unique test name to identify the batch associated with this test.
+    context = generateContext("batch");
     OperationSnapshot operationSnapshot =
         createAndRunPythonBatch(
             context,
@@ -137,6 +186,24 @@ public class DataprocServerlessAcceptanceTestBase {
     assertThat(operationSnapshot.getErrorMessage()).isEmpty();
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
     assertThat(output.trim()).isEqualTo("41");
+  }
+
+  @Test
+  public void testWrite() throws Exception {
+    // Provide a unique test name to identify the batch associated with this test.
+    context = generateContext("write");
+    OperationSnapshot operationSnapshot =
+        createAndRunPythonBatch(
+            context,
+            testName,
+            "write_test_table.py",
+            null,
+            Arrays.asList(
+                context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID));
+    assertThat(operationSnapshot.isDone()).isTrue();
+    assertThat(operationSnapshot.getErrorMessage()).isEmpty();
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).startsWith("PASS");
   }
 
   protected static void createSpannerDataset() throws Exception {
@@ -210,11 +277,18 @@ public class DataprocServerlessAcceptanceTestBase {
         context.getScriptUri(testName),
         "text/x-python");
     String parent = String.format("projects/%s/locations/%s", PROJECT_ID, REGION);
+    RuntimeConfig.Builder runtimeConfigBuilder =
+        RuntimeConfig.newBuilder().setVersion(s8sImageVersion);
+    runtimeConfigBuilder.putProperties(
+        "spark.sql.catalog.spanner", "com.google.cloud.spark.spanner.SpannerCatalog");
+    runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.projectId", PROJECT_ID);
+    runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.instanceId", INSTANCE_ID);
+    runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.databaseId", DATABASE_ID);
     Batch batch =
         Batch.newBuilder()
             .setName(parent + "/batches/" + context.clusterId)
             .setPysparkBatch(createPySparkBatchBuilder(context, testName, pythonZipUri, args))
-            .setRuntimeConfig(RuntimeConfig.newBuilder().setVersion(s8sImageVersion))
+            .setRuntimeConfig(runtimeConfigBuilder)
             .build();
 
     OperationFuture<Batch, BatchOperationMetadata> batchAsync =
@@ -248,6 +322,8 @@ public class DataprocServerlessAcceptanceTestBase {
   }
 
   public static String generateClusterName(String testId) {
-    return String.format("spanner-connector-serverless-acceptance-%s", testId);
+    String clusterName = String.format("spanner-serverless-acceptance-%s", testId);
+    // cluster name must conform to pattern '[a-z0-9][a-z0-9\-]{2,61}[a-z0-9]'
+    return clusterName.toLowerCase();
   }
 }

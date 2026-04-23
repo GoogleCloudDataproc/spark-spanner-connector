@@ -27,7 +27,6 @@ import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +35,6 @@ import org.slf4j.LoggerFactory;
  */
 public class SpannerScanBuilder
     implements ScanBuilder, SupportsPushDownFilters, SupportsPushDownRequiredColumns {
-  private CaseInsensitiveStringMap opts;
   private List<Filter> pushedFilters;
   private Set<String> requiredColumns;
   private SpannerScanner scanner;
@@ -44,10 +42,9 @@ public class SpannerScanBuilder
   private SpannerTable spannerTable;
   private Map<String, StructField> fields;
 
-  public SpannerScanBuilder(CaseInsensitiveStringMap options) {
-    this.opts = options;
+  public SpannerScanBuilder(SpannerTable spannerTable) {
     this.pushedFilters = new ArrayList<Filter>();
-    this.spannerTable = new SpannerTable(options);
+    this.spannerTable = spannerTable;
     this.fields = new LinkedHashMap<>();
     for (StructField field : spannerTable.schema().fields()) {
       fields.put(field.name(), field);
@@ -58,7 +55,7 @@ public class SpannerScanBuilder
   public Scan build() {
     this.scanner =
         new SpannerScanner(
-            this.opts.asCaseSensitiveMap(),
+            this.spannerTable.properties(),
             this.spannerTable,
             this.fields,
             this.pushedFilters(),

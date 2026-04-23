@@ -17,11 +17,7 @@ package com.google.cloud.spark.spanner.integration;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.spark.spanner.SpannerInputPartitionReaderContext;
-import com.google.cloud.spark.spanner.SpannerPartitionReader;
-import com.google.cloud.spark.spanner.SpannerScanBuilder;
-import com.google.cloud.spark.spanner.SpannerScanner;
-import com.google.cloud.spark.spanner.SpannerUtils;
+import com.google.cloud.spark.spanner.*;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -41,7 +37,6 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,11 +44,20 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestBase {
 
+  private static SpannerTable getSpannerTable(boolean usePostgreSql) {
+    Map<String, String> connectionProperties = connectionProperties(usePostgreSql);
+    return new SpannerTable(connectionProperties);
+  }
+
+  protected static SpannerTable getSpannerTable(String tableName, boolean usePostgreSql) {
+    Map<String, String> connectionProperties = connectionProperties(usePostgreSql);
+    connectionProperties.put("table", tableName);
+    return new SpannerTable(connectionProperties);
+  }
+
   @Test
   public void readSchemaShouldWorkInSpannerScanBuilder() throws Exception {
-    Map<String, String> opts = this.connectionProperties();
-    CaseInsensitiveStringMap copts = new CaseInsensitiveStringMap(opts);
-    Scan scan = new SpannerScanBuilder(copts).build();
+    Scan scan = new SpannerScanBuilder(getSpannerTable(false)).build();
     MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
     jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
     StructType actualSchema = scan.readSchema();
@@ -87,9 +91,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
           "readSchemaShouldWorkInSpannerScanBuilderForPg is skipped since pg is not supported in Spanner emulator");
       return;
     }
-    Map<String, String> opts = this.connectionProperties(/* usePostgreSql= */ true);
-    CaseInsensitiveStringMap copts = new CaseInsensitiveStringMap(opts);
-    Scan scan = new SpannerScanBuilder(copts).build();
+    Scan scan = new SpannerScanBuilder(getSpannerTable(true)).build();
     StructType actualSchema = scan.readSchema();
     MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
     jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
@@ -125,10 +127,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
 
   @Test
   public void planInputPartitionsShouldSuccessInSpannerScanBuilder() throws Exception {
-    Map<String, String> opts = this.connectionProperties();
-    opts.put("table", "ATable");
-    CaseInsensitiveStringMap optionMap = new CaseInsensitiveStringMap(opts);
-    SpannerScanBuilder spannerScanBuilder = new SpannerScanBuilder(optionMap);
+    SpannerScanBuilder spannerScanBuilder =
+        new SpannerScanBuilder(getSpannerTable("ATable", false));
     SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
     InputPartition[] partitions = ss.planInputPartitions();
     PartitionReaderFactory prf = ss.createReaderFactory();
@@ -202,10 +202,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
           "planInputPartitionsShouldSucceedInSpannerScanBuilderPg is skipped since pg is not supported in Spanner emulator");
       return;
     }
-    Map<String, String> opts = this.connectionProperties(true);
-    opts.put("table", "composite_table");
-    CaseInsensitiveStringMap optionMap = new CaseInsensitiveStringMap(opts);
-    SpannerScanBuilder spannerScanBuilder = new SpannerScanBuilder(optionMap);
+    SpannerScanBuilder spannerScanBuilder =
+        new SpannerScanBuilder(getSpannerTable("composite_table", true));
     SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
     InputPartition[] partitions = ss.planInputPartitions();
     PartitionReaderFactory prf = ss.createReaderFactory();

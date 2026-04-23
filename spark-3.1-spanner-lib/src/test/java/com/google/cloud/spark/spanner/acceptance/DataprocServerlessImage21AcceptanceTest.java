@@ -14,6 +14,8 @@
 
 package com.google.cloud.spark.spanner.acceptance;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -25,10 +27,19 @@ import org.junit.runners.JUnit4;
 public final class DataprocServerlessImage21AcceptanceTest
     extends DataprocServerlessAcceptanceTestBase {
 
-  private static AcceptanceTestContext context;
   public static final String CONNECTOR_JAR_DIRECTORY = "../spark-3.1-spanner/target";
 
+  @BeforeClass
+  public static void setUp() throws Exception {
+    setup(CONNECTOR_JAR_DIRECTORY, "spark-3.1-spanner");
+  }
+
+  @AfterClass
+  public static void cleanUp() throws Exception {
+    teardown();
+  }
+
   public DataprocServerlessImage21AcceptanceTest() {
-    super(CONNECTOR_JAR_DIRECTORY, "spark-3.1-spanner", "2.1");
+    super("2.1");
   }
 }

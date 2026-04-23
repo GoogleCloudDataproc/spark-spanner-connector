@@ -15,7 +15,7 @@
 package com.google.cloud.spark.spanner;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -26,6 +26,7 @@ import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
@@ -44,6 +45,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -55,6 +57,7 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -67,10 +70,11 @@ public abstract class SpannerDataWriterTestBase {
 
   private final ScheduledExecutorService scheduledExecutor =
       TestingExecutors.sameThreadScheduledExecutor();
-  private StructType schema;
+  protected StructType schema;
   private Map<String, String> properties;
   private BatchClientWithCloser batchClientWithCloser;
-  private ExpressionEncoder.Serializer<Row> serializer;
+  protected ExpressionEncoder.Serializer<Row> serializer;
+  protected Encoder<Row> encoder;
   @Mock private ExecutorService mockExecutor;
   @Mock private ScheduledExecutorService mockScheduledExecutor;
 
@@ -87,20 +91,23 @@ public abstract class SpannerDataWriterTestBase {
               DataTypes.createStructField("string_col", DataTypes.StringType, true),
             });
 
-    ExpressionEncoder<Row> encoder = getEncoder(schema);
-    serializer = encoder.createSerializer();
+    encoder = getEncoder(schema);
+    localSetup();
     properties = new HashMap<>();
     properties.put("table", "testTable");
     properties.put("mutationsPerBatch", "2"); // Use a small batch size for tests
   }
 
+  /** Provides Spark version specific set up. */
+  protected abstract void localSetup();
+
   /**
    * Gets an ExpressionEncoder, the implementation of which depends on the version of Spark used.
    *
    * @param struct used to determine the Encoder.
-   * @return The ExpressionEncoder.
+   * @return The Encoder.
    */
-  protected abstract ExpressionEncoder<Row> getEncoder(StructType struct);
+  protected abstract Encoder<Row> getEncoder(StructType struct);
 
   private SpannerDataWriter createWriter(Map<String, String> props) {
     return new SpannerDataWriter(
@@ -142,14 +149,14 @@ public abstract class SpannerDataWriterTestBase {
 
       when(mockDatabaseClient.write(any())).thenThrow(immediateError);
 
-      try {
-        writer.commit();
-        throw new AssertionError("Expected exception was not thrown");
-      } catch (Throwable t) {
-        assertThat(t).isInstanceOf(IOException.class);
-        assertThat(t).hasMessageThat().isEqualTo("Failed to commit Spanner partition 0");
-        assertThat(t).hasCauseThat().isInstanceOf(SpannerException.class);
-      }
+      IOException t =
+          assertThrows(
+              IOException.class,
+              () -> {
+                writer.commit();
+              });
+      assertThat(t).hasMessageThat().isEqualTo("Failed to commit Spanner partition 0");
+      assertThat(t).hasCauseThat().isInstanceOf(SpannerException.class);
     }
   }
 
@@ -219,13 +226,13 @@ public abstract class SpannerDataWriterTestBase {
     // The failed future remains on the list
     // Then, the backpressure `while` loop will run, calling waitForOneWrite.
     // waitForOneWrite will call .get() on the failed future, throwing an exception.
-    try {
-      writer.write(CreateInternalRow(1L));
-      throw new AssertionError("Expected exception was not thrown");
-    } catch (Throwable t) {
-      assertThat(t).isInstanceOf(SpannerConnectorException.class);
-      assertThat(t.getCause()).isEqualTo(permanentError);
-    }
+    SpannerConnectorException t =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> {
+              writer.write(CreateInternalRow(1L));
+            });
+    assertThat(t.getCause()).isEqualTo(permanentError);
 
     realExecutor.shutdown();
   }
@@ -290,15 +297,15 @@ public abstract class SpannerDataWriterTestBase {
         .thenAnswer(invocation -> mockTransientFailureStream()) // Call 4 (Retry 3)
         .thenAnswer(invocation -> mockTransientFailureStream()); // Call 5 (Retry 4, MAX_RETRIES)
 
-    try {
-      writer.write(CreateInternalRow(1L));
-      writer.commit();
-      throw new AssertionError("Expected exception was not thrown");
-    } catch (Throwable t) {
-      assertThat(t).isInstanceOf(IOException.class);
-      assertThat(t.getCause()).isInstanceOf(IOException.class);
-      assertThat(t.getCause().getMessage()).contains("Exhausted retries");
-    }
+    IOException t =
+        assertThrows(
+            IOException.class,
+            () -> {
+              writer.write(CreateInternalRow(1L));
+              writer.commit();
+            });
+    assertThat(t.getCause()).isInstanceOf(IOException.class);
+    assertThat(t.getCause().getMessage()).contains("Exhausted retries");
     // We expect MAX_RETRIES + 1 total calls.
     verify(mockDatabaseClient, times(5)).batchWriteAtLeastOnce(any());
   }
@@ -315,14 +322,14 @@ public abstract class SpannerDataWriterTestBase {
       // Always throw an exception when the client is called
       when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenThrow(permanentError);
 
-      try {
-        writer.write(CreateInternalRow(1L));
-        writer.commit();
-        throw new AssertionError("Expected exception was not thrown");
-      } catch (Throwable t) {
-        assertThat(t).isInstanceOf(IOException.class);
-        assertThat(t.getCause()).isEqualTo(permanentError);
-      }
+      IOException t =
+          assertThrows(
+              IOException.class,
+              () -> {
+                writer.write(CreateInternalRow(1L));
+                writer.commit();
+              });
+      assertThat(t.getCause()).isEqualTo(permanentError);
     }
     // We expect MAX_RETRIES + 1 total calls.
     verify(mockDatabaseClient, times(5)).batchWriteAtLeastOnce(any());
@@ -348,16 +355,15 @@ public abstract class SpannerDataWriterTestBase {
   public void testMissingTablePropertyThrowsException() {
     properties.remove("table"); // Make sure 'table' property is missing
 
-    try {
-      // This should fail because the 'table' property is missing.
-      createWriter(properties);
-      throw new AssertionError("Expected exception was not thrown");
-    } catch (Throwable t) {
-      assertThat(t).isInstanceOf(SpannerConnectorException.class);
-      assertThat(((SpannerConnectorException) t).getErrorCode())
-          .isEqualTo(SpannerErrorCode.INVALID_ARGUMENT);
-      assertThat(t.getMessage()).contains("Option 'table' property must be set");
-    }
+    SpannerConnectorException t =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> {
+              // This should fail because the 'table' property is missing.
+              createWriter(properties);
+            });
+    assertThat(t.getErrorCode()).isEqualTo(SpannerErrorCode.INVALID_ARGUMENT);
+    assertThat(t.getMessage()).contains("Option 'table' property must be set");
   }
 
   @Test
@@ -409,22 +415,47 @@ public abstract class SpannerDataWriterTestBase {
       writer.write(row);
 
       // Commit triggers the flush and waits for results
-      try {
-        writer.commit();
-        // If we reach here, there is a bug.
-        // The writer saw "Unavailable" error, ignored it because indexes were empty,
-        // and reported success.
-        fail("The writer silently swallowed the Spanner error and reported success!");
-      } catch (IOException e) {
-        // Correct behavior: an exception was thrown.
-        // Let's also verify it's the right kind of exception.
-        assertThat(e).hasCauseThat().isInstanceOf(SpannerConnectorException.class);
-        assertThat(e.getCause().getMessage()).contains("Spanner BatchWrite failed with status");
-      }
+      IOException e =
+          assertThrows(
+              IOException.class,
+              () -> {
+                writer.commit();
+              });
+      // Correct behavior: an exception was thrown.
+      // Let's also verify it's the right kind of exception.
+      assertThat(e).hasCauseThat().isInstanceOf(SpannerConnectorException.class);
+      assertThat(e.getCause().getMessage()).contains("Spanner BatchWrite failed with status");
     }
   }
 
-  private InternalRow CreateInternalRow(long i) {
+  private void testMutationTypeIsHonored(String mutationTypeKey) throws IOException {
+    properties.put(mutationTypeKey, "insert");
+    try (SpannerDataWriter writer = createWriter(properties)) {
+      when(mockDatabaseClient.write(any())).thenReturn(null);
+      writer.write(CreateInternalRow(1L));
+      writer.commit();
+    }
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<java.util.List<Mutation>> captor =
+        org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+    verify(mockDatabaseClient).write(captor.capture());
+    assertThat(captor.getValue().get(0).getOperation()).isEqualTo(Mutation.Op.INSERT);
+  }
+
+  @Test
+  public void testMutationTypeCamelCaseIsHonored() throws IOException {
+    testMutationTypeIsHonored("mutationType");
+  }
+
+  @Test
+  public void testMutationTypeLowerCaseIsHonored() throws IOException {
+    // Simulate what happens when CaseInsensitiveStringMap lowercases keys:
+    // the key becomes "mutationtype" instead of "mutationType".
+    testMutationTypeIsHonored("mutationtype");
+  }
+
+  protected InternalRow CreateInternalRow(long i) {
     return serializer.apply(RowFactory.create(i, "row" + i));
   }
 }

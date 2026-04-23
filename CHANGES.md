@@ -2,6 +2,17 @@
 
 ## Next
 
+*   Debug the acceptance test flakiness.
+
+## 1.3.0 - 2026-03-13
+
+*   Add a tool to run write-only performance benchmarks.
+*   Support array type and add a solution for struct type in the write
+    connector.
+*   Add support for different mutation modes (INSERT, UPDATE, UPSERT, REPLACE).
+*   Add Spark Catalog support and `ErrorIfExists`, `Ignore`, `Override` save
+    modes.
+
 ## 1.2.2 - 2026-02-05
 
 *   Artifacts are now published to Maven Central.

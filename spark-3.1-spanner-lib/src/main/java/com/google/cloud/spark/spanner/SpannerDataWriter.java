@@ -38,6 +38,7 @@ import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +66,8 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
 
   private final int maxPendingTransactions;
 
+  private final Mutation.Op mutationType;
+
   // Buffers
   private final List<Mutation> mutationBuffer = new ArrayList<>();
   private final BatchClientWithCloser batchClient;
@@ -87,36 +90,63 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       ScheduledExecutorService scheduler) {
     this.partitionId = partitionId;
     this.taskId = taskId;
-    this.tableName = SpannerUtils.getRequiredOption(properties, "table");
+
+    CaseInsensitiveStringMap caseInsensitiveStringMap = new CaseInsensitiveStringMap(properties);
+    this.tableName = SpannerUtils.getRequiredOption(caseInsensitiveStringMap, "table");
 
     this.schema = schema;
 
     // Default to 1MB (Safety) and 1000 Mutations
     this.mutationsPerTransaction =
         Integer.parseInt(
-            properties.getOrDefault(
+            caseInsensitiveStringMap.getOrDefault(
                 "mutationsPerTransaction", MUTATIONS_PER_TRANSACTION_DEFAULT_STR));
     this.bytesPerTransaction =
         Long.parseLong(
-            properties.getOrDefault(
+            caseInsensitiveStringMap.getOrDefault(
                 "bytesPerTransaction", BYTES_PER_TRANSACTION_DEFAULT_STR)); // 1 MB default
     this.assumeIdempotentRows =
         Boolean.parseBoolean(
-            properties.getOrDefault("assumeIdempotentRows", ASSUME_IDEMPOTENT_ROWS_DEFAULT_STR));
+            caseInsensitiveStringMap.getOrDefault(
+                "assumeIdempotentRows", ASSUME_IDEMPOTENT_ROWS_DEFAULT_STR));
     this.maxPendingTransactions =
         Integer.parseInt(
-            properties.getOrDefault(
+            caseInsensitiveStringMap.getOrDefault(
                 "maxPendingTransactions", MAX_PENDING_TRANSACTIONS_DEFAULT_STR));
+    this.mutationType =
+        parseMutationType(caseInsensitiveStringMap.getOrDefault("mutationType", null));
 
     this.batchClient = batchClient;
     this.executor = executor;
     this.scheduler = scheduler;
   }
 
+  private Mutation.Op parseMutationType(String mutationTypeProperty) {
+    if (mutationTypeProperty == null) {
+      return Mutation.Op.INSERT_OR_UPDATE;
+    }
+    switch (mutationTypeProperty.toLowerCase(java.util.Locale.ROOT)) {
+      case "insert":
+        return Mutation.Op.INSERT;
+      case "update":
+        return Mutation.Op.UPDATE;
+      case "replace":
+        return Mutation.Op.REPLACE;
+      case "insert_or_update":
+        return Mutation.Op.INSERT_OR_UPDATE;
+      default:
+        throw new IllegalArgumentException(
+            "Invalid value for mutationType: "
+                + mutationTypeProperty
+                + ". Supported values are: insert, update, replace, insert_or_update.");
+    }
+  }
+
   @Override
   public void write(InternalRow record) throws IOException {
     // 1. Convert to Spanner Mutation
-    Mutation mutation = SpannerWriterUtils.internalRowToMutation(tableName, record, schema);
+    Mutation mutation =
+        SpannerWriterUtils.internalRowToMutation(tableName, record, schema, mutationType);
 
     // 2. Estimate Size (Crucial for preventing OOM)
     long mutationSize = estimateMutationSize(record, schema);

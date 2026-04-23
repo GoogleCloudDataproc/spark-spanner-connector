@@ -44,7 +44,7 @@ You can find the released jar file from the Releases tag on right of the github 
 | spark-3.2-spanner |         |                     |                     |         |         | &check; | &check; | &check; | &check; |         |
 | spark-3.3-spanner |         |                     |                     |         |         |         | &check; | &check; | &check; |         |
 | spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; |         |
-| spark-4.0-spanner |         |                     |                     |         |         |         |         |         | &check; | &check; |
+| spark-4.0-spanner |         |                     |                     |         |         |         |         |         |         | &check; |
 
 ### Connector to Dataproc Image Compatibility Matrix
 | Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | 3.0     | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 | Serverless<br>Image 3.0 |

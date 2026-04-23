@@ -38,22 +38,29 @@ If you run a Spark job on the Dataproc cluster, you'll have to assign correspond
 You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-${next-release-tag}.jar` directly.
 
 ### Connector to Spark Compatibility Matrix
-| Connector \ Spark | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     |
-|-------------------|---------|---------------------|---------------------|---------|---------|---------|---------|---------|---------|
-| spark-3.1-spanner |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; |
-| spark-3.2-spanner |         |                     |                     |         |         | &check; | &check; | &check; | &check; |
-| spark-3.3-spanner |         |                     |                     |         |         |         | &check; | &check; | &check; |
-| spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; |
+| Connector \ Spark | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     | 4.0     |
+|-------------------|---------|---------------------|---------------------|---------|---------|---------|---------|---------|---------|---------|
+| spark-3.1-spanner |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; |         |
+| spark-3.2-spanner |         |                     |                     |         |         | &check; | &check; | &check; | &check; |         |
+| spark-3.3-spanner |         |                     |                     |         |         |         | &check; | &check; | &check; |         |
+| spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; |         |
+| spark-4.0-spanner |         |                     |                     |         |         |         |         |         | &check; | &check; |
 
 ### Connector to Dataproc Image Compatibility Matrix
-| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 |
-|----------------------------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
-| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |
-| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |
-| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |
-| spark-3.5-spanner          |         |         |         |         |         | &check; |                         | &check;                 |                         |                         | &check;                 |
+| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | 3.0     | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 | Serverless<br>Image 3.0 |
+|----------------------------|---------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
+| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; |         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |                         |
+| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; |         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |                         |
+| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; |         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  |                         |
+| spark-3.5-spanner          |         |         |         |         |         | &check; |         |                         | &check;                 |                         |                         | &check;                 |                         |
+| spark-4.0-spanner          |         |         |         |         |         |         | &check; |                         |                         |                         |                         |                         | &check;                 |
 
 Note 1: Dataproc compatibility to be tested.
+
+### Connector to Java Compatibility
+
+Spark 3.x connectors require Java 8 or 11.
+Spark 4.x connectors require Java 17+.
 
 ### Maven / Ivy Package
 
@@ -68,6 +75,7 @@ no need to build from source. Supply the artifact coordinates via the
 
 | version   | Connector Artifact                                                     |
 |-----------|------------------------------------------------------------------------|
+| Spark 4.0 | `com.google.cloud.spark.spanner:spark-4.0-spanner:${next-release-tag}` |
 | Spark 3.5 | `com.google.cloud.spark.spanner:spark-3.5-spanner:${next-release-tag}` |
 | Spark 3.3 | `com.google.cloud.spark.spanner:spark-3.3-spanner:${next-release-tag}` |
 | Spark 3.2 | `com.google.cloud.spark.spanner:spark-3.2-spanner:${next-release-tag}` |
@@ -530,18 +538,18 @@ supported.
 
 Here are the mappings for supported Spanner data types.
 
-Spanner GoogleSql Type|Spark Data Type|Notes
----|---|---
-ARRAY    |ArrayType    | Nested ARRAY is not supported, e.g. ARRAY<ARRAY<BOOL>>.
-BOOL     |BooleanType  |
-BYTES    |BinaryType   |
-DATE     |DateType     | The date range is [1700-01-01, 9999-12-31].
-FLOAT64  |DoubleType   |
-INT64    |LongType     | The supported integer range is [-9,223,372,036,854,775,808, 9,223,372,036,854,775,807]
-JSON     |StringType   | Spark has no JSON type. The values are read as String.
-NUMERIC  |DecimalType  | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.
-STRING   |StringType   |
-TIMESTAMP|TimestampType| Only microseconds will be converted to Spark timestamp type. The range of timestamp is  [0001-01-01 00:00:00, 9999-12-31 23:59:59.999999]
+Spanner GoogleSql Type| Spark Data Type |Notes
+---------|---------------|---------------------------------------------------------
+ARRAY    | ArrayType     | Nested ARRAY is not supported, e.g. ARRAY<ARRAY<BOOL>>.
+BOOL     | BooleanType   |
+BYTES    | BinaryType    |
+DATE     | DateType      | The date range is [1700-01-01, 9999-12-31].
+FLOAT64  | DoubleType    |
+INT64    | LongType      | The supported integer range is [-9,223,372,036,854,775,808, 9,223,372,036,854,775,807]
+JSON     | StringType    | Spark has no JSON type. The values are read as String.
+NUMERIC  | DecimalType   | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.
+STRING   | StringType    |
+TIMESTAMP| TimestampType | Only microseconds will be converted to Spark timestamp type. The range of timestamp is  [0001-01-01 00:00:00, 9999-12-31 23:59:59.999999]
 
 ### Filter Pushdown
 

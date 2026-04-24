@@ -2,7 +2,8 @@
 
 ## Next
 
-*   Debug the acceptance test flakiness.
+*   Add Spark 4.0 support.
+*   Fix the acceptance test flakiness.
 
 ## 1.3.0 - 2026-03-13
 

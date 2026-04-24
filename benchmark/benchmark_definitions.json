@@ -3,6 +3,7 @@
     {
       "name": "dataproc-100mil-records",
       "description": "A  100mil record write test for validation on Dataproc.",
+      "type": "write",
       "environment": "dataproc",
       "dataSource": "default-100mil-data",
       "numRecords": 100000000,
@@ -12,6 +13,7 @@
     {
       "name": "dataproc-5mil-records",
       "description": "A  1mil record write test for validation on Dataproc.",
+      "type": "write",
       "environment": "dataproc",
       "dataSource": "generated-data",
       "numRecords": 5000000,
@@ -21,6 +23,7 @@
     {
       "name": "databricks-5mil-records",
       "description": "A 5mil record write test on Databricks using a source table and default connector options.",
+      "type": "write",
       "environment": "databricks",
       "dataSource": "generated-data",
       "localNotebookPath" : "notebooks/SparkSpannerBenchmarkNotebook.scala",
@@ -31,6 +34,7 @@
     {
       "name": "databricks-10mil-records",
       "description": "A 10mil record write test on Databricks using a source table and default connector options.",
+      "type": "write",
       "environment": "databricks",
       "dataSource": "generated-data",
       "localNotebookPath" : "notebooks/SparkSpannerBenchmarkNotebook.scala",
@@ -42,6 +46,7 @@
     {
       "name": "databricks-100mil-records",
       "description": "A 100mil record write test on Databricks using a source table and default connector options.",
+      "type": "write",
       "environment": "databricks",
       "dataSource": "generated-data",
       "localNotebookPath" : "notebooks/SparkSpannerBenchmarkNotebook.scala",
@@ -52,6 +57,7 @@
     {
       "name": "databricks-200mil-records",
       "description": "A 200mil record write test on Databricks using a source table.",
+      "type": "write",
       "environment": "databricks",
       "dataSource": "generated-data",
       "localNotebookPath" : "notebooks/SparkSpannerBenchmarkNotebook.scala",
@@ -59,6 +65,14 @@
       "numPartitions": 1600,
       "numRecords": 200000000,
       "assumeIdempotentRows": true
+    },
+    {
+      "name": "dataproc-tpch-q1",
+      "description": "TPC-H Query 1 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 1,
+      "dataSource": "tpch-sf10"
     }
   ]
 }

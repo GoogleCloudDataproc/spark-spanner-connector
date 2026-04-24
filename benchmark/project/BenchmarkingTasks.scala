@@ -163,13 +163,24 @@ object BenchmarkingTasks {
           }
         }
 
-        // --- Generate writeTableName ---
-        val physicalWriteTableName = deriveWriteTableName(benchmarkName)
+        // --- Conditional Logic for Read vs Write ---
+        var tempConfig = benchmarkDef.deepMerge(specificEnvConfig)
+
+        var benchmarkType = ( benchmarkDef \ "type").asOpt[String]
+
+        if (benchmarkType == "read") {
+          // Logic for TPC-H Read
+          val qNum = (benchmarkDef \ "tpcQueryNumber").as[Int]
+          tempConfig = tempConfig + ("tpcQueryNumber" -> Json.toJson(qNum))
+          // We don't need a writeTable for TPC-H reads
+        } else {
+          // --- Generate writeTableName ---
+          val physicalWriteTableName = deriveWriteTableName(benchmarkName)
+          tempConfig = tempConfig - "writeTableName" + ("writeTable" -> Json.toJson(physicalWriteTableName))
+        }
 
 
         // Merge configurations
-        var tempConfig = benchmarkDef.deepMerge(specificEnvConfig)
-        tempConfig = tempConfig - "writeTableName" + ("writeTable" -> Json.toJson(physicalWriteTableName))
         resolvedSourceTable.foreach(s => tempConfig = tempConfig + ("sourceTable" -> Json.toJson(s)))
         tempConfig = tempConfig + ("buildSparkVersion" -> Json.toJson(sys.props.get("spark.version").getOrElse("3.3")))
 
@@ -179,10 +190,18 @@ object BenchmarkingTasks {
 
         // Execute the Spark job
         environmentType match {
-          case "dataproc" =>
+          // Combine both dataproc flavors into one case
+          case "dataproc" | "dataproc-tpch" =>
             val appJar = (assembly in ThisProject).value
-            val mc = (Compile / mainClass).value.getOrElse(throw new RuntimeException("mainClass not found"))
 
+            // 1. Select the Class Name
+            // We check both the benchmarkType AND the environmentType suffix as a safety net
+            val mc = if (benchmarkType == "read" || environmentType == "dataproc-tpch")
+              "com.google.cloud.spark.spanner.SparkSpannerReadBenchmark"
+            else
+              "com.google.cloud.spark.spanner.SparkSpannerWriteBenchmark"
+
+            // 2. Shared Dataproc Setup
             val cluster = (finalMergedConfig \ "dataprocCluster").as[String]
             val region = (finalMergedConfig \ "dataprocRegion").as[String]
             val bucketName = (finalMergedConfig \ "dataprocBucket").as[String]
@@ -195,6 +214,7 @@ object BenchmarkingTasks {
             println(s"Uploading ${appJar.getAbsolutePath} to $dest")
             s"gcloud storage cp ${appJar.getAbsolutePath} $dest".!
 
+            // 3. Shared Submission Logic
             val command = Seq(
               "gcloud", "dataproc", "jobs", "submit", "spark",
               s"--cluster=$cluster",
@@ -207,14 +227,14 @@ object BenchmarkingTasks {
               "--"
             ) ++ Seq(configJsonString)
 
-            println(s"Submitting Dataproc job asynchronously...")
+            println(s"Submitting $environmentType job asynchronously...")
 
             val jobId = command.!!.trim
             if (jobId.isEmpty) {
-                sys.error("Failed to submit Dataproc job: Job ID was empty.")
+              sys.error(s"Failed to submit $environmentType job: Job ID was empty.")
             }
 
-            println(s"Dataproc job submitted successfully.")
+            println(s"$environmentType job submitted successfully.")
             println(s"Job ID: $jobId")
             println(s"""To monitor the job and get results, run: sbt "getBenchmark dataproc $jobId"""")
 

@@ -23,7 +23,7 @@ object SparkSpannerReadBenchmark {
 
     // TPC-H specific: Which query number to run (1-22) and the table list
     val queryNumber = (config \ "tpcQueryNumber").as[Int]
-    val tables = Seq("customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier")
+    val tables = (config \ "tpchTables").as[Seq[String]]
 
     val spark = SparkSession.builder()
       .appName(s"TPC-H-Query-$queryNumber")

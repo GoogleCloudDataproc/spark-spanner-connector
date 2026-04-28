@@ -151,34 +151,54 @@ object BenchmarkingTasks {
         }
         val dataSources = (Json.parse(IO.read(dataSourcesFile)) \ "dataSources").as[JsArray]
 
-        val logicalDataSourceName = (benchmarkDef \ "dataSource").asOpt[String]
-        var resolvedSourceTable: Option[String] = None
+        val logicalDataSourceNameOpt = (benchmarkDef \ "dataSource").asOpt[String]
 
-        logicalDataSourceName.foreach {
-          dsName =>
+        // 1. Ensure the dataSource is actually defined in your benchmark config
+        val logicalDataSourceName = logicalDataSourceNameOpt.getOrElse {
+          sys.error(s"Benchmark '$benchmarkName' is missing the 'dataSource' field.")
+        }
+
+        val dataSourceDef = dataSources.value.find(ds => (ds \ "name").as[String] == logicalDataSourceName).getOrElse {
+          sys.error(s"Logical data source '$logicalDataSourceName' not found in data_sources.json.")
+        }
+
+        var resolvedSourceTable: Option[String] = None
+        val benchmarkType = ( benchmarkDef \ "type").asOpt[String]
+
+        // Only resolve a physical table mapping if we are doing a Write test.
+        // For TPC-H Read, we use the 'tables' array instead.
+        if (benchmarkType == "write") {
           val dataSourceMappings = (specificEnvConfig \ "dataSourceMappings").asOpt[JsObject].getOrElse(Json.obj())
-          resolvedSourceTable = (dataSourceMappings \ dsName).asOpt[String]
+          resolvedSourceTable = (dataSourceMappings \ logicalDataSourceName).asOpt[String]
+
           if (resolvedSourceTable.isEmpty) {
-              sys.error(s"Physical table mapping for logical data source '$dsName' not found in environment.json for environment '$environmentType'.")
+            sys.error(s"Physical table mapping for logical data source '$logicalDataSourceName' not found in environment.json for environment '$environmentType'.")
           }
         }
 
         // --- Conditional Logic for Read vs Write ---
         var tempConfig = benchmarkDef.deepMerge(specificEnvConfig)
 
-        var benchmarkType = ( benchmarkDef \ "type").asOpt[String]
-
-        if (benchmarkType == "read") {
+        if (benchmarkType.contains("read")) {
           // Logic for TPC-H Read
           val qNum = (benchmarkDef \ "tpcQueryNumber").as[Int]
-          tempConfig = tempConfig + ("tpcQueryNumber" -> Json.toJson(qNum))
+
+          // Get the tables from the data source definition
+          // We use .asOpt to handle cases where 'tables' might be missing gracefully
+          val tables = (dataSourceDef \ "tables").as[JsArray]
+
+          // Update tempConfig with both the query number and the table list
+          tempConfig = tempConfig ++ Json.obj(
+            "tpcQueryNumber" -> Json.toJson(qNum),
+            "tpchTables"     -> tables
+          )
+
           // We don't need a writeTable for TPC-H reads
         } else {
           // --- Generate writeTableName ---
           val physicalWriteTableName = deriveWriteTableName(benchmarkName)
           tempConfig = tempConfig - "writeTableName" + ("writeTable" -> Json.toJson(physicalWriteTableName))
         }
-
 
         // Merge configurations
         resolvedSourceTable.foreach(s => tempConfig = tempConfig + ("sourceTable" -> Json.toJson(s)))
@@ -196,7 +216,7 @@ object BenchmarkingTasks {
 
             // 1. Select the Class Name
             // We check both the benchmarkType AND the environmentType suffix as a safety net
-            val mc = if (benchmarkType == "read" || environmentType == "dataproc-tpch")
+            val mc = if (benchmarkType.contains("read") || environmentType == "dataproc-tpch")
               "com.google.cloud.spark.spanner.SparkSpannerReadBenchmark"
             else
               "com.google.cloud.spark.spanner.SparkSpannerWriteBenchmark"

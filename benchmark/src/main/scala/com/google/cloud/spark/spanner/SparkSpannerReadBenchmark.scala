@@ -29,7 +29,7 @@ object SparkSpannerReadBenchmark {
       .appName(s"TPC-H-Query-$queryNumber")
       .getOrCreate()
 
-    val provider = s"com.google.cloud.spark.spanner.Spark${buildSparkVersion.replace(".", "")}SpannerTableProvider"
+    val provider = SpannerScalaUtils.getProviderClassName(buildSparkVersion)
 
     // Register all TPC-H tables as Temp Views
     tables.foreach { tableName =>

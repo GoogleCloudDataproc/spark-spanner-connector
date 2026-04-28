@@ -54,14 +54,23 @@ object SparkSpannerReadBenchmark {
     actualDf.cache()
 
     // Execute and force action with count()
-    val resultCount = actualDf.count()
+    val actualRows: Array[org.apache.spark.sql.Row] = actualDf.collect()
 
     val endTime = System.nanoTime()
     val durationSeconds = (endTime - startTime) / 1e9
+    val resultCount = actualRows.length
 
     println(s"Query $queryNumber finished in $durationSeconds seconds. Result count: $resultCount")
+
+    // Convert the collected rows back to a DF for the validator
+    // We use the original schema from actualDf to keep it consistent
+    val actualResultDf = spark.createDataFrame(
+      spark.sparkContext.parallelize(actualRows),
+      actualDf.schema
+    )
+
     // 3. CALL THE VALIDATION
-    val isValid = validateQueryOutput(actualDf, queryNumber, resultsBucket, spark)
+    val isValid = validateQueryOutput(actualResultDf, queryNumber, resultsBucket, spark)
 
     // Log results to GCS (Reuse your existing JSON logic here)
     saveResults(resultsBucket, queryNumber, durationSeconds, resultCount, isValid, spark)

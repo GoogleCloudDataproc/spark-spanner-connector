@@ -4,7 +4,7 @@ import scala.io.Source
 
 object TPCHQueries {
   def getQuery(n: Int): String = {
-    val resourcePath = s"sql/tpch-q$n.sql" // Note: fromResource usually doesn't need leading /
+    val resourcePath = s"sql/tpch/query-$n.sql" // Note: fromResource usually doesn't need leading /
 
     val stream = getClass.getClassLoader.getResourceAsStream(resourcePath)
     if (stream == null) {

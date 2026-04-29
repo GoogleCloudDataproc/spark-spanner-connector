@@ -73,6 +73,38 @@
       "environment": "dataproc-tpch",
       "tpcQueryNumber": 1,
       "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q2",
+      "description": "TPC-H Query 2 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 2,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q6",
+      "description": "TPC-H Query 6 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 6,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q12",
+      "description": "TPC-H Query 12 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 12,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q19",
+      "description": "TPC-H Query 19 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 19,
+      "dataSource": "tpch-sf10"
     }
   ]
 }

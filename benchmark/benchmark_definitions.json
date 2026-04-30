@@ -83,6 +83,22 @@
       "dataSource": "tpch-sf10"
     },
     {
+      "name": "dataproc-tpch-q3",
+      "description": "TPC-H Query 3 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 3,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q4",
+      "description": "TPC-H Query 4 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 4,
+      "dataSource": "tpch-sf10"
+    },
+    {
       "name": "dataproc-tpch-q6",
       "description": "TPC-H Query 6 performance test",
       "type": "read",

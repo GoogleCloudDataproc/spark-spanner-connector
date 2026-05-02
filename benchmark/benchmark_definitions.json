@@ -139,6 +139,14 @@
       "dataSource": "tpch-sf10"
     },
     {
+      "name": "dataproc-tpch-q10",
+      "description": "TPC-H Query 10 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 10,
+      "dataSource": "tpch-sf10"
+    },
+    {
       "name": "dataproc-tpch-q12",
       "description": "TPC-H Query 12 performance test",
       "type": "read",

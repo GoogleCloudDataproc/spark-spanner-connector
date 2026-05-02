@@ -187,11 +187,59 @@
       "dataSource": "tpch-sf10"
     },
     {
+      "name": "dataproc-tpch-q16",
+      "description": "TPC-H Query 16 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 16,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q17",
+      "description": "TPC-H Query 17 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 17,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q18",
+      "description": "TPC-H Query 18 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 18,
+      "dataSource": "tpch-sf10"
+    },
+    {
       "name": "dataproc-tpch-q19",
       "description": "TPC-H Query 19 performance test",
       "type": "read",
       "environment": "dataproc-tpch",
       "tpcQueryNumber": 19,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q20",
+      "description": "TPC-H Query 20 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 20,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q21",
+      "description": "TPC-H Query 21 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 21,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q22",
+      "description": "TPC-H Query 22 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 22,
       "dataSource": "tpch-sf10"
     }
   ]

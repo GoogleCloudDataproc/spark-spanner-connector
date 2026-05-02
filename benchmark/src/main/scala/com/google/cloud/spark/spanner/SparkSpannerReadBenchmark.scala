@@ -53,7 +53,7 @@ object SparkSpannerReadBenchmark {
     val startTime = System.nanoTime()
     actualDf.cache()
 
-    // Execute and force action with count()
+    // Execute and force action with collect()
     val actualRows: Array[org.apache.spark.sql.Row] = actualDf.collect()
 
     val endTime = System.nanoTime()

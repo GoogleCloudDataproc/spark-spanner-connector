@@ -147,11 +147,27 @@
       "dataSource": "tpch-sf10"
     },
     {
+      "name": "dataproc-tpch-q11",
+      "description": "TPC-H Query 11 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 11,
+      "dataSource": "tpch-sf10"
+    },
+    {
       "name": "dataproc-tpch-q12",
       "description": "TPC-H Query 12 performance test",
       "type": "read",
       "environment": "dataproc-tpch",
       "tpcQueryNumber": 12,
+      "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-tpch-q13",
+      "description": "TPC-H Query 13 performance test",
+      "type": "read",
+      "environment": "dataproc-tpch",
+      "tpcQueryNumber": 13,
       "dataSource": "tpch-sf10"
     },
     {

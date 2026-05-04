@@ -11,7 +11,7 @@ SELECT
     COUNT(*) AS count_order
 FROM
     lineitem
-WHERE l_shipdate <= date '1998-12-01' - interval '90' day
+WHERE l_shipdate <= date '1998-09-02'
 GROUP BY
     l_returnflag,
     l_linestatus

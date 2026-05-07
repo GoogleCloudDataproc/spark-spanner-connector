@@ -1,11 +1,10 @@
 #!/bin/bash
 
-# Define your variables
-SPANNER_INSTANCE_ID="slord-spark-dev"
-SPANNER_DATABASE_ID="test-tpch"
-QUERY_DIR="./src/main/resources/sql/tpch"
+# Define environment variables for the following:
+# export SPANNER_INSTANCE_ID=<your spanner instance id>
+# export SPANNER_DATABASE_ID=<your spanner database id>
 
-echo "Running query from $SQL_FILE..."
+QUERY_DIR="./src/main/resources/sql/tpch"
 
 # Loop from query 1 to 22
 for i in {1..22}

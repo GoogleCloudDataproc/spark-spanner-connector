@@ -9,19 +9,10 @@ cp ../partsupp.tbl partsupp.csv
 cp ../region.tbl region.csv
 cp ../supplier.tbl supplier.csv
 
-#sed -i '' 's/,/|/g; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|$//' customer.csv
-#sed -i '' 's/,/|/g; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|$//' lineitem.csv.csv
-#sed -i '' 's/,/|/g; s/|/,/; s/|/,/; s/|/,/; s/|$//' nation.csv
-#sed -i '' 's/,/|/g; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|$//' orders.csv
-#sed -i '' 's/,/|/g; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|$//' part.csv
-#sed -i '' 's/,/|/g; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|$//' partsupp.csv
-#sed -i '' 's/,/|/g; s/|/,/; s/|/,/; s/|$//' region.csv
-#sed -i '' 's/,/|/g; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|/,/; s/|$//' supplier.csv
-
-sed -i '' 's/|$//' customer.csv
-sed -i '' 's/|$//' lineitem.csv
-sed -i '' 's/|$//' orders.csv
-sed -i '' 's/|$//' part.csv
-sed -i '' 's/|$//' partsupp.csv
-sed -i '' 's/|$//' region.csv
-sed -i '' 's/|$//' supplier.csv
+perl -i -pe 's/\|$//' customer.csv
+perl -i -pe 's/\|$//' lineitem.csv
+perl -i -pe 's/\|$//' orders.csv
+perl -i -pe 's/\|$//' part.csv
+perl -i -pe 's/\|$//' partsupp.csv
+perl -i -pe 's/\|$//' region.csv
+perl -i -pe 's/\|$//' supplier.csv

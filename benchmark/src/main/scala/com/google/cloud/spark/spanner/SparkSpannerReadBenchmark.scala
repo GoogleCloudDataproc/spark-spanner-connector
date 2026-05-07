@@ -51,7 +51,6 @@ object SparkSpannerReadBenchmark {
 
     println(s"Starting TPC-H Query $queryNumber...")
     val startTime = System.nanoTime()
-    actualDf.cache()
 
     // Execute and force action with collect()
     val actualRows: Array[org.apache.spark.sql.Row] = actualDf.collect()
@@ -62,15 +61,8 @@ object SparkSpannerReadBenchmark {
 
     println(s"Query $queryNumber finished in $durationSeconds seconds. Result count: $resultCount")
 
-    // Convert the collected rows back to a DF for the validator
-    // We use the original schema from actualDf to keep it consistent
-    val actualResultDf = spark.createDataFrame(
-      spark.sparkContext.parallelize(actualRows),
-      actualDf.schema
-    )
-
     // 3. CALL THE VALIDATION
-    val isValid = validateQueryOutput(actualResultDf, queryNumber, resultsBucket, spark)
+    val isValid = validateQueryOutput(actualDf, queryNumber, resultsBucket, spark)
 
     // Log results to GCS (Reuse your existing JSON logic here)
     saveResults(resultsBucket, queryNumber, durationSeconds, resultCount, isValid, spark)

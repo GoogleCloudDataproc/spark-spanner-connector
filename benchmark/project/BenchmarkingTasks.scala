@@ -167,7 +167,7 @@ object BenchmarkingTasks {
 
         // Only resolve a physical table mapping if we are doing a Write test.
         // For TPC-H Read, we use the 'tables' array instead.
-        if (benchmarkType == "write") {
+        if (benchmarkType.contains("write")) {
           val dataSourceMappings = (specificEnvConfig \ "dataSourceMappings").asOpt[JsObject].getOrElse(Json.obj())
           resolvedSourceTable = (dataSourceMappings \ logicalDataSourceName).asOpt[String]
 
@@ -179,25 +179,30 @@ object BenchmarkingTasks {
         // --- Conditional Logic for Read vs Write ---
         var tempConfig = benchmarkDef.deepMerge(specificEnvConfig)
 
-        if (benchmarkType.contains("read")) {
-          // Logic for TPC-H Read
-          val qNum = (benchmarkDef \ "tpcQueryNumber").as[Int]
+        benchmarkType match {
+          case Some("read") =>
+            // Logic for TPC-H Read
+            val qNum = (benchmarkDef \ "tpcQueryNumber").as[Int]
 
-          // Get the tables from the data source definition
-          // We use .asOpt to handle cases where 'tables' might be missing gracefully
-          val tables = (dataSourceDef \ "tables").as[JsArray]
+            // Get the tables from the data source definition
+            // We use .asOpt to handle cases where 'tables' might be missing gracefully
+            val tables = (dataSourceDef \ "tables").asOpt[JsArray].getOrElse(Json.arr())
 
-          // Update tempConfig with both the query number and the table list
-          tempConfig = tempConfig ++ Json.obj(
-            "tpcQueryNumber" -> Json.toJson(qNum),
-            "tpchTables"     -> tables
-          )
+            // Update tempConfig with both the query number and the table list
+            tempConfig = tempConfig ++ Json.obj(
+              "tpcQueryNumber" -> Json.toJson(qNum),
+              "tpchTables"     -> tables
+            )
 
           // We don't need a writeTable for TPC-H reads
-        } else {
-          // --- Generate writeTableName ---
-          val physicalWriteTableName = deriveWriteTableName(benchmarkName)
-          tempConfig = tempConfig - "writeTableName" + ("writeTable" -> Json.toJson(physicalWriteTableName))
+
+          case Some("write") =>
+            // --- Generate writeTableName ---
+            val physicalWriteTableName = deriveWriteTableName(benchmarkName)
+            tempConfig = tempConfig - "writeTableName" + ("writeTable" -> Json.toJson(physicalWriteTableName))
+
+          case _ =>
+            sys.error(s"Invalid benchmarkType ${benchmarkType}, environmentType ${environmentType}")
         }
 
         // Merge configurations
@@ -212,7 +217,7 @@ object BenchmarkingTasks {
         environmentType match {
           // Combine both dataproc flavors into one case
           case "dataproc" | "dataproc-tpch" =>
-            val appJar = (assembly in ThisProject).value
+            val appJar = (ThisProject / assembly).value
 
             // 1. Select the Class Name
             // We check both the benchmarkType AND the environmentType suffix as a safety net
@@ -819,6 +824,6 @@ object BenchmarkingTasks {
           println(s"Successfully created GCS bucket '$resultsBucket'.")
         }
       },
-      buildBenchmarkJar := (assembly in ThisProject).value,
+      buildBenchmarkJar := (ThisProject / assembly).value,
   )
 }

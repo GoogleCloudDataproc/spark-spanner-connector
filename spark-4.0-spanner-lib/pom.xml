@@ -18,7 +18,7 @@
     <shade.skip>true</shade.skip>
     <toolchain.jdk.version>[17,18)</toolchain.jdk.version>
     <maven.compiler.release>17</maven.compiler.release>
-    <failsafe.exclude.pattern></failsafe.exclude.pattern>
+    <spark40.acceptance.exclude.pattern>**/*AcceptanceTest.java</spark40.acceptance.exclude.pattern>
   </properties>
   <licenses>
     <license>
@@ -119,7 +119,7 @@
             <artifactId>maven-failsafe-plugin</artifactId>
             <configuration>
               <excludes>
-                <exclude>${failsafe.exclude.pattern}</exclude>
+                <exclude>${spark40.acceptance.exclude.pattern}</exclude>
               </excludes>
             </configuration>
           </plugin>

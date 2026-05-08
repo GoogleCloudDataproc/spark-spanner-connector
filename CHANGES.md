@@ -1,5 +1,7 @@
 # Release Notes
 
+## Next
+
 ## 1.4.0 - 2026-05-08
 
 *   Add Spark 4.0 support.

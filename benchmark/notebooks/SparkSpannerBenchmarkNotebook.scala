@@ -10,48 +10,35 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.time.Duration
 import spark.implicits._
-
-// Declare widgets to define parameters for the notebook
-dbutils.widgets.text("projectId", "", "GCP Project ID")
-dbutils.widgets.text("instanceId", "", "Spanner Instance ID")
-dbutils.widgets.text("databaseId", "", "Spanner Database ID")
-dbutils.widgets.text("writeTable", "", "Spanner Table Name")
-dbutils.widgets.text("numRecords", "100000", "Number of records to write")
-dbutils.widgets.text("mutationsPerTransaction", "5000", "Mutations per transaction")
-dbutils.widgets.text("bytesPerTransaction", (3 * 1024 * 1024L).toString, "Bytes per transaction")
-dbutils.widgets.text("numWriteThreads", "4", "Number of write threads")
-dbutils.widgets.text("maxPendingTransactions", "5", "Maximum pending transactions")
-dbutils.widgets.text("assumeIdempotentRows", "true", "Assume idempotent rows")
-dbutils.widgets.text("resultsBucket", "", "GCS Bucket for results")
-dbutils.widgets.text("buildSparkVersion", "3.3", "Spark version used for the connector")
-dbutils.widgets.text("numPartitions", "40", "Number of partitions for the DataFrame")
-dbutils.widgets.text("sourceTable", "", "The name of the source Delta table to read from")
+import play.api.libs.json.{JsValue, Json}
 
 println("Running Spark Spanner Connector Benchmark...")
 
-val projectId = dbutils.widgets.get("projectId")
-val instanceId = dbutils.widgets.get("instanceId")
-val databaseId = dbutils.widgets.get("databaseId")
-val writeTable = dbutils.widgets.get("writeTable")
-val sourceTable = dbutils.widgets.get("sourceTable")
-val numRecords = dbutils.widgets.get("numRecords").toLong
+// 1. Get the single config widget
+val configStr = dbutils.widgets.get("config")
+val config: JsValue = Json.parse(configStr)
 
-// Use get for widgets, then fallback to default if empty
-def getOrDefault(name: String, default: String): String = {
-  val v = dbutils.widgets.get(name)
-  if (v == null || v.isEmpty) default else v
-}
+// 2. Extract values from the JSON blob
+val projectId = (config \ "projectId").as[String]
+val instanceId = (config \ "instanceId").as[String]
+val databaseId = (config \ "databaseId").as[String]
+val writeTable = (config \ "writeTable").as[String]
+val sourceTable = (config \ "sourceTable").as[String]
+val resultsBucket = (config \ "resultsBucket").as[String]
+val buildSparkVersion = (config \ "buildSparkVersion").as[String]
 
-val mutationsPerTransaction = getOrDefault("mutationsPerTransaction", "5000").toInt
-val bytesPerTransaction = getOrDefault("bytesPerTransaction", (3 * 1024 * 1024L).toString).toLong
-val numWriteThreads = getOrDefault("numWriteThreads", "4").toInt
-val maxPendingTransactions = getOrDefault("maxPendingTransactions", "5").toInt
-val assumeIdempotentRows = getOrDefault("assumeIdempotentRows", "true").toBoolean
-val resultsBucket = dbutils.widgets.get("resultsBucket")
-val buildSparkVersion = dbutils.widgets.get("buildSparkVersion")
-val generateUUID = udf(() => UUID.randomUUID().toString)
+// Helper for optional numeric values in the JSON
+def getInt(key: String, default: Int): Int = (config \ key).asOpt[Int].getOrElse(default)
+def getLong(key: String, default: Long): Long = (config \ key).asOpt[Long].getOrElse(default)
+def getBool(key: String, default: Boolean): Boolean = (config \ key).asOpt[Boolean].getOrElse(default)
 
-val numPartitions = getOrDefault("numPartitions", "40").toInt
+val numRecords = getLong("numRecords", 100000L)
+val mutationsPerTransaction = getInt("mutationsPerTransaction", 5000)
+val bytesPerTransaction = getLong("bytesPerTransaction", 3 * 1024 * 1024L)
+val numWriteThreads = getInt("numWriteThreads", 4)
+val maxPendingTransactions = getInt("maxPendingTransactions", 5)
+val assumeIdempotentRows = getBool("assumeIdempotentRows", true)
+val numPartitions = getInt("numPartitions", 40)
 
 if (numRecords > Int.MaxValue) {
   dbutils.notebook.exit(s"ERROR: numRecords ($numRecords) exceeds the maximum value for an Integer (${Int.MaxValue}) and cannot be used with the 'limit' function.")

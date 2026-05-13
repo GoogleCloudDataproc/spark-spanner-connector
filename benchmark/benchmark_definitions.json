@@ -241,6 +241,26 @@
       "environment": "dataproc-tpch",
       "tpcQueryNumber": 22,
       "dataSource": "tpch-sf10"
+    },
+    {
+      "name": "dataproc-5mil-records",
+      "description": "A  1mil record write test for validation on Dataproc.",
+      "type": "write",
+      "environment": "dataproc",
+      "dataSource": "generated-data",
+      "numRecords": 5000000,
+      "numPartitions": 80,
+      "mutationsPerTransaction": 1000
+    },
+    {
+      "name": "databricks-tpch-q1",
+      "description": "TPC-H Query 1 performance test",
+      "type": "read",
+      "environment": "databricks-tpch",
+      "tpcQueryNumber": 1,
+      "dataSource": "tpch-sf10",
+      "localNotebookPath" : "notebooks/SparkSpannerReadBenchmarkNotebook.scala",
+      "localPrepareNotebookPath" : ""
     }
   ]
 }

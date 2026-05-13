@@ -30,10 +30,7 @@ val queryNumber = config.asInstanceOf[play.api.libs.json.JsObject]
 val tables = config.asInstanceOf[play.api.libs.json.JsObject]
   .value("tpchTables")
   .as[Seq[String]](play.api.libs.json.Reads.seq[String])
-val ucVolumePath = (config.as[JsObject].value("ucVolumePath")).as[String]
-
-// In Databricks, 'spark' session is already available
-val provider = "com.google.cloud.spark.spanner" // Or SpannerScalaUtils logic if available in your JAR
+val provider = "com.google.cloud.spark.spanner"
 
 println(s"projectId: $projectId")
 println(s"instanceId: $instanceId")
@@ -41,7 +38,6 @@ println(s"databaseId: $databaseId")
 println(s"resultsBucket: $resultsBucket")
 println(s"buildSparkVersion: $buildSparkVersion")
 println(s"queryNumber: $queryNumber")
-println(s"ucVolumePath: $ucVolumePath")
 
 // 2. Register TPC-H tables as Temp Views
 println("Step 2 - Register TPC-H tables as Temp Views")
@@ -59,9 +55,8 @@ tables.foreach { tableName =>
 println("Step 2 - End")
 
 
-// 4. Execution Logic
-// Note: Ensure TPCHQueries helper is available in your cluster's attached JAR
-println("Step 4 - Execution Logic")
+// 3. Execution Logic
+println("Step 3 - Execution Logic")
 
 val sqlQuery = com.google.cloud.spark.spanner.TPCHQueries.getQuery(queryNumber)
 val actualDf = spark.sql(sqlQuery)
@@ -78,8 +73,13 @@ val durationSeconds = (endTime - startTime) / 1e9
 
 println(s"Query $queryNumber finished in $durationSeconds seconds.")
 
-// 5. Validation and Persistence
-println("Step 5 - Validation and Persistence")
+// 4. Validation and Persistence
+println("Step 4 - Validation and Persistence")
+
+// Configure GCP access to read expected query responses and save results
+val gcpADCKeyFilePath = "/root/.config/gcloud/application_default_credentials.json"
+spark.sparkContext.hadoopConfiguration.set("fs.gs.auth.service.account.enable", "true")
+spark.sparkContext.hadoopConfiguration.set("fs.gs.auth.service.account.json.keyfile", gcpADCKeyFilePath)
 
 val isValid = validateQueryOutput(actualDf, queryNumber, resultsBucket)
 
@@ -88,7 +88,7 @@ println(s"validateQueryOutput is $isValid")
 saveResults(resultsBucket, queryNumber, durationSeconds, resultCount, isValid)
 
 // Exit notebook with a result string
-println("Exit notebook")
+println("Step 5 - Exit notebook")
 dbutils.notebook.exit(s"Success: Q$queryNumber")
 
 def validateFilePath(path: String): Boolean = {
@@ -109,7 +109,6 @@ def validateFilePath(path: String): Boolean = {
   }
 }
 
-// 3. Helper Methods (Defined as functions within the notebook)
 def normalize(df: DataFrame): DataFrame = {
   val normalizedCols = df.schema.fields.map { field =>
     field.dataType match {
@@ -173,25 +172,6 @@ def saveResults(bucket: String, qNum: Int, duration: Double, count: Long, isVali
   println(s"Writing results to $path")
 
   // Expects path for Application Default Credentials (ADC) file
-  val gcpADCKeyFilePath = "/Volumes/spark_spanner_connector_ws/default/spark_access/improvingvancouver-94cc8e329569.json"
-  println(s"Configuring GCS connector with Application Default Credentials from: $gcpADCKeyFilePath")
-  // Validate both files
-  val isPath1Valid = validateFilePath(gcpADCKeyFilePath)
-
-  // Enforce that both must pass before continuing
-  if (!isPath1Valid) {
-    throw new RuntimeException("Validation failed. Missing or inaccessible benchmark files.")
-  }
-
-  // Set Hadoop configuration for GCS connector using the ADC file
-  spark.sparkContext.hadoopConfiguration.set("google.cloud.auth.service.account.enable", "true")
-  spark.sparkContext.hadoopConfiguration.set("google.cloud.auth.service.account.json.keyfile", gcpADCKeyFilePath)
-  // 1. Tell Databricks to use a Service Account JSON key for GCS access
-  spark.conf.set("spark.hadoop.fs.gs.auth.service.account.enable", "true")
-
-  // 2. Point it directly to your verified, working JSON file path
-  spark.conf.set("spark.hadoop.fs.gs.auth.service.account.json.keyfile", validKeyFilePath)
-
   val fs = FileSystem.get(new URI(path), spark.sparkContext.hadoopConfiguration)
   val writer = new OutputStreamWriter(fs.create(new Path(path), true), StandardCharsets.UTF_8)
   writer.write(PlayJson.prettyPrint(resultJson))

@@ -261,6 +261,16 @@
       "dataSource": "tpch-sf10",
       "localNotebookPath" : "notebooks/SparkSpannerReadBenchmarkNotebook.scala",
       "localPrepareNotebookPath" : ""
+    },
+    {
+      "name": "databricks-tpch-q2",
+      "description": "TPC-H Query 2 performance test",
+      "type": "read",
+      "environment": "databricks-tpch",
+      "tpcQueryNumber": 2,
+      "dataSource": "tpch-sf10",
+      "localNotebookPath" : "notebooks/SparkSpannerReadBenchmarkNotebook.scala",
+      "localPrepareNotebookPath" : ""
     }
   ]
 }

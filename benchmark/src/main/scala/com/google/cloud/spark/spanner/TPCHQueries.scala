@@ -11,7 +11,7 @@ object TPCHQueries {
       throw new IllegalArgumentException(s"Query $n not found at $resourcePath")
     }
 
-    val source = Source.fromInputStream(stream)
+    val source = Source.fromInputStream(stream)(StandardCharsets.UTF_8.name())
     try {
       source.mkString
     } finally {

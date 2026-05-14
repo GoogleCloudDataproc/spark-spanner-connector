@@ -68,11 +68,11 @@ object BenchmarkingTasks {
     // We assume the JAR has been built already by the calling task
     val assemblyJarPath = (config \ "assemblyJarPath").as[String]
     val ucVolumePath = (config \ "ucVolumePath").as[String]
-    val mkdirCmd = Seq("databricks", "fs", "mkdir", s"$ucVolumePath")
     val jarName = new java.io.File(assemblyJarPath).getName
     val dbfsJarPath = s"$ucVolumePath/$jarName"
 
     println(s"Uploading $assemblyJarPath to $dbfsJarPath...")
+    Seq("databricks", "fs", "mkdir", s"$ucVolumePath") // Ensure directory exists
     val uploadJarCmd = Seq(
       "databricks", "fs", "cp", assemblyJarPath, dbfsJarPath, "--overwrite"
     )

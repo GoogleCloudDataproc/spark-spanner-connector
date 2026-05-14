@@ -20,16 +20,13 @@ println("Step 1 - capture configuration")
 val configStr = dbutils.widgets.get("config")
 val config: JsValue = PlayJson.parse(configStr)
 
-val projectId = (config.as[JsObject].value("projectId")).as[String]
-val instanceId = (config.as[JsObject].value("instanceId")).as[String]
-val databaseId = (config.as[JsObject].value("databaseId")).as[String]
-val resultsBucket = (config.as[JsObject].value("resultsBucket")).as[String]
-val buildSparkVersion = (config.as[JsObject].value("buildSparkVersion")).as[String]
-val queryNumber = config.asInstanceOf[play.api.libs.json.JsObject]
-  .value("tpcQueryNumber").as[Int]
-val tables = config.asInstanceOf[play.api.libs.json.JsObject]
-  .value("tpchTables")
-  .as[Seq[String]](play.api.libs.json.Reads.seq[String])
+val projectId = (config \ "projectId").as[String]
+val instanceId = (config \ "instanceId").as[String]
+val databaseId = (config \ "databaseId").as[String]
+val resultsBucket = (config \ "resultsBucket").as[String]
+val buildSparkVersion = (config \ "buildSparkVersion").as[String]
+val queryNumber = (config \ "tpcQueryNumber").as[Int]
+val tables = (config \ "tpchTables").as[Seq[String]]
 val provider = "com.google.cloud.spark.spanner"
 
 println(s"projectId: $projectId")

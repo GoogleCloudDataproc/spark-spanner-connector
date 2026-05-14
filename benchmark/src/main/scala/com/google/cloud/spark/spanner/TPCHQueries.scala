@@ -1,6 +1,7 @@
 package com.google.cloud.spark.spanner
 
 import scala.io.Source
+import java.nio.charset.StandardCharsets
 
 object TPCHQueries {
   def getQuery(n: Int): String = {

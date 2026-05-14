@@ -27,7 +27,7 @@ val resultsBucket = (config \ "resultsBucket").as[String]
 val buildSparkVersion = (config \ "buildSparkVersion").as[String]
 val queryNumber = (config \ "tpcQueryNumber").as[Int]
 val tables = (config \ "tpchTables").as[Seq[String]]
-val provider = "com.google.cloud.spark.spanner"
+val provider = s"com.google.cloud.spark.spanner.Spark${buildSparkVersion.replace(".", "")}SpannerTableProvider"
 
 println(s"projectId: $projectId")
 println(s"instanceId: $instanceId")

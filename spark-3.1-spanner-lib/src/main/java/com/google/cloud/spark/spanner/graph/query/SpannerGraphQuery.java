@@ -2,12 +2,12 @@ package com.google.cloud.spark.spanner.graph.query;
 
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.connection.Connection;
-import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.cloud.spark.spanner.SpannerTableSchema;
 import com.google.cloud.spark.spanner.graph.PropertyGraph;
 import com.google.cloud.spark.spanner.graph.PropertyGraph.GraphElementTable;
 import com.google.cloud.spark.spanner.graph.SpannerGraphConfigs;
 import com.google.cloud.spark.spanner.graph.SpannerGraphConfigs.LabelConfig;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;

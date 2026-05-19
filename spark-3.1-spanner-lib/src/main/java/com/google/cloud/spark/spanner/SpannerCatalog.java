@@ -24,6 +24,7 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import com.google.common.base.Verify;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;

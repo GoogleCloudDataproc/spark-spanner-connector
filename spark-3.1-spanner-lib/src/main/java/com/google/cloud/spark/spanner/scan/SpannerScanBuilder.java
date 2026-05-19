@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.scan;
 
+import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

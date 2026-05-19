@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.scan;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.cloud.Timestamp;
@@ -22,6 +22,7 @@ import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
+import com.google.cloud.spark.spanner.*;
 import com.google.common.collect.Streams;
 import java.util.List;
 import java.util.Map;

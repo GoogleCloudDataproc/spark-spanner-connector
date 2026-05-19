@@ -18,6 +18,10 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.spark.spanner.*;
+import com.google.cloud.spark.spanner.scan.SpannerPartitionReader;
+import com.google.cloud.spark.spanner.scan.SpannerScanBuilder;
+import com.google.cloud.spark.spanner.scan.SpannerScanner;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;

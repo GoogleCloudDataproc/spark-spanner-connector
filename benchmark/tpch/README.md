@@ -35,7 +35,7 @@ gcloud storage cp manifest.json gs://my-tpch-data/
 ```
 
 #### 3. Import Data Using Dataflow
-1.  sUse the Dataflow CSV to Spanner template.
+1.  Use the Dataflow CSV to Spanner template.
 ``` bash
 gcloud dataflow jobs run steve-upload-tpch \
 --gcs-location gs://dataflow-templates/latest/GCS_Text_to_Cloud_Spanner \

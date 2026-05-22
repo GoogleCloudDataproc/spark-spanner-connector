@@ -151,25 +151,61 @@ object BenchmarkingTasks {
         }
         val dataSources = (Json.parse(IO.read(dataSourcesFile)) \ "dataSources").as[JsArray]
 
-        val logicalDataSourceName = (benchmarkDef \ "dataSource").asOpt[String]
-        var resolvedSourceTable: Option[String] = None
+        val logicalDataSourceNameOpt = (benchmarkDef \ "dataSource").asOpt[String]
 
-        logicalDataSourceName.foreach {
-          dsName =>
+        // 1. Ensure the dataSource is actually defined in your benchmark config
+        val logicalDataSourceName = logicalDataSourceNameOpt.getOrElse {
+          sys.error(s"Benchmark '$benchmarkName' is missing the 'dataSource' field.")
+        }
+
+        val dataSourceDef = dataSources.value.find(ds => (ds \ "name").as[String] == logicalDataSourceName).getOrElse {
+          sys.error(s"Logical data source '$logicalDataSourceName' not found in data_sources.json.")
+        }
+
+        var resolvedSourceTable: Option[String] = None
+        val benchmarkType = ( benchmarkDef \ "type").asOpt[String]
+
+        // Only resolve a physical table mapping if we are doing a Write test.
+        // For TPC-H Read, we use the 'tables' array instead.
+        if (benchmarkType.contains("write")) {
           val dataSourceMappings = (specificEnvConfig \ "dataSourceMappings").asOpt[JsObject].getOrElse(Json.obj())
-          resolvedSourceTable = (dataSourceMappings \ dsName).asOpt[String]
+          resolvedSourceTable = (dataSourceMappings \ logicalDataSourceName).asOpt[String]
+
           if (resolvedSourceTable.isEmpty) {
-              sys.error(s"Physical table mapping for logical data source '$dsName' not found in environment.json for environment '$environmentType'.")
+            sys.error(s"Physical table mapping for logical data source '$logicalDataSourceName' not found in environment.json for environment '$environmentType'.")
           }
         }
 
-        // --- Generate writeTableName ---
-        val physicalWriteTableName = deriveWriteTableName(benchmarkName)
+        // --- Conditional Logic for Read vs Write ---
+        var tempConfig = benchmarkDef.deepMerge(specificEnvConfig)
 
+        benchmarkType match {
+          case Some("read") =>
+            // Logic for TPC-H Read
+            val qNum = (benchmarkDef \ "tpcQueryNumber").as[Int]
+
+            // Get the tables from the data source definition
+            // We use .asOpt to handle cases where 'tables' might be missing gracefully
+            val tables = (dataSourceDef \ "tables").asOpt[JsArray].getOrElse(Json.arr())
+
+            // Update tempConfig with both the query number and the table list
+            tempConfig = tempConfig ++ Json.obj(
+              "tpcQueryNumber" -> Json.toJson(qNum),
+              "tpchTables"     -> tables
+            )
+
+          // We don't need a writeTable for TPC-H reads
+
+          case Some("write") =>
+            // --- Generate writeTableName ---
+            val physicalWriteTableName = deriveWriteTableName(benchmarkName)
+            tempConfig = tempConfig - "writeTableName" + ("writeTable" -> Json.toJson(physicalWriteTableName))
+
+          case _ =>
+            sys.error(s"Invalid benchmarkType ${benchmarkType}, environmentType ${environmentType}")
+        }
 
         // Merge configurations
-        var tempConfig = benchmarkDef.deepMerge(specificEnvConfig)
-        tempConfig = tempConfig - "writeTableName" + ("writeTable" -> Json.toJson(physicalWriteTableName))
         resolvedSourceTable.foreach(s => tempConfig = tempConfig + ("sourceTable" -> Json.toJson(s)))
         tempConfig = tempConfig + ("buildSparkVersion" -> Json.toJson(sys.props.get("spark.version").getOrElse("3.3")))
 
@@ -179,10 +215,18 @@ object BenchmarkingTasks {
 
         // Execute the Spark job
         environmentType match {
-          case "dataproc" =>
-            val appJar = (assembly in ThisProject).value
-            val mc = (Compile / mainClass).value.getOrElse(throw new RuntimeException("mainClass not found"))
+          // Combine both dataproc flavors into one case
+          case "dataproc" | "dataproc-tpch" =>
+            val appJar = (ThisProject / assembly).value
 
+            // 1. Select the Class Name
+            // We check both the benchmarkType AND the environmentType suffix as a safety net
+            val mc = if (benchmarkType.contains("read") || environmentType == "dataproc-tpch")
+              "com.google.cloud.spark.spanner.SparkSpannerReadBenchmark"
+            else
+              "com.google.cloud.spark.spanner.SparkSpannerWriteBenchmark"
+
+            // 2. Shared Dataproc Setup
             val cluster = (finalMergedConfig \ "dataprocCluster").as[String]
             val region = (finalMergedConfig \ "dataprocRegion").as[String]
             val bucketName = (finalMergedConfig \ "dataprocBucket").as[String]
@@ -195,6 +239,7 @@ object BenchmarkingTasks {
             println(s"Uploading ${appJar.getAbsolutePath} to $dest")
             s"gcloud storage cp ${appJar.getAbsolutePath} $dest".!
 
+            // 3. Shared Submission Logic
             val command = Seq(
               "gcloud", "dataproc", "jobs", "submit", "spark",
               s"--cluster=$cluster",
@@ -207,14 +252,14 @@ object BenchmarkingTasks {
               "--"
             ) ++ Seq(configJsonString)
 
-            println(s"Submitting Dataproc job asynchronously...")
+            println(s"Submitting $environmentType job asynchronously...")
 
             val jobId = command.!!.trim
             if (jobId.isEmpty) {
-                sys.error("Failed to submit Dataproc job: Job ID was empty.")
+              sys.error(s"Failed to submit $environmentType job: Job ID was empty.")
             }
 
-            println(s"Dataproc job submitted successfully.")
+            println(s"$environmentType job submitted successfully.")
             println(s"Job ID: $jobId")
             println(s"""To monitor the job and get results, run: sbt "getBenchmark dataproc $jobId"""")
 
@@ -779,6 +824,6 @@ object BenchmarkingTasks {
           println(s"Successfully created GCS bucket '$resultsBucket'.")
         }
       },
-      buildBenchmarkJar := (assembly in ThisProject).value,
+      buildBenchmarkJar := (ThisProject / assembly).value,
   )
 }

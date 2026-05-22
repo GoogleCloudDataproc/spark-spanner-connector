@@ -139,8 +139,8 @@ object SparkSpannerReadBenchmark {
     // exceptAll returns rows in one DF but not the other
 
     // 3.1. Calculate the differences once
-    val actualExtra = actualSorted.except(expectedSorted)
-    val expectedExtra = expectedSorted.except(actualSorted)
+    val actualExtra = actualSorted.exceptAll(expectedSorted)
+    val expectedExtra = expectedSorted.exceptAll(actualSorted)
 
     // 3.2. Cache them or collect them to avoid re-computation
     val actualMismatches = actualExtra.collect()

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Define environment variables for the following:
-# export SPANNER_INSTANCE_ID=<your spanner instance id>
-# export SPANNER_DATABASE_ID=<your spanner database id>
+# Ensure required Spanner environment variables are set
+: "${SPANNER_INSTANCE_ID:?Error: SPANNER_INSTANCE_ID environment variable is not set. Use: export SPANNER_INSTANCE_ID=<your spanner instance id>}"
+: "${SPANNER_DATABASE_ID:?Error: SPANNER_DATABASE_ID environment variable is not set. Use: export SPANNER_DATABASE_ID=<your spanner database id>}"
 
 QUERY_DIR="./src/main/resources/sql/tpch"
 
@@ -19,9 +19,9 @@ do
 
         # Run the command and capture the output
         # Using --query-mode=PROFILE to get internal Spanner timing
-        gcloud spanner databases execute-sql $SPANNER_DATABASE_ID \
-            --instance=$SPANNER_INSTANCE_ID \
-            --sql="$(cat $FILE)" \
+        gcloud spanner databases execute-sql "$SPANNER_DATABASE_ID" \
+            --instance="$SPANNER_INSTANCE_ID" \
+            --sql="$(cat "$FILE")" \
             --query-mode=PROFILE
     else
         echo "Skipping $FILE: File not found."

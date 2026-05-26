@@ -52,11 +52,32 @@ gcloud dataflow jobs run steve-upload-tpch \
 1. Create a storage bucket which is used when tests are run. eg steve-staging-bucket
 2. Create a storage bucket which is used for results, eg steve-benchmark-results.
 3. Create a folder in the bucket called answers.
-4. Create a Dataproc instance on GCP. Search for Managed Service for Apache Spark.
-5. Create the cluster
+
+### Create a Dataproc instance on which to run dataproc benchmark tests
+1. Create a Dataproc instance on GCP. Search for Managed Service for Apache Spark.
+2. Create the cluster
    1. Name the cluster and use this name in environment.json for your tpch environment. 
    2. Under Advanced Configuration - Other, set the Cloud Storage staging bucket <steve-staging-bucket> to your staging bucket. 
    3. Click Create
+
+### Create a Databricks cluster on which to run Databricks benchmark tests
+1. In Databricks UI select the workspace where you will run the benchmark tests.
+2. In sidebar, select Compute - Create Compute
+3. Configure the following:
+   1. Performance - Databricks runtime: 16.4 LTS (Scala 2.12) - this is for Spark 3.x benchmarking
+   2. Access mode - Manual - Dedicated: Single User
+   3. Configure the Cluster Init Script
+
+      The `benchmark/setup_gcp_credentials.sh` script is designed to run as a cluster-scoped init script. It reads the secret you just created and installs it as the Application Default Credentials (ADC) file on each node in the cluster.
+      1.  **Upload the init script**: Upload `benchmark/setup_gcp_credentials.sh` to a location on your Databricks workspace or DBFS (e.g., `dbfs:/databricks/init_scripts/setup_gcp_credentials.sh`).
+      2.  **Configure the cluster**: In your Databricks cluster configuration, navigate to "Advanced Options" -> "Init Scripts". Add the path of the script you just uploaded.
+      3.  **Set Environment Variables**: In the same cluster configuration, under "Advanced Options" -> "Spark", set the following environment variable. This tells the init script which secret to read.
+          ```
+          GCP_CREDENTIALS={{secrets/gcp-credentials/spanner-benchmark-sa}}
+          ```
+         Replace `gcp-credentials` and `spanner-benchmark-sa` with the scope and secret name you created in step 1.
+
+         When the cluster starts, the init script will run on every node, creating the file `/root/.config/gcloud/application_default_credentials.json`. The Spark Spanner connector and GCS connector will automatically pick up and use these credentials.
 
 ### Creating expected output
 
@@ -73,7 +94,12 @@ sed $'s/\t/|/g'  q3.tsv > q3.out
 gcloud storage cp answers/q3.out gs://steve-benchmark-results/answers
 ```
 
-## Run benchmark test
+## Run dataproc benchmark test
 ``` bash
 sbt "runBenchmark dataproc-tpch-q3"
+```
+
+## Databricks benchmark test
+``` bash
+sbt "runBenchmark databricks-tpch-q1"
 ```

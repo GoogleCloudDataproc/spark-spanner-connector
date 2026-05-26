@@ -63,7 +63,23 @@ object BenchmarkingTasks {
     val notebookBasename = new java.io.File(localNotebookFilePath).getName
     val notebookPath = s"${baseDatabricksWorkspacePath.stripSuffix("/")}/$notebookBasename"
 
-    // 1. Import notebook
+    // 1. Upload the JAR to DBFS
+    // Get the JAR created by sbt-assembly
+    // We assume the JAR has been built already by the calling task
+    val assemblyJarPath = (config \ "assemblyJarPath").as[String]
+    val ucVolumePath = (config \ "ucVolumePath").as[String]
+    val jarName = new java.io.File(assemblyJarPath).getName
+    val dbfsJarPath = s"$ucVolumePath/$jarName"
+
+    println(s"Uploading $assemblyJarPath to $dbfsJarPath...")
+    Seq("databricks", "fs", "mkdir", s"$ucVolumePath") // Ensure directory exists
+    val uploadJarCmd = Seq(
+      "databricks", "fs", "cp", assemblyJarPath, dbfsJarPath, "--overwrite"
+    )
+    val uploadExitCode = Process(uploadJarCmd, None, "DATABRICKS_HOST" -> databricksHost, "DATABRICKS_TOKEN" -> databricksToken).!
+    if (uploadExitCode != 0) sys.error("Failed to upload JAR to Databricks.")
+
+    // 2. Import notebook
     val language = localNotebookFilePath.substring(localNotebookFilePath.lastIndexOf('.') + 1).toUpperCase match {
       case "PY" => "PYTHON"
       case "SQL" => "SQL"
@@ -88,20 +104,22 @@ object BenchmarkingTasks {
     println("Notebook imported successfully.")
 
     // 2. Prepare parameters
-    val databricksKeys = Set("databricksHost", "databricksToken", "clusterId", "notebookPath", "localNotebookFilePath", "localPrepareNotebookPath", "ucVolumePath")
-    val allParams = config.as[JsObject].value.filterKeys(k => !databricksKeys.contains(k))
-    val baseParameters = JsObject(
-      allParams.map { case (key, value) =>
-        key -> (value match {
-          case s: JsString => s
-          case other => Json.toJson(other.toString)
-        })
-      }.toSeq
-    )
+    // We pass the entire config as one JSON string.
+    // This makes it easy for the notebook to parse regardless of nested structures.
+    val baseParameters = JsObject(Seq(
+      "config" -> Json.toJson(Json.stringify(config.as[JsObject] - "databricksToken"))
+    ))
 
     // 3. Run notebook
+    val tpcQueryNum = (config \ "tpcQueryNumber").asOpt[Int]
+
+    val displayName = tpcQueryNum match {
+      case Some(q) => s"TPC-H-Read-Q$q"
+      case None    => "Spark Spanner Benchmark"
+    }
+
     val jobJson = Json.obj(
-      "run_name" -> "Spark Spanner Benchmark",
+      "run_name" -> displayName,
       "tasks" -> Json.arr(
         Json.obj(
           "task_key" -> "benchmark_task",
@@ -110,7 +128,11 @@ object BenchmarkingTasks {
             "source" -> "WORKSPACE",
             "base_parameters" -> baseParameters
           ),
-          "existing_cluster_id" -> clusterId
+          "existing_cluster_id" -> clusterId,
+          // Attach the JAR so the notebook can see TPCHQueries
+          "libraries" -> Json.arr(
+            Json.obj("jar" -> dbfsJarPath)
+          )
         )
       )
     )
@@ -263,10 +285,16 @@ object BenchmarkingTasks {
             println(s"Job ID: $jobId")
             println(s"""To monitor the job and get results, run: sbt "getBenchmark dataproc $jobId"""")
 
-          case "databricks" =>
+          case "databricks" | "databricks-tpch" =>
+            val appJar = (ThisProject / assembly).value// Build the fat JAR
             val notebookPath = (benchmarkDef \ "localNotebookPath").as[String]
-            val configWithLocalPath = finalMergedConfig + ("localNotebookFilePath" -> Json.toJson(notebookPath))
-            runDatabricksNotebookHelper(configWithLocalPath, baseDir)
+            // Add benchmarkType to the config so the notebook knows if it's 'read' or 'write'
+            val finalConfigForDatabricks = finalMergedConfig +
+              ("localNotebookFilePath" -> Json.toJson(notebookPath)) +
+              ("assemblyJarPath" -> Json.toJson(appJar.getAbsolutePath)) + // Add JAR path
+              ("benchmarkType" -> Json.toJson(benchmarkType.getOrElse("read")))
+
+            runDatabricksNotebookHelper(finalConfigForDatabricks, baseDir)
 
           case _ =>
             sys.error(s"Unsupported environment type: '$environmentType'.")

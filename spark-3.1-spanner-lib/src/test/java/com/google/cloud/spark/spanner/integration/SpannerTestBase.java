@@ -177,16 +177,18 @@ class SpannerTestBase {
 
     // Create the instance.
     InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
+    InstanceId fullInstanceId = InstanceId.of(projectId, instanceId);
+    String instanceName = fullInstanceId.getName();
 
     // Check if the instance already exists first to avoid hitting createInstance quota.
     InstanceInfo instanceInfo =
-        InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
+        InstanceInfo.newBuilder(fullInstanceId)
             .setInstanceConfigId(InstanceConfigId.of(projectId, instanceConfigId))
             .setNodeCount(1)
             .setDisplayName("SparkSpanner Test")
             .build();
     try {
-      instanceAdminClient.getInstance(instanceId);
+      instanceAdminClient.getInstance(instanceName);
     } catch (SpannerException e) {
       if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
         runIgnoringAlreadyExist(() -> instanceAdminClient.createInstance(instanceInfo).get());

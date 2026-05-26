@@ -54,17 +54,12 @@
 
         <avro.version>1.11.5</avro.version>
         <arrow.version>12.0.0</arrow.version>
-        <gax.version>2.30.0</gax.version>
-        <google-cloud-dataproc.version>4.11.0</google-cloud-dataproc.version>
-        <google-cloud-spanner.version>6.50.0</google-cloud-spanner.version>  
-        <google-cloud-storage.version>2.20.2</google-cloud-storage.version>
+        <version.com.google.cloud>26.70.0</version.com.google.cloud>
         <google-truth.version>1.1.3</google-truth.version>
-        <grpc.version>1.55.1</grpc.version>
         <guava.version>32.0.0-jre</guava.version>
         <jackson.version>2.21.1</jackson.version>
         <netty.version>4.1.92.Final</netty.version>
         <paranamer.version>2.8</paranamer.version>
-        <protobuf.version>3.23.0</protobuf.version>
         <zstd.version>1.4.9-1</zstd.version>
         <openlineage.version>1.19.0</openlineage.version>
         <deploy.skip>true</deploy.skip>
@@ -113,38 +108,13 @@
                 <version>${zstd.version}</version>
                 <scope>provided</scope>
             </dependency>
+            <!-- Google API -->
             <dependency>
-                <groupId>com.google.api</groupId>
-                <artifactId>gax-bom</artifactId>
-                <version>${gax.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                    <groupId>com.google.auth</groupId>
-                    <artifactId>google-auth-library-bom</artifactId>
-                    <version>1.16.1</version>
-                    <type>pom</type>
-                    <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.google.cloud</groupId>
-                <artifactId>google-cloud-dataproc-bom</artifactId>
-                <version>${google-cloud-dataproc.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.google.cloud</groupId>
-                <artifactId>google-cloud-spanner-bom</artifactId>
-                <version>${google-cloud-spanner.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.google.cloud</groupId>
-                <artifactId>google-cloud-storage</artifactId>
-                <version>${google-cloud-storage.version}</version>
+              <groupId>com.google.cloud</groupId>
+              <artifactId>libraries-bom-protobuf3</artifactId>
+              <version>${version.com.google.cloud}</version>
+              <type>pom</type>
+              <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>com.google.cloud.bigdataoss</groupId>
@@ -175,13 +145,6 @@
                 <version>${guava.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-bom</artifactId>
-                <version>${protobuf.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
                 <groupId>com.google.truth</groupId>
                 <artifactId>truth</artifactId>
                 <version>${google-truth.version}</version>
@@ -196,13 +159,6 @@
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
                 <version>1.15</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-bom</artifactId>
-                <version>${grpc.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
@@ -313,7 +269,7 @@
         <dependency>
           <groupId>com.google.api</groupId>
           <artifactId>gax</artifactId>
-          <!-- Version is managed by the gax-bom in dependencyManagement -->
+          <!-- Version is managed by the libraries-bom in dependencyManagement -->
         </dependency>
     </dependencies>
     <build>

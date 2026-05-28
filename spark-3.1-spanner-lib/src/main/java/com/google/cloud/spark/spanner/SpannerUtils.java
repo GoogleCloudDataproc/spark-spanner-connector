@@ -262,8 +262,6 @@ public class SpannerUtils {
   public static BatchClientWithCloser batchClientFromProperties(
       CaseInsensitiveStringMap properties, SessionPoolOptions sessionPoolOptions) {
     SpannerOptions options = buildSpannerOptions(properties, sessionPoolOptions);
-    System.out.println(options.getSessionPoolOptions());
-
     Spanner spanner = options.getService();
     DatabaseId databaseId =
         DatabaseId.of(
@@ -303,8 +301,6 @@ public class SpannerUtils {
         .setRetryableCodes(
             Code.UNAVAILABLE, Code.RESOURCE_EXHAUSTED, Code.INTERNAL, Code.DEADLINE_EXCEEDED)
         .setRetrySettings(RETRY_SETTING);
-
-    //    builder.setEmulatorHost("127.0.0.1:15000");
 
     String emulatorHost = properties.get("emulatorHost");
     if (emulatorHost != null) {

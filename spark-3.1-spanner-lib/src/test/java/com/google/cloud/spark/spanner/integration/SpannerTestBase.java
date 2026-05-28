@@ -187,7 +187,6 @@ class SpannerTestBase {
     // Create the instance.
     InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
     InstanceId fullInstanceId = InstanceId.of(projectId, instanceId);
-    String instanceName = fullInstanceId.getName();
 
     // Check if the instance already exists first to avoid hitting createInstance quota.
     InstanceInfo instanceInfo =

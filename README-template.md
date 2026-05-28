@@ -169,12 +169,12 @@ tables.
 
 Variable|Validation|Comments
 ---|---|---
-projectId|String|The projectID containing the Cloud Spanner database
-instanceId|String|The instanceID of the Cloud Spanner database
+projectId|String|The projectID containing the Cloud Spanner database. For Spanner Omni this should always be `default`.
+instanceId|String|The instanceID of the Cloud Spanner database. For Spanner Omni this should always be `default`.
 databaseId|String|The databaseID of the Cloud Spanner database
 table|String|The Table of the Cloud Spanner database that you are reading from
-enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing).
-emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
+enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note1: the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing). Note2: this feature is not supported in Spanner Omni.
+emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`) or a Spanner Omni instance (e.g. `localhost:15000`). When set, the connector connects to the emulator or Spanner Omni instead of Cloud Spanner. Useful for local development and testing.
 
 ### Writing to Spanner Tables
 
@@ -219,8 +219,8 @@ tables.
 
 Variable| Validation |Comments
 ---|------------|---
-projectId| String     |The projectID containing the Cloud Spanner database
-instanceId| String     |The instanceID of the Cloud Spanner database
+projectId| String     |The projectID containing the Cloud Spanner database. For Spanner Omni this should always be `default`.
+instanceId| String     |The instanceID of the Cloud Spanner database. For Spanner Omni this should always be `default`.
 databaseId| String     |The databaseID of the Cloud Spanner database
 table| String     |The name of the destination Cloud Spanner table
 mutationsPerTransaction| Integer    |The number of mutations to send in a single transaction. Default: 1000
@@ -231,7 +231,7 @@ maxPendingTransactions| Integer    |The maximum number of concurrent batches tha
 mutationType| String     |The row write mode used. Valid values are: insert, insert_or_update, replace, update. Default: insert_or_update
 overwriteMode| String     |Controls behavior when using `mode("overwrite")`. `truncate` (default) deletes all rows but keeps the table schema. `recreate` drops and recreates the table from the DataFrame schema.
 enablePartialRowUpdates| Boolean    |When `true`, the connector uses the DataFrame schema instead of the Spanner table schema, allowing writes with a subset of columns. Requires `mutationType` set to `update` or `insert_or_update`. Default: `false`
-emulatorHost| String     |The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
+emulatorHost| String     |The host and port of the Spanner emulator (e.g. `localhost:9010`) or a Spanner Omni instance (e.g. `localhost:15000`). When set, the connector connects to the emulator or Spanner Omni instead of Cloud Spanner. Useful for local development and testing.
 
 `mutationsPerTransaction` and `bytesPerTransaction` are both used when building a transaction to send to spanner.
 
@@ -451,26 +451,26 @@ Please refer to the API documentation of
 
 ##### Required
 
-| Option                  | Summary of Purpose                                                                                                    |
-|-------------------------|-----------------------------------------------------------------------------------------------------------------------|
-| spark                   | The spark session to read graph to                                                                                    |
-| project                 | ID of the Google Cloud project containing the graph                                                                   |
-| instance                | ID of the Spanner instance containing the graph                                                                       |
-| database                | ID of the Spanner database containing the graph                                                                       |
-| graph                   | Name of the graph as defined in the database schema                                                                   |
+| Option                  | Summary of Purpose                                                                              |
+|-------------------------|-------------------------------------------------------------------------------------------------|
+| spark                   | The spark session to read graph to                                                              |
+| project                 | ID of the Google Cloud project containing the graph. For Spanner Omni this is always `default`. |
+| instance                | ID of the Spanner instance containing the graph. For Spanner Omni this is always `default`.     |
+| database                | ID of the Spanner database containing the graph                                                 |
+| graph                   | Name of the graph as defined in the database schema                                             |
 
 ##### Optional
 
-| Option                  | Summary of Purpose                                                                                                    | Default                                            |
-|-------------------------|-----------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| data_boost              | Enable [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview)                               | Disabled                                           |
-| partition_size_bytes    | The [partitionSizeBytes](https://cloud.google.com/spanner/docs/reference/rest/v1/PartitionOptions) hint for Spanner   | No hint provided                                   |
-| repartition             | Enable repartitioning of node and edge DataFrames and set the target number of partitions                             | No repartitioning                                  |
-| read_timestamp          | The timestamp of the snapshot to read from                                                                            | Read the snapshot at the time when load is called  |
-| symmetrize_graph        | Symmetrizes the output graph by adding reverse edges                                                                  | No symmetrization                                  |
-| export_string_ids       | Output string concatenations of the element keys instead of assigning integer IDs and performing joins                | Output integer IDs                                 |
-| node_label / edge_label | Specify label element filters, additional properties to fetch, and element-wise property filters (details below)      | Export all nodes and edges and no element property |
-| node_query / edge_query | Overwrite the queries used to fetch nodes and edges (details below)                                                   | Use queries generated by the connector             |
+| Option                  | Summary of Purpose                                                                                                                      | Default                                                      |
+|-------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|
+| data_boost              | Enable [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview). This feature is not supported in Spanner Omni. | Disabled                                                     |                                                              |
+| partition_size_bytes    | The [partitionSizeBytes](https://cloud.google.com/spanner/docs/reference/rest/v1/PartitionOptions) hint for Spanner                     | No hint provided                                             |
+| repartition             | Enable repartitioning of node and edge DataFrames and set the target number of partitions                                               | No repartitioning                                            |
+| read_timestamp          | The timestamp of the snapshot to read from                                                                                              | Read the snapshot at the time when load is called            |
+| symmetrize_graph        | Symmetrizes the output graph by adding reverse edges                                                                                    | No symmetrization                                            |
+| export_string_ids       | Output string concatenations of the element keys instead of assigning integer IDs and performing joins                                  | Output integer IDs                                           |
+| node_label / edge_label | Specify label element filters, additional properties to fetch, and element-wise property filters (details below)                        | Export all nodes and edges and no element property           |
+| node_query / edge_query | Overwrite the queries used to fetch nodes and edges (details below)                                                                     | Use queries generated by the connector                       |
 
 #### Filters and Element Properties
 

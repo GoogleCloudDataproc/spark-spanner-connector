@@ -1,0 +1,14 @@
+services:
+  spanner-omni:
+    image: us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta
+    container_name: spanner-omni
+    volumes:
+      - spanner-data:/spanner
+    ports:
+      - "15026:15026" # Admin Console
+      - "15000:15000" # gRPC API
+    entrypoint: ["/bin/tini", "--"]
+    command: ["sh", "-c", "/google/spanner/bin/spanner start-single-server & sleep 5 && /app/bin/spanner-console & wait"]
+
+volumes:
+  spanner-data:

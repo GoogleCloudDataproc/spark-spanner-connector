@@ -1,4 +1,3 @@
 package com.google.cloud.spark.spanner.planning;
 
-public interface ValueExpr extends SpannerExpr {
-}
+public interface ValueExpr extends SpannerExpr {}

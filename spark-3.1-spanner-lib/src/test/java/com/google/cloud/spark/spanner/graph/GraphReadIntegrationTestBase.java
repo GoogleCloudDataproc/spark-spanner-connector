@@ -38,13 +38,17 @@ public class GraphReadIntegrationTestBase extends SparkSpannerIntegrationTestBas
 
   public DataFrameReader flexibleGraphReader(SpannerGraphConfigs configs) {
     DataFrameReader reader =
-        reader().option("enableDataBoost", "true").option("graph", "FlexibleGraph");
+        reader()
+            .option("enableDataBoost", String.valueOf(resolveDataBoostEnabled(true)))
+            .option("graph", "FlexibleGraph");
     return configs == null ? reader : reader.option("configs", new Gson().toJson(configs));
   }
 
   public DataFrameReader musicGraphReader(SpannerGraphConfigs configs) {
     DataFrameReader reader =
-        reader().option("enableDataBoost", "true").option("graph", "MusicGraph");
+        reader()
+            .option("enableDataBoost", String.valueOf(resolveDataBoostEnabled(true)))
+            .option("graph", "MusicGraph");
     return configs == null ? reader : reader.option("configs", new Gson().toJson(configs));
   }
 

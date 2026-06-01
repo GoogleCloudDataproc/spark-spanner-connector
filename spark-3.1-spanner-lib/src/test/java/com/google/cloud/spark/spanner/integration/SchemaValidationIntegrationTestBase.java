@@ -45,6 +45,9 @@ public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegration
 
   @Parameters
   public static Collection<Object[]> data() {
+    if (isSpannerOmni() || (emulatorHost != null && !emulatorHost.isEmpty())) {
+      return Arrays.asList(new Object[][] {{false}});
+    }
     return Arrays.asList(new Object[][] {{false}, {true}});
   }
 

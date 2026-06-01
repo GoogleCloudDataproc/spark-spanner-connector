@@ -76,9 +76,9 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
 
   @Parameterized.Parameters(name = "{index}: isPostgreSql={0}")
   public static Iterable<Object[]> data() {
-    if (emulatorHost != null && !emulatorHost.isEmpty()) {
+    if (isSpannerOmni() || (emulatorHost != null && !emulatorHost.isEmpty())) {
       logger.info(
-          "FunctionsAndExpressionsIntegrationTest is skipped since pg is not supported in Spanner emulator");
+          "FunctionsAndExpressionsIntegrationTest is skipped since pg is not supported in Spanner emulator / Omni");
       return ImmutableList.of(new Object[] {false});
     }
     return ImmutableList.of(new Object[] {false}, new Object[] {true});

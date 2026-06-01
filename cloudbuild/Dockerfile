@@ -1,5 +1,9 @@
+# Multi-stage build to fetch Spanner Omni files
+FROM us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta AS omni
+
 # This Dockerfile creates an image for running presubmit tests.
 FROM ubuntu:22.04
+
 
 # Set noninteractive frontend for apt to avoid prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -34,3 +38,10 @@ ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 ENV JAVA8_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 ENV JAVA11_HOME=/usr/lib/jvm/temurin-11-jdk-amd64
 ENV JAVA17_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
+
+# Copy Spanner Omni files from multi-stage build stage
+COPY --from=omni /google /google
+COPY --from=omni /app /app
+COPY --from=omni /omni-jre /omni-jre
+
+

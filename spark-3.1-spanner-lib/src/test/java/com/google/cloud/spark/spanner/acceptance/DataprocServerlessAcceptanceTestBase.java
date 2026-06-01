@@ -82,6 +82,7 @@ public class DataprocServerlessAcceptanceTestBase {
       Preconditions.checkNotNull(
           System.getenv("SPANNER_INSTANCE_ID"),
           "Please set the 'SPANNER_INSTANCE_ID' environment variable");
+  private static final String SERVICE_ACCOUNT = System.getenv("DATAPROC_SERVICE_ACCOUNT");
   protected static final long SERVERLESS_BATCH_TIMEOUT_IN_SECONDS = 600;
   private static final String TABLE = "ATable";
   private static Spanner spanner =
@@ -284,12 +285,22 @@ public class DataprocServerlessAcceptanceTestBase {
     runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.projectId", PROJECT_ID);
     runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.instanceId", INSTANCE_ID);
     runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.databaseId", DATABASE_ID);
-    Batch batch =
+    // Build the batch
+    Batch.Builder batchBuilder =
         Batch.newBuilder()
             .setName(parent + "/batches/" + context.clusterId)
             .setPysparkBatch(createPySparkBatchBuilder(context, testName, pythonZipUri, args))
-            .setRuntimeConfig(runtimeConfigBuilder)
-            .build();
+            .setRuntimeConfig(runtimeConfigBuilder);
+
+    // Add explicit Service Account if configured to override EUC default in 3.0+
+    if (SERVICE_ACCOUNT != null && !SERVICE_ACCOUNT.isEmpty()) {
+      batchBuilder
+          .getEnvironmentConfigBuilder()
+          .getExecutionConfigBuilder()
+          .setServiceAccount(SERVICE_ACCOUNT);
+    }
+
+    Batch batch = batchBuilder.build();
 
     OperationFuture<Batch, BatchOperationMetadata> batchAsync =
         batchController.createBatchAsync(

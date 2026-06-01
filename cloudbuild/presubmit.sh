@@ -37,12 +37,27 @@ case $STEP in
     ;;
 
 
-  # Run integration tests with Spanner emulator.
+  # Run integration tests with Spanner Omni.
   integrationtest-real-spanner)
-    # Starts the Spanner emulator and setup the gcloud command.
-    # Sets the env used in the integration test.
-    $MVN -P3.1,3.2,3.3,3.5,integration failsafe:integration-test failsafe:verify
+    echo "Starting Spanner Omni..."
+    export JAVA_HOME=/omni-jre
+    export PATH=/omni-jre/bin:$PATH
+    /google/spanner/bin/spanner start-single-server > /workspace/spanner-omni.log 2>&1 &
+    sleep 5
+    /app/bin/spanner-console > /workspace/spanner-console.log 2>&1 &
+    sleep 10
+
+    echo "Restoring default Java runtime env for Maven..."
+    export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+    export SPANNER_OMNI_ENDPOINT=localhost:15000
+    export SPANNER_DATABASE_ID=testdb
+
+    $MVN -P3.1,3.2,3.3,3.5,integration failsafe:integration-test failsafe:verify -Dintegration.forkCount=1
     ;;
+
+
 
   acceptance-test)
     $MVN -P3.1,3.2,3.3,3.5,acceptance failsafe:integration-test failsafe:verify

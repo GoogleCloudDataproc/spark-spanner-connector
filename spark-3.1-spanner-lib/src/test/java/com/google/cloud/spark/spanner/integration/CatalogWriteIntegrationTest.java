@@ -46,6 +46,9 @@ public class CatalogWriteIntegrationTest extends SparkCatalogSpannerIntegrationT
 
   @Parameterized.Parameters
   public static Collection<Object[]> usePostgresSqlValues() {
+    if (isSpannerOmni() || (emulatorHost != null && !emulatorHost.isEmpty())) {
+      return Arrays.asList(new Object[][] {{false}});
+    }
     return Arrays.asList(new Object[][] {{false}, {true}});
   }
 

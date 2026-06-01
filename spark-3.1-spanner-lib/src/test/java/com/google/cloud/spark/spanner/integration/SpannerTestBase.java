@@ -123,9 +123,10 @@ class SpannerTestBase {
       Iterable<String> ddls,
       Iterable<String> dmls)
       throws Exception {
-    if (Dialect.POSTGRESQL.equals(dialect) && emulatorHost != null && !emulatorHost.isEmpty()) {
-      // Spanner emulator doesn't support the PostgreSql dialect interface.
-      // If the emulator is set. We return immediately here.
+    if (Dialect.POSTGRESQL.equals(dialect)
+        && (isSpannerOmni() || (emulatorHost != null && !emulatorHost.isEmpty()))) {
+      // Spanner emulator/Omni doesn't support the PostgreSql dialect interface in this test setup.
+      // If the emulator/Omni is set. We return immediately here.
       // TODO: Throw an exception here instead of failing silently.
       // Caveat: This populatePgDatabase function is always called regardless of whether PG
       // databases are needed or not. Making this throw an exception (instead of failing silently)
@@ -469,7 +470,7 @@ class SpannerTestBase {
     return val;
   }
 
-  private static boolean isSpannerOmni() {
+  static boolean isSpannerOmni() {
     return !Strings.isNullOrEmpty(spannerOmniEndpoint);
   }
 

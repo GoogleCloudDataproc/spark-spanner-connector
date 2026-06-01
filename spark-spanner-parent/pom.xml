@@ -51,6 +51,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <gpg.skip>true</gpg.skip>
         <revision>0.0.1-SNAPSHOT</revision>
+        <integration.forkCount>7</integration.forkCount>
+
 
         <avro.version>1.11.5</avro.version>
         <arrow.version>12.0.0</arrow.version>
@@ -721,7 +723,8 @@
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <configuration>
                             <argLine>${argLine}</argLine>
-                            <forkCount>7</forkCount>
+                            <forkCount>${integration.forkCount}</forkCount>
+
                             <reuseForks>false</reuseForks>
                             <includes>
                                 <include>**/*IntegrationTest.java</include>

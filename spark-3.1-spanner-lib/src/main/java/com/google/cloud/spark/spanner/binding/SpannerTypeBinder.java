@@ -2,7 +2,7 @@ package com.google.cloud.spark.spanner.binding;
 
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type;
-import com.google.cloud.spark.spanner.planning.LiteralExpr;
+import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import java.math.BigDecimal;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;

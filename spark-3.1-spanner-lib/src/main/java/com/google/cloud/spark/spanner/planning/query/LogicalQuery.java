@@ -1,5 +1,7 @@
-package com.google.cloud.spark.spanner.planning;
+package com.google.cloud.spark.spanner.planning.query;
 
+import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
+import com.google.cloud.spark.spanner.planning.relation.Relation;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;

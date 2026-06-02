@@ -1,4 +1,4 @@
-package com.google.cloud.spark.spanner.planning;
+package com.google.cloud.spark.spanner.planning.relation;
 
 public interface RelationVisitor<T> {
   T visit(TableRelation relation);

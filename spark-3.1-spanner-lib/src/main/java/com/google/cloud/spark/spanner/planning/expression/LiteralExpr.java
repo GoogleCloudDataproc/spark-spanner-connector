@@ -1,4 +1,4 @@
-package com.google.cloud.spark.spanner.planning;
+package com.google.cloud.spark.spanner.planning.expression;
 
 import org.apache.spark.sql.types.DataType;
 

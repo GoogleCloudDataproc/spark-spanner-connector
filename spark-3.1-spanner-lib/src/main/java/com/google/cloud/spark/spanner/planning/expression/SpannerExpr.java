@@ -1,4 +1,4 @@
-package com.google.cloud.spark.spanner.planning;
+package com.google.cloud.spark.spanner.planning.expression;
 
 import java.io.Serializable;
 

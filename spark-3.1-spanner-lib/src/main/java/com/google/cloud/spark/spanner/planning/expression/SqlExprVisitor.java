@@ -34,6 +34,26 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
   }
 
   @Override
+  public RenderResult visit(GtExpr expr) {
+    RenderResult left = expr.getLeft().accept(this);
+
+    RenderResult right = expr.getRight().accept(this);
+
+    return new RenderResult(
+        left.getSql() + " > " + right.getSql(), merge(left.getBindings(), right.getBindings()));
+  }
+
+  @Override
+  public RenderResult visit(LtExpr expr) {
+    RenderResult left = expr.getLeft().accept(this);
+
+    RenderResult right = expr.getRight().accept(this);
+
+    return new RenderResult(
+        left.getSql() + " < " + right.getSql(), merge(left.getBindings(), right.getBindings()));
+  }
+
+  @Override
   public RenderResult visit(AndExpr expr) {
     RenderResult left = expr.getLeft().accept(this);
 

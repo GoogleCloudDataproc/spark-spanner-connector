@@ -2,7 +2,6 @@ package com.google.cloud.spark.spanner.planning.expression;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.spark.spanner.planning.relation.SqlExprVisitor;
 import com.google.cloud.spark.spanner.rendering.RenderResult;
 import org.apache.spark.sql.types.DataTypes;
 import org.junit.Test;
@@ -14,8 +13,12 @@ public class SpannerExprTest {
     SpannerExpr predicate =
         new OrExpr(
             new AndExpr(
-                new EqExpr(new ColumnExpr("SingerId"), new LiteralExpr(123L, DataTypes.LongType)),
-                new EqExpr(new ColumnExpr("Active"), new LiteralExpr(true, DataTypes.BooleanType))),
+                new EqExpr(
+                    new ColumnExpr("SingerId"),
+                    new LiteralExpr(Long.valueOf(123L), DataTypes.LongType)),
+                new EqExpr(
+                    new ColumnExpr("Active"),
+                    new LiteralExpr(Boolean.valueOf(true), DataTypes.BooleanType))),
             new TrueExpr());
 
     SqlExprVisitor visitor = new SqlExprVisitor();

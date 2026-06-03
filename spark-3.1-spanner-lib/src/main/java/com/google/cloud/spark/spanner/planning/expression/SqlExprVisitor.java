@@ -1,7 +1,6 @@
-package com.google.cloud.spark.spanner.planning.relation;
+package com.google.cloud.spark.spanner.planning.expression;
 
 import com.google.cloud.spark.spanner.binding.ParameterRegistry;
-import com.google.cloud.spark.spanner.planning.expression.*;
 import com.google.cloud.spark.spanner.rendering.RenderResult;
 import java.util.Collections;
 import java.util.LinkedHashMap;

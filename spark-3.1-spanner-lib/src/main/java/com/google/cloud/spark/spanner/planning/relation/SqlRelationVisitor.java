@@ -1,22 +1,43 @@
 package com.google.cloud.spark.spanner.planning.relation;
 
+import com.google.cloud.spark.spanner.planning.expression.SqlExprVisitor;
 import com.google.cloud.spark.spanner.rendering.RenderResult;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-public class SqlRelationVisitor implements RelationVisitor<String> {
+public class SqlRelationVisitor implements RelationVisitor<RenderResult> {
 
   private SqlExprVisitor sqlExprVisitor = new SqlExprVisitor();
 
-  @Override
-  public String visit(TableRelation relation) {
-    return "SELECT * FROM " + relation.getTableName();
+  private static Map<String, Object> merge(Map<String, Object> left, Map<String, Object> right) {
+
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.putAll(left);
+    result.putAll(right);
+    return result;
   }
 
   @Override
-  public String visit(JoinRelation relation) {
-    String left = relation.getLeft().accept(this);
-    String right = relation.getRight().accept(this);
+  public RenderResult visit(TableRelation relation) {
+    return new RenderResult(
+        relation.getTableName() + " " + relation.getAlias(), Collections.emptyMap());
+  }
+
+  @Override
+  public RenderResult visit(JoinRelation relation) {
+    String left = relation.getLeft().accept(this).getSql();
+    String right = relation.getRight().accept(this).getSql();
     RenderResult condition = relation.getCondition().accept(sqlExprVisitor);
-    return left + " " + renderJoinType(relation.getJoinType()) + " " + right + " ON " + condition;
+    return new RenderResult(
+        left
+            + " "
+            + renderJoinType(relation.getJoinType())
+            + " "
+            + right
+            + " ON "
+            + condition.getSql(),
+        condition.getBindings());
   }
 
   private String renderJoinType(JoinType joinType) {

@@ -6,6 +6,7 @@ public final class JoinRelation implements Relation {
   private final Relation left;
   private final Relation right;
   private final JoinType joinType;
+  private final BoolExpr condition;
 
   public BoolExpr getCondition() {
     return condition;
@@ -23,17 +24,15 @@ public final class JoinRelation implements Relation {
     return left;
   }
 
-  private final BoolExpr condition;
-
-  public JoinRelation(Relation left, Relation right, JoinType joinType) {
+  public JoinRelation(Relation left, Relation right, JoinType joinType, BoolExpr condition) {
     this.left = left;
     this.right = right;
     this.joinType = joinType;
-    this.condition = null;
+    this.condition = condition;
   }
 
   @Override
   public <T> T accept(RelationVisitor<T> visitor) {
-    return null;
+    return visitor.visit(this);
   }
 }

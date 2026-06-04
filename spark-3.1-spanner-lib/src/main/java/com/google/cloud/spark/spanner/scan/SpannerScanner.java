@@ -23,8 +23,12 @@ import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
+import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
+import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
-import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -83,8 +87,13 @@ public class SpannerScanner implements Batch, Scan {
     return new SpannerPartitionReaderFactory();
   }
 
-  static String buildColumnsWithTablePrefix(
+  public static String buildColumnsWithTablePrefix(
       String tableName, Set<String> columns, boolean isPostgreSql) {
+    if (tableName == null) {
+      return columns.stream()
+          .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
+          .collect(Collectors.joining(", "));
+    }
     String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
     return columns.stream()
         .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
@@ -94,6 +103,20 @@ public class SpannerScanner implements Batch, Scan {
 
   @Override
   public InputPartition[] planInputPartitions() {
+    // Build the LogicalQuery
+    ArrayList<String> columns;
+    if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
+      columns = new ArrayList<>(this.requiredColumns);
+    } else {
+      columns = new ArrayList<>(Arrays.asList("*"));
+    }
+    TableRelation tableRelation = new TableRelation(this.spannerTable.name(), null);
+    LogicalQuery logicalQuery = new LogicalQuery(tableRelation, columns, Optional.empty());
+
+    SpannerQueryBuilder result =
+        SpannerQueryBuilder.newBuilder(logicalQuery, this.filters, this.readSchema);
+    String tempResults = result.buildSql();
+
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
     boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
 
@@ -130,13 +153,13 @@ public class SpannerScanner implements Batch, Scan {
         batchClient.batchClient.batchReadOnlyTransaction(
             TimestampBound.ofReadTimestamp(INIT_TIME))) {
       String mapAsJSON = SpannerUtils.serializeMap(this.opts);
-      List<com.google.cloud.spanner.Partition> rawPartitions =
+      java.util.List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
               Statement.of(sqlStmt),
               Options.dataBoostEnabled(enableDataboost));
 
-      List<Partition> parts =
+      java.util.List<Partition> parts =
           Streams.mapWithIndex(
                   rawPartitions.stream(),
                   (part, index) ->

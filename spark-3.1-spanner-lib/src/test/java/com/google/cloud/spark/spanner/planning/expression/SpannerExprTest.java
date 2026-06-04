@@ -14,10 +14,10 @@ public class SpannerExprTest {
         new OrExpr(
             new AndExpr(
                 new EqExpr(
-                    new ColumnExpr("SingerId"),
+                    new ColumnExpr("SingerId", DataTypes.LongType, false),
                     new LiteralExpr(Long.valueOf(123L), DataTypes.LongType)),
                 new EqExpr(
-                    new ColumnExpr("Active"),
+                    new ColumnExpr("Active", DataTypes.BooleanType, false),
                     new LiteralExpr(Boolean.valueOf(true), DataTypes.BooleanType))),
             new TrueExpr());
 

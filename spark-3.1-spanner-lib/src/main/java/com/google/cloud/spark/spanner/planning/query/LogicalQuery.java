@@ -7,6 +7,18 @@ import java.util.List;
 import java.util.Optional;
 
 public final class LogicalQuery implements Serializable {
+  public Relation getSource() {
+    return source;
+  }
+
+  public List<String> getProjections() {
+    return projections;
+  }
+
+  public Optional<BoolExpr> getFilter() {
+    return filter;
+  }
+
   private final Relation source;
   private final List<String> projections;
   private final Optional<BoolExpr> filter;

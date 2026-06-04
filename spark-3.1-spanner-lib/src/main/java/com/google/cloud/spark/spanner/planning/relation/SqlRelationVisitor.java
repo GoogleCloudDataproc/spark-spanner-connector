@@ -3,20 +3,10 @@ package com.google.cloud.spark.spanner.planning.relation;
 import com.google.cloud.spark.spanner.planning.expression.SqlExprVisitor;
 import com.google.cloud.spark.spanner.rendering.RenderResult;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 public class SqlRelationVisitor implements RelationVisitor<RenderResult> {
 
   private SqlExprVisitor sqlExprVisitor = new SqlExprVisitor();
-
-  private static Map<String, Object> merge(Map<String, Object> left, Map<String, Object> right) {
-
-    Map<String, Object> result = new LinkedHashMap<>();
-    result.putAll(left);
-    result.putAll(right);
-    return result;
-  }
 
   @Override
   public RenderResult visit(TableRelation relation) {

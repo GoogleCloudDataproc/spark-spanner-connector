@@ -25,7 +25,9 @@ public class RelationTableTest {
     Relation tableA = new TableRelation("ATable", "a");
     Relation tableB = new TableRelation("BTable", "b");
     BoolExpr expr =
-        new EqExpr(new ColumnExpr("aCol"), new LiteralExpr("test", DataTypes.StringType));
+        new EqExpr(
+            new ColumnExpr("aCol", DataTypes.StringType, false),
+            new LiteralExpr("test", DataTypes.StringType));
     Relation relation = new JoinRelation(tableA, tableB, JoinType.INNER, expr);
 
     SqlRelationVisitor visitor = new SqlRelationVisitor();

@@ -45,6 +45,11 @@ public final class FilterToExprConverter {
       Or or = (Or) filter;
       return new OrExpr(translateFilter(or.left(), schema), translateFilter(or.right(), schema));
     }
+    if (filter instanceof IsNotNull) {
+      IsNotNull isNotNull = (IsNotNull) filter;
+
+      return new IsNotNullExpr(column(isNotNull.attribute(), schema));
+    }
 
     logger.error("Unsupported filter: {}", filter);
     throw new UnsupportedOperationException("Unsupported filter: " + filter);

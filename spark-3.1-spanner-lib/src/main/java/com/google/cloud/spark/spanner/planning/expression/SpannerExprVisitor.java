@@ -16,4 +16,6 @@ public interface SpannerExprVisitor<T> {
   T visit(LiteralExpr expr);
 
   T visit(TrueExpr expr);
+
+  T visit(IsNotNullExpr expr);
 }

@@ -86,4 +86,11 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
   public RenderResult visit(TrueExpr expr) {
     return new RenderResult("TRUE", Collections.emptyMap());
   }
+
+  @Override
+  public RenderResult visit(IsNotNullExpr expr) {
+    RenderResult value = expr.getValue().accept(this);
+
+    return new RenderResult(value.getSql() + " IS NOT NULL", value.getBindings());
+  }
 }

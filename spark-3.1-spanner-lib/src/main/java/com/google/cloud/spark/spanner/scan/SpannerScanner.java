@@ -117,6 +117,8 @@ public class SpannerScanner implements Batch, Scan {
         SpannerQueryBuilder.newBuilder(logicalQuery, this.filters, this.readSchema);
     String tempResults = result.buildSql();
 
+    // End of new bits
+
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
     boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
 

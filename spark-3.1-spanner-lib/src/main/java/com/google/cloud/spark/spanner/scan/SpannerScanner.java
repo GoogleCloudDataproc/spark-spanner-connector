@@ -57,6 +57,7 @@ public class SpannerScanner implements Batch, Scan {
   private final Timestamp INIT_TIME = Timestamp.now();
   private final Map<String, StructField> fields;
   private final StructType readSchema;
+  private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(
       CaseInsensitiveStringMap opts,
@@ -110,11 +111,18 @@ public class SpannerScanner implements Batch, Scan {
     } else {
       columns = new ArrayList<>(Arrays.asList("*"));
     }
+    logger.info(
+        "planInputPartition columns: {} \n requiredColumns: {} \n readSchema: {} \n fields: {} \n filters: {}",
+        columns,
+        this.requiredColumns,
+        this.readSchema,
+        this.fields,
+        this.filters);
     TableRelation tableRelation = new TableRelation(this.spannerTable.name(), null);
     LogicalQuery logicalQuery = new LogicalQuery(tableRelation, columns, Optional.empty());
 
     SpannerQueryBuilder result =
-        SpannerQueryBuilder.newBuilder(logicalQuery, this.filters, this.readSchema);
+        SpannerQueryBuilder.newBuilder(logicalQuery, this.filters, this.spannerTable.schema());
     String tempResults = result.buildSql();
 
     // End of new bits

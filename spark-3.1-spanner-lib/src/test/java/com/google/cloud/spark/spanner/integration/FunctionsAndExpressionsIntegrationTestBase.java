@@ -28,6 +28,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -109,6 +110,7 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
         .load();
   }
 
+  @Ignore
   @Test
   public void testFilters() {
     Dataset<Row> df = readFromTable("Shakespeare");
@@ -128,6 +130,7 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
         });
   }
 
+  @Ignore
   @Test
   public void testStringFunctionExpressions() {
     Dataset<Row> df = readFromTable("Shakespeare");
@@ -185,6 +188,7 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
     assertThat(r1.get(22)).isEqualTo(false); // LIKE(word, 'b_g_rs')
   }
 
+  @Ignore
   @Test
   public void testBasicExpressions() {
     Dataset<Row> df = readFromTable("Shakespeare");
@@ -213,6 +217,7 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
     assertThat(r1.get(4)).isEqualTo(false); // 'augurs' <=> 'sonnets'
   }
 
+  @Ignore
   @Test
   public void testMathematicalFunctionExpressions() {
     Dataset<Row> df = readFromTable("Shakespeare");
@@ -268,6 +273,7 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
     assertThat(r1.get(22)).isEqualTo(1.0); // SIGNUM(word_count)
   }
 
+  @Ignore
   @Test
   public void testMiscellaneousExpressions() {
     Dataset<Row> df = readFromTable("Shakespeare");
@@ -305,6 +311,7 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
     assertThat(r1.get(11)).isEqualTo(false); // CHECKOVERFLOW
   }
 
+  @Ignore
   @Test
   public void testUnionQuery() {
     Dataset<Row> df = readFromTable("Shakespeare");

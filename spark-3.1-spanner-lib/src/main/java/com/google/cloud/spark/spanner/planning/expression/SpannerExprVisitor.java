@@ -18,4 +18,8 @@ public interface SpannerExprVisitor<T> {
   T visit(TrueExpr expr);
 
   T visit(IsNotNullExpr expr);
+
+  T visit(InExpr expr);
+
+  T visit(NotExpr expr);
 }

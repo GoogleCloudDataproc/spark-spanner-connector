@@ -51,8 +51,7 @@ public class SpannerQueryBuilder {
     }
 
     SqlRelationVisitor relationVisitor = new SqlRelationVisitor();
-    String query =
-        "SELECT " + selectPrefix + " FROM " + logicalQuery.getSource().accept(relationVisitor);
+    String query = selectPrefix + " FROM " + logicalQuery.getSource().accept(relationVisitor);
     Optional<BoolExpr> exprOptional =
         FilterToExprConverter.translateFilters(this.filters, this.schema);
     if (exprOptional.isPresent()) {

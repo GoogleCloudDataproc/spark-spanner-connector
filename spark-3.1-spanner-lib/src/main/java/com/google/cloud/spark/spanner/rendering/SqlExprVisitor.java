@@ -1,7 +1,9 @@
-package com.google.cloud.spark.spanner.planning.expression;
+package com.google.cloud.spark.spanner.rendering;
 
+import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spark.spanner.SpannerInformationSchema;
 import com.google.cloud.spark.spanner.binding.ParameterRegistry;
-import com.google.cloud.spark.spanner.rendering.RenderResult;
+import com.google.cloud.spark.spanner.planning.expression.*;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -10,6 +12,11 @@ import java.util.Map;
 public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
 
   private final ParameterRegistry parameterRegistry = new ParameterRegistry();
+  private SpannerInformationSchema infoSchema;
+
+  public SqlExprVisitor(Dialect dialect) {
+    infoSchema = SpannerInformationSchema.create(dialect);
+  }
 
   private static Map<String, Object> merge(Map<String, Object> left, Map<String, Object> right) {
 
@@ -21,7 +28,8 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
 
   @Override
   public RenderResult visit(ColumnExpr expr) {
-    return new RenderResult(expr.getColumnName(), Collections.emptyMap());
+    return new RenderResult(
+        infoSchema.quoteIdentifier(expr.getColumnName()), Collections.emptyMap());
   }
 
   @Override
@@ -61,8 +69,7 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
     RenderResult right = expr.getRight().accept(this);
 
     return new RenderResult(
-        "(" + left.getSql() + " AND " + right.getSql() + ")",
-        merge(left.getBindings(), right.getBindings()));
+        left.getSql() + " AND " + right.getSql(), merge(left.getBindings(), right.getBindings()));
   }
 
   @Override
@@ -72,8 +79,7 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
     RenderResult right = expr.getRight().accept(this);
 
     return new RenderResult(
-        "(" + left.getSql() + " OR " + right.getSql() + ")",
-        merge(left.getBindings(), right.getBindings()));
+        left.getSql() + " OR " + right.getSql(), merge(left.getBindings(), right.getBindings()));
   }
 
   @Override
@@ -126,6 +132,10 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
   public RenderResult visit(NotExpr expr) {
     RenderResult value = expr.getValue().accept(this);
 
-    return new RenderResult("NOT(" + value.getSql() + ")", value.getBindings());
+    return new RenderResult("NOT" + parethesize(value.getSql()), value.getBindings());
+  }
+
+  private String parethesize(String in) {
+    return "(" + in + ")";
   }
 }

@@ -28,7 +28,6 @@ import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -109,7 +108,7 @@ public class SpannerScanner implements Batch, Scan {
     if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
       columns = new ArrayList<>(this.requiredColumns);
     } else {
-      columns = new ArrayList<>(Arrays.asList("*"));
+      columns = null;
     }
     logger.info(
         "planInputPartition columns: {} \n requiredColumns: {} \n readSchema: {} \n fields: {} \n filters: {}",
@@ -118,16 +117,23 @@ public class SpannerScanner implements Batch, Scan {
         this.readSchema,
         this.fields,
         this.filters);
-    TableRelation tableRelation = new TableRelation(this.spannerTable.name(), null);
+    TableRelation tableRelation =
+        new TableRelation(this.spannerTable.name(), this.spannerTable.name());
     LogicalQuery logicalQuery = new LogicalQuery(tableRelation, columns, Optional.empty());
 
+    BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
+
     SpannerQueryBuilder result =
-        SpannerQueryBuilder.newBuilder(logicalQuery, this.filters, this.spannerTable.schema());
+        SpannerQueryBuilder.newBuilder(
+            logicalQuery,
+            this.filters,
+            this.spannerTable.schema(),
+            batchClient.databaseClient.getDialect());
     String tempResults = result.buildSql();
+    logger.info("tempResults: {}", tempResults);
 
     // End of new bits
 
-    BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
     boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
 
     // 1. Use * if no requiredColumns were requested else select them.
@@ -153,6 +159,7 @@ public class SpannerScanner implements Batch, Scan {
                   fields,
                   this.filters);
     }
+    logger.info("sqlStmt: {}", sqlStmt);
 
     boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {

@@ -98,7 +98,7 @@ public final class FilterToExprConverter {
   }
 
   private static ColumnExpr column(String name, StructType schema) {
-    logger.info("Looking up column '{}' in schema {}", name, schema.treeString());
+    logger.debug("Looking up column '{}' in schema {}", name, schema.treeString());
 
     StructField field = schema.apply(name);
 
@@ -106,7 +106,7 @@ public final class FilterToExprConverter {
   }
 
   private static LiteralExpr literal(Object value, StructType schema, String columnName) {
-    logger.info("Looking up literal column '{}' in schema {}", columnName, schema.treeString());
+    logger.debug("Looking up literal column '{}' in schema {}", columnName, schema.treeString());
 
     StructField field = schema.apply(columnName);
 

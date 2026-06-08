@@ -1,17 +1,30 @@
-package com.google.cloud.spark.spanner.planning.relation;
+package com.google.cloud.spark.spanner.rendering;
 
-import com.google.cloud.spark.spanner.planning.expression.SqlExprVisitor;
-import com.google.cloud.spark.spanner.rendering.RenderResult;
+import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spark.spanner.SpannerInformationSchema;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
+import com.google.cloud.spark.spanner.planning.relation.JoinType;
+import com.google.cloud.spark.spanner.planning.relation.RelationVisitor;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import java.util.Collections;
 
 public class SqlRelationVisitor implements RelationVisitor<RenderResult> {
 
-  private SqlExprVisitor sqlExprVisitor = new SqlExprVisitor();
+  private SqlExprVisitor sqlExprVisitor;
+  SpannerInformationSchema infoSchema;
+
+  public SqlRelationVisitor(Dialect dialect) {
+    this.infoSchema = SpannerInformationSchema.create(dialect);
+    this.sqlExprVisitor = new SqlExprVisitor(dialect);
+  }
 
   @Override
   public RenderResult visit(TableRelation relation) {
-    return new RenderResult(
-        relation.getTableName() + " " + relation.getAlias(), Collections.emptyMap());
+    StringBuilder sb = new StringBuilder(infoSchema.quoteIdentifier(relation.getTableName()));
+    if (relation.getAlias() != null) {
+      sb.append(" AS " + infoSchema.quoteIdentifier(relation.getAlias()));
+    }
+    return new RenderResult(sb.toString(), Collections.emptyMap());
   }
 
   @Override

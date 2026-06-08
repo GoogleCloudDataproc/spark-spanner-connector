@@ -86,7 +86,7 @@ public class SpannerScanBuilder
 
   /*
    * pruneColumns applies column pruning with respect to the requiredSchema.
-   * The docs recommend implementing this methood to push down required columns
+   * The docs recommend implementing this method to push down required columns
    * to the data source and only read these columns during scan to
    * reduce the size of the data to be read.
    */

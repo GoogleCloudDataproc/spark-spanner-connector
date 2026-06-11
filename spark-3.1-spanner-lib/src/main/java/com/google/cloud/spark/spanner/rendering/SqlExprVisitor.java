@@ -2,6 +2,7 @@ package com.google.cloud.spark.spanner.rendering;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spark.spanner.SpannerInformationSchema;
+import com.google.cloud.spark.spanner.binding.ParameterRef;
 import com.google.cloud.spark.spanner.binding.ParameterRegistry;
 import com.google.cloud.spark.spanner.planning.expression.*;
 import java.util.Collections;
@@ -11,13 +12,14 @@ import java.util.Map;
 
 public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
 
-  private final ParameterRegistry parameterRegistry = new ParameterRegistry();
-  private SpannerInformationSchema infoSchema;
-  private Dialect dialect;
+  private final Dialect dialect;
+  private final ParameterRegistry parameterRegistry;
+  private final SpannerInformationSchema infoSchema;
 
   public SqlExprVisitor(Dialect dialect) {
-    infoSchema = SpannerInformationSchema.create(dialect);
     this.dialect = dialect;
+    this.infoSchema = SpannerInformationSchema.create(dialect);
+    this.parameterRegistry = ParameterRegistry.create(dialect);
   }
 
   private static Map<String, LiteralExpr> merge(
@@ -107,12 +109,14 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
 
   @Override
   public RenderResult visit(LiteralExpr expr) {
-    String parameter = parameterRegistry.nextParameter();
+    ParameterRef ref = parameterRegistry.nextParameter();
 
     if (dialect == Dialect.GOOGLE_STANDARD_SQL) {
-      return new RenderResult("@p" + parameter, Collections.singletonMap("p" + parameter, expr));
+      return new RenderResult(
+          "@" + ref.getSqlName(), Collections.singletonMap(ref.getBindName(), expr));
     } else {
-      return new RenderResult("$" + parameter, Collections.singletonMap("p" + parameter, expr));
+      return new RenderResult(
+          "$" + ref.getSqlName(), Collections.singletonMap(ref.getBindName(), expr));
     }
   }
 
@@ -173,16 +177,16 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
 
     RenderResult left = column.accept(this);
 
-    String parameter = parameterRegistry.nextParameter();
+    ParameterRef ref = parameterRegistry.nextParameter();
 
     if (dialect == Dialect.GOOGLE_STANDARD_SQL) {
       return new RenderResult(
-          left.getSql() + " LIKE @p" + parameter,
-          Collections.singletonMap("p" + parameter, pattern));
+          left.getSql() + " LIKE @" + ref.getSqlName(),
+          Collections.singletonMap(ref.getBindName(), pattern));
     } else {
       return new RenderResult(
-          left.getSql() + " LIKE $" + parameter,
-          Collections.singletonMap("p" + parameter, pattern));
+          left.getSql() + " LIKE $" + ref.getSqlName(),
+          Collections.singletonMap(ref.getBindName(), pattern));
     }
   }
 

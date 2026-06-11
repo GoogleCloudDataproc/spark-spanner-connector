@@ -5,6 +5,7 @@ public final class ParameterRegistry {
 
   public String nextParameter() {
     counter++;
-    return "p" + counter;
+    //    return "p" + counter;
+    return String.valueOf(counter);
   }
 }

@@ -24,12 +24,10 @@ public class RelationTableTest {
 
   @Test
   public void testJoinRelation() {
+    final LiteralExpr aStringLiteral = new LiteralExpr("test", DataTypes.StringType);
+    BoolExpr expr = new EqExpr(new ColumnExpr("aCol", DataTypes.StringType, false), aStringLiteral);
     Relation tableA = new TableRelation("ATable", "a");
     Relation tableB = new TableRelation("BTable", "b");
-    BoolExpr expr =
-        new EqExpr(
-            new ColumnExpr("aCol", DataTypes.StringType, false),
-            new LiteralExpr("test", DataTypes.StringType));
     Relation relation = new JoinRelation(tableA, tableB, JoinType.INNER, expr);
 
     SqlRelationVisitor visitor = new SqlRelationVisitor(GOOGLE_STANDARD_SQL);
@@ -38,6 +36,6 @@ public class RelationTableTest {
 
     assertThat((String) result.getSql())
         .isEqualTo("`ATable` AS `a` INNER JOIN `BTable` AS `b` ON `aCol` = @p1");
-    assertThat((String) (result.getBindings().get("p1"))).isEqualTo("test");
+    assertThat(result.getBindings().get("p1")).isEqualTo(aStringLiteral);
   }
 }

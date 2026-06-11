@@ -17,12 +17,12 @@ package com.google.cloud.spark.spanner.scan;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
-import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
-import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
+import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
+import com.google.cloud.spark.spanner.planning.query.FilterToExprConverter;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
@@ -104,12 +104,11 @@ public class SpannerScanner implements Batch, Scan {
   @Override
   public InputPartition[] planInputPartitions() {
     // Build the LogicalQuery
-    ArrayList<String> columns;
+    ArrayList<String> columns = null;
     if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
       columns = new ArrayList<>(this.requiredColumns);
-    } else {
-      columns = null;
     }
+
     logger.info(
         "planInputPartition columns: {} \n requiredColumns: {} \n readSchema: {} \n fields: {} \n filters: {}",
         columns,
@@ -119,47 +118,46 @@ public class SpannerScanner implements Batch, Scan {
         this.filters);
     TableRelation tableRelation =
         new TableRelation(this.spannerTable.name(), this.spannerTable.name());
-    LogicalQuery logicalQuery = new LogicalQuery(tableRelation, columns, Optional.empty());
+    Optional<BoolExpr> exprOptional =
+        FilterToExprConverter.translateFilters(this.filters, this.spannerTable.schema());
+
+    LogicalQuery logicalQuery = new LogicalQuery(tableRelation, columns, exprOptional);
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
     SpannerQueryBuilder result =
         SpannerQueryBuilder.newBuilder(
-            logicalQuery,
-            this.filters,
-            this.spannerTable.schema(),
-            batchClient.databaseClient.getDialect());
-    String tempResults = result.buildSql();
-    logger.info("tempResults: {}", tempResults);
+            logicalQuery, this.spannerTable.schema(), batchClient.databaseClient.getDialect());
 
     // End of new bits
 
-    boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
+    //    boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
 
     // 1. Use * if no requiredColumns were requested else select them.
-    String selectPrefix = "SELECT *";
-    if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
-      // Prefix each column with the table name to avoid ambiguity when column name
-      // matches table name
-      String columnsWithTablePrefix =
-          buildColumnsWithTablePrefix(this.spannerTable.name(), this.requiredColumns, isPostgreSql);
-      selectPrefix = "SELECT " + columnsWithTablePrefix;
-    }
-
-    String quotedTableName =
-        isPostgreSql ? "\"" + spannerTable.name() + "\"" : "`" + spannerTable.name() + "`";
-    String sqlStmt = selectPrefix + " FROM " + quotedTableName;
-    if (this.filters.length > 0) {
-      sqlStmt +=
-          " WHERE "
-              + SparkFilterUtils.getCompiledFilter(
-                  true,
-                  Optional.empty(),
-                  batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL),
-                  fields,
-                  this.filters);
-    }
-    logger.info("sqlStmt: {}", sqlStmt);
+    //    String selectPrefix = "SELECT *";
+    //    if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
+    //      // Prefix each column with the table name to avoid ambiguity when column name
+    //      // matches table name
+    //      String columnsWithTablePrefix =
+    //          buildColumnsWithTablePrefix(this.spannerTable.name(), this.requiredColumns,
+    // isPostgreSql);
+    //      selectPrefix = "SELECT " + columnsWithTablePrefix;
+    //    }
+    //
+    //    String quotedTableName =
+    //        isPostgreSql ? "\"" + spannerTable.name() + "\"" : "`" + spannerTable.name() + "`";
+    //    String sqlStmt = selectPrefix + " FROM " + quotedTableName;
+    //    if (this.filters.length > 0) {
+    //      sqlStmt +=
+    //          " WHERE "
+    //              + SparkFilterUtils.getCompiledFilter(
+    //                  true,
+    //                  Optional.empty(),
+    //                  batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL),
+    //                  fields,
+    //                  this.filters);
+    //    }
+    //    logger.info("sqlStmt: {}", sqlStmt);
 
     boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {
@@ -173,7 +171,7 @@ public class SpannerScanner implements Batch, Scan {
       java.util.List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
-              Statement.of(sqlStmt),
+              result.buildStatement(),
               Options.dataBoostEnabled(enableDataboost));
 
       java.util.List<Partition> parts =

@@ -12,22 +12,22 @@ public class SpannerExprTest {
 
   @Test
   public void testVisit() {
+    final LiteralExpr aLongLiteral = new LiteralExpr(Long.valueOf(123L), DataTypes.LongType);
+    final LiteralExpr aBooleanLiteral =
+        new LiteralExpr(Boolean.valueOf(true), DataTypes.BooleanType);
     SpannerExpr predicate =
         new OrExpr(
             new AndExpr(
+                new EqExpr(new ColumnExpr("SingerId", DataTypes.LongType, false), aLongLiteral),
                 new EqExpr(
-                    new ColumnExpr("SingerId", DataTypes.LongType, false),
-                    new LiteralExpr(Long.valueOf(123L), DataTypes.LongType)),
-                new EqExpr(
-                    new ColumnExpr("Active", DataTypes.BooleanType, false),
-                    new LiteralExpr(Boolean.valueOf(true), DataTypes.BooleanType))),
+                    new ColumnExpr("Active", DataTypes.BooleanType, false), aBooleanLiteral)),
             new TrueExpr());
 
     SqlExprVisitor visitor = new SqlExprVisitor(Dialect.GOOGLE_STANDARD_SQL);
 
     RenderResult result = predicate.accept(visitor);
     assertThat(result.getSql()).isEqualTo("`SingerId` = @p1 AND `Active` = @p2 OR TRUE");
-    assertThat((long) (result.getBindings().get("p1"))).isEqualTo(123L);
-    assertThat((Boolean) (result.getBindings().get("p2"))).isEqualTo(true);
+    assertThat(result.getBindings().get("p1")).isEqualTo(aLongLiteral);
+    assertThat(result.getBindings().get("p2")).isEqualTo(aBooleanLiteral);
   }
 }

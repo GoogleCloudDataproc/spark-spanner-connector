@@ -5,7 +5,11 @@ public interface SpannerExprVisitor<T> {
 
   T visit(GtExpr expr);
 
+  T visit(GteExpr expr);
+
   T visit(LtExpr expr);
+
+  T visit(LteExpr expr);
 
   T visit(AndExpr expr);
 
@@ -17,9 +21,17 @@ public interface SpannerExprVisitor<T> {
 
   T visit(TrueExpr expr);
 
+  T visit(IsNullExpr expr);
+
   T visit(IsNotNullExpr expr);
 
   T visit(InExpr expr);
 
   T visit(NotExpr expr);
+
+  T visit(StartsWithExpr expr);
+
+  T visit(EndsWithExpr expr);
+
+  T visit(ContainsExpr expr);
 }

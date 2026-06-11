@@ -18,7 +18,7 @@ public final class FilterToExprConverter {
   private static BoolExpr translateFilter(Filter filter, StructType schema) {
 
     if (filter instanceof EqualTo) {
-      logger.info("Filter EqualTo expression");
+      logger.debug("Filter EqualTo expression");
       EqualTo eq = (EqualTo) filter;
       return new EqExpr(
           column((String) eq.attribute(), schema),
@@ -26,42 +26,65 @@ public final class FilterToExprConverter {
     }
 
     if (filter instanceof GreaterThan) {
-      logger.info("Filter GreaterThan expression");
+      logger.debug("Filter GreaterThan expression");
       GreaterThan gt = (GreaterThan) filter;
       return new GtExpr(
           column((String) gt.attribute(), schema),
           literal(gt.value(), schema, (String) gt.attribute()));
     }
 
+    if (filter instanceof GreaterThanOrEqual) {
+      logger.debug("Filter GreaterThanOrEqual expression");
+      GreaterThanOrEqual gte = (GreaterThanOrEqual) filter;
+      return new GteExpr(
+          column((String) gte.attribute(), schema),
+          literal(gte.value(), schema, (String) gte.attribute()));
+    }
+
     if (filter instanceof LessThan) {
-      logger.info("Filter LessThan expression");
+      logger.debug("Filter LessThan expression");
       LessThan lt = (LessThan) filter;
       return new LtExpr(
           column((String) lt.attribute(), schema),
           literal(lt.value(), schema, (String) lt.attribute()));
     }
 
+    if (filter instanceof LessThanOrEqual) {
+      logger.debug("Filter LessThanOrEqual expression");
+      LessThanOrEqual lte = (LessThanOrEqual) filter;
+      return new LteExpr(
+          column((String) lte.attribute(), schema),
+          literal(lte.value(), schema, (String) lte.attribute()));
+    }
+
     if (filter instanceof And) {
-      logger.info("Filter And expression");
+      logger.debug("Filter And expression");
       And and = (And) filter;
       return new AndExpr(translateFilter(and.left(), schema), translateFilter(and.right(), schema));
     }
 
     if (filter instanceof Or) {
-      logger.info("Filter Or expression");
+      logger.debug("Filter Or expression");
       Or or = (Or) filter;
       return new OrExpr(translateFilter(or.left(), schema), translateFilter(or.right(), schema));
     }
 
+    if (filter instanceof IsNull) {
+      logger.debug("Filter IsNull expression");
+      IsNull isNull = (IsNull) filter;
+
+      return new IsNullExpr(column(isNull.attribute(), schema));
+    }
+
     if (filter instanceof IsNotNull) {
-      logger.info("Filter IsNotNull expression");
+      logger.debug("Filter IsNotNull expression");
       IsNotNull isNotNull = (IsNotNull) filter;
 
       return new IsNotNullExpr(column(isNotNull.attribute(), schema));
     }
 
     if (filter instanceof In) {
-      logger.info("Filter In expression");
+      logger.debug("Filter In expression");
       In in = (In) filter;
       List<LiteralExpr> values = new ArrayList<>();
 
@@ -72,12 +95,37 @@ public final class FilterToExprConverter {
     }
 
     if (filter instanceof Not) {
-      logger.info("Filter Not expression");
+      logger.debug("Filter Not expression");
       Not not = (Not) filter;
 
       return new NotExpr(translateFilter(not.child(), schema));
     }
 
+    if (filter instanceof StringStartsWith) {
+      StringStartsWith startsWith = (StringStartsWith) filter;
+
+      return new StartsWithExpr(
+          column(startsWith.attribute(), schema),
+          literal(startsWith.value(), schema, startsWith.attribute()));
+    }
+
+    if (filter instanceof StringEndsWith) {
+      StringEndsWith endsWith = (StringEndsWith) filter;
+
+      return new EndsWithExpr(
+          column(endsWith.attribute(), schema),
+          literal(endsWith.value(), schema, endsWith.attribute()));
+    }
+
+    if (filter instanceof StringContains) {
+      StringContains contains = (StringContains) filter;
+
+      return new ContainsExpr(
+          column(contains.attribute(), schema),
+          literal(contains.value(), schema, contains.attribute()));
+    }
+
+    // TODO: should SQL be passed through as is instead of throwing an exception?
     logger.error("Unsupported filter: {}", filter);
     throw new UnsupportedOperationException("Unsupported filter: " + filter);
   }

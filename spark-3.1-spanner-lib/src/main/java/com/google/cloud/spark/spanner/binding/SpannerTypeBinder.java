@@ -10,7 +10,7 @@ import org.apache.spark.sql.types.DecimalType;
 
 public final class SpannerTypeBinder {
 
-  public void bind(Statement.Builder builder, String parameter, LiteralExpr literal) {
+  public static void bind(Statement.Builder builder, String parameter, LiteralExpr literal) {
 
     Object value = literal.getValue();
     DataType type = literal.getSparkType();
@@ -39,7 +39,7 @@ public final class SpannerTypeBinder {
     }
   }
 
-  private Type mapToSpannerType(DataType type) {
+  private static Type mapToSpannerType(DataType type) {
     if (type instanceof DecimalType) {
       return Type.numeric();
     } else if (type.sameType(DataTypes.StringType)) {

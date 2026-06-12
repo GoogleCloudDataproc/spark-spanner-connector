@@ -15,11 +15,16 @@
 package com.google.cloud.spark.spanner.scan;
 
 import com.google.cloud.spark.spanner.SparkFilterUtils;
+import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
+import com.google.cloud.spark.spanner.planning.query.FilterToExprConverter;
+import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
@@ -42,6 +47,7 @@ public class SpannerScanBuilder
   private static final Logger log = LoggerFactory.getLogger(SpannerScanBuilder.class);
   private SpannerTable spannerTable;
   private Map<String, StructField> fields;
+  private static final Logger logger = LoggerFactory.getLogger(SpannerScanBuilder.class);
 
   public SpannerScanBuilder(SpannerTable spannerTable) {
     this.pushedFilters = new ArrayList<Filter>();
@@ -54,13 +60,28 @@ public class SpannerScanBuilder
 
   @Override
   public Scan build() {
-    this.scanner =
-        new SpannerScanner(
-            this.spannerTable.properties(),
-            this.spannerTable,
-            this.fields,
-            this.pushedFilters(),
-            this.requiredColumns);
+    // Build the LogicalQuery
+    ArrayList<String> columns = null;
+    if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
+      columns = new ArrayList<>(this.requiredColumns);
+    }
+
+    final Filter[] filters = this.pushedFilters();
+
+    logger.debug(
+        "build columns: {} \n requiredColumns: {} \n fields: {} \n filters: {}",
+        columns,
+        this.requiredColumns,
+        this.fields,
+        filters);
+    TableRelation tableRelation =
+        new TableRelation(this.spannerTable.name(), this.spannerTable.name());
+    Optional<BoolExpr> exprOptional =
+        FilterToExprConverter.translateFilters(filters, this.spannerTable.schema());
+
+    LogicalQuery logicalQuery = new LogicalQuery(tableRelation, columns, exprOptional);
+
+    this.scanner = new SpannerScanner(this.spannerTable, this.requiredColumns, logicalQuery);
     return this.scanner;
   }
 

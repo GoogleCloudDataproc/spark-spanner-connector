@@ -21,15 +21,9 @@ import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
-import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
-import com.google.cloud.spark.spanner.planning.query.FilterToExprConverter;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
-import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.spark.Partition;
@@ -37,8 +31,6 @@ import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
-import org.apache.spark.sql.sources.Filter;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
@@ -49,27 +41,18 @@ import org.slf4j.LoggerFactory;
  */
 public class SpannerScanner implements Batch, Scan {
   private final SpannerTable spannerTable;
-  private final Filter[] filters;
-  private final Set<String> requiredColumns;
   private final CaseInsensitiveStringMap opts;
-  private static final Logger log = LoggerFactory.getLogger(SpannerScanner.class);
   private final Timestamp INIT_TIME = Timestamp.now();
-  private final Map<String, StructField> fields;
   private final StructType readSchema;
+  private final LogicalQuery logicalQuery;
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(
-      CaseInsensitiveStringMap opts,
-      SpannerTable spannerTable,
-      Map<String, StructField> fields,
-      Filter[] filters,
-      Set<String> requiredColumns) {
-    this.opts = opts;
+      SpannerTable spannerTable, Set<String> requiredColumns, LogicalQuery logicalQuery) {
+    this.opts = spannerTable.properties();
     this.spannerTable = spannerTable;
-    this.fields = fields;
-    this.filters = filters;
-    this.requiredColumns = requiredColumns;
     this.readSchema = SpannerUtils.pruneSchema(spannerTable.schema(), requiredColumns);
+    this.logicalQuery = logicalQuery;
   }
 
   @Override
@@ -87,77 +70,14 @@ public class SpannerScanner implements Batch, Scan {
     return new SpannerPartitionReaderFactory();
   }
 
-  public static String buildColumnsWithTablePrefix(
-      String tableName, Set<String> columns, boolean isPostgreSql) {
-    if (tableName == null) {
-      return columns.stream()
-          .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
-          .collect(Collectors.joining(", "));
-    }
-    String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
-    return columns.stream()
-        .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
-        .map(quotedCol -> quotedTableName + "." + quotedCol)
-        .collect(Collectors.joining(", "));
-  }
-
   @Override
   public InputPartition[] planInputPartitions() {
-    // Build the LogicalQuery
-    ArrayList<String> columns = null;
-    if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
-      columns = new ArrayList<>(this.requiredColumns);
-    }
-
-    logger.debug(
-        "planInputPartition columns: {} \n requiredColumns: {} \n readSchema: {} \n fields: {} \n filters: {}",
-        columns,
-        this.requiredColumns,
-        this.readSchema,
-        this.fields,
-        this.filters);
-    TableRelation tableRelation =
-        new TableRelation(this.spannerTable.name(), this.spannerTable.name());
-    Optional<BoolExpr> exprOptional =
-        FilterToExprConverter.translateFilters(this.filters, this.spannerTable.schema());
-
-    LogicalQuery logicalQuery = new LogicalQuery(tableRelation, columns, exprOptional);
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
     SpannerQueryBuilder result =
         SpannerQueryBuilder.newBuilder(
-            logicalQuery, this.spannerTable.schema(), batchClient.databaseClient.getDialect());
-
-    // End of new bits
-
-    //    boolean isPostgreSql = batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL);
-
-    // 1. Use * if no requiredColumns were requested else select them.
-    //    String selectPrefix = "SELECT *";
-    //    if (this.requiredColumns != null && this.requiredColumns.size() > 0) {
-    //      // Prefix each column with the table name to avoid ambiguity when column name
-    //      // matches table name
-    //      String columnsWithTablePrefix =
-    //          buildColumnsWithTablePrefix(this.spannerTable.name(), this.requiredColumns,
-    // isPostgreSql);
-    //      selectPrefix = "SELECT " + columnsWithTablePrefix;
-    //    }
-    //
-    //    String quotedTableName =
-    //        isPostgreSql ? "\"" + spannerTable.name() + "\"" : "`" + spannerTable.name() + "`";
-    //    String sqlStmt = selectPrefix + " FROM " + quotedTableName;
-    //    if (this.filters.length > 0) {
-    //      sqlStmt +=
-    //          " WHERE "
-    //              + SparkFilterUtils.getCompiledFilter(
-    //                  true,
-    //                  Optional.empty(),
-    //                  batchClient.databaseClient.getDialect().equals(Dialect.POSTGRESQL),
-    //                  fields,
-    //                  this.filters);
-    //    }
-    //    logger.info("sqlStmt: {}", sqlStmt);
+            this.logicalQuery, this.spannerTable.schema(), batchClient.databaseClient.getDialect());
 
     boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {

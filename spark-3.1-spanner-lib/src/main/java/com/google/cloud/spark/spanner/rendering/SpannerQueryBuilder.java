@@ -8,11 +8,12 @@ import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
-import com.google.cloud.spark.spanner.scan.SpannerScanner;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +51,7 @@ public class SpannerQueryBuilder {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
       String columnsWithTablePrefix =
-          SpannerScanner.buildColumnsWithTablePrefix(
+          buildColumnsWithTablePrefix(
               alias,
               new LinkedHashSet(this.logicalQuery.getProjections()),
               dialect.equals(Dialect.POSTGRESQL));
@@ -102,6 +103,20 @@ public class SpannerQueryBuilder {
       }
     }
     return builder.build();
+  }
+
+  public static String buildColumnsWithTablePrefix(
+      String tableName, Set<String> columns, boolean isPostgreSql) {
+    if (tableName == null) {
+      return columns.stream()
+          .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
+          .collect(Collectors.joining(", "));
+    }
+    String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
+    return columns.stream()
+        .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
+        .map(quotedCol -> quotedTableName + "." + quotedCol)
+        .collect(Collectors.joining(", "));
   }
 
   private String parenthesize(String in) {

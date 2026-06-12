@@ -16,6 +16,7 @@ package com.google.cloud.spark.spanner.scan;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -23,21 +24,21 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for SpannerScanner.buildColumnsWithTablePrefix() */
+/** Unit tests for SpannerQueryBuilder.buildColumnsWithTablePrefix() */
 @RunWith(JUnit4.class)
-public class SpannerScannerTest {
+public class SpannerQueryBuilderTest {
 
   @Test
   public void testBuildColumnsWithTablePrefix_googleSql_singleColumn() {
     Set<String> columns = new HashSet<>(Arrays.asList("id"));
-    String result = SpannerScanner.buildColumnsWithTablePrefix("users", columns, false);
+    String result = SpannerQueryBuilder.buildColumnsWithTablePrefix("users", columns, false);
     assertThat(result).isEqualTo("`users`.`id`");
   }
 
   @Test
   public void testBuildColumnsWithTablePrefix_googleSql_multipleColumns() {
     Set<String> columns = new HashSet<>(Arrays.asList("id", "name"));
-    String result = SpannerScanner.buildColumnsWithTablePrefix("users", columns, false);
+    String result = SpannerQueryBuilder.buildColumnsWithTablePrefix("users", columns, false);
     assertThat(result).contains("`users`.`id`");
     assertThat(result).contains("`users`.`name`");
   }
@@ -45,7 +46,7 @@ public class SpannerScannerTest {
   @Test
   public void testBuildColumnsWithTablePrefix_googleSql_columnMatchingTableName() {
     Set<String> columns = new HashSet<>(Arrays.asList("users", "id"));
-    String result = SpannerScanner.buildColumnsWithTablePrefix("users", columns, false);
+    String result = SpannerQueryBuilder.buildColumnsWithTablePrefix("users", columns, false);
     assertThat(result).contains("`users`.`users`");
     assertThat(result).contains("`users`.`id`");
   }
@@ -53,14 +54,14 @@ public class SpannerScannerTest {
   @Test
   public void testBuildColumnsWithTablePrefix_postgreSql_singleColumn() {
     Set<String> columns = new HashSet<>(Arrays.asList("id"));
-    String result = SpannerScanner.buildColumnsWithTablePrefix("users", columns, true);
+    String result = SpannerQueryBuilder.buildColumnsWithTablePrefix("users", columns, true);
     assertThat(result).isEqualTo("\"users\".\"id\"");
   }
 
   @Test
   public void testBuildColumnsWithTablePrefix_postgreSql_multipleColumns() {
     Set<String> columns = new HashSet<>(Arrays.asList("id", "name"));
-    String result = SpannerScanner.buildColumnsWithTablePrefix("users", columns, true);
+    String result = SpannerQueryBuilder.buildColumnsWithTablePrefix("users", columns, true);
     assertThat(result).contains("\"users\".\"id\"");
     assertThat(result).contains("\"users\".\"name\"");
   }
@@ -68,7 +69,7 @@ public class SpannerScannerTest {
   @Test
   public void testBuildColumnsWithTablePrefix_postgreSql_columnMatchingTableName() {
     Set<String> columns = new HashSet<>(Arrays.asList("users", "id"));
-    String result = SpannerScanner.buildColumnsWithTablePrefix("users", columns, true);
+    String result = SpannerQueryBuilder.buildColumnsWithTablePrefix("users", columns, true);
     assertThat(result).contains("\"users\".\"users\"");
     assertThat(result).contains("\"users\".\"id\"");
   }
@@ -76,7 +77,7 @@ public class SpannerScannerTest {
   @Test
   public void testBuildColumnsWithTablePrefix_emptyColumns() {
     Set<String> columns = new HashSet<>();
-    String result = SpannerScanner.buildColumnsWithTablePrefix("users", columns, false);
+    String result = SpannerQueryBuilder.buildColumnsWithTablePrefix("users", columns, false);
     assertThat(result).isEmpty();
   }
 }

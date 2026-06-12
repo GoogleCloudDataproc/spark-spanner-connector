@@ -33,6 +33,7 @@ import com.google.cloud.spark.spanner.SpannerTestUtils;
 import com.google.cloud.spark.spanner.SpannerUtils;
 import com.google.cloud.spark.spanner.TestData;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.micrometer.observation.Observation.CheckedRunnable;
@@ -185,6 +186,7 @@ class SpannerTestBase {
 
     // Create the instance.
     InstanceAdminClient instanceAdminClient = spanner.getInstanceAdminClient();
+    InstanceId fullInstanceId = InstanceId.of(projectId, instanceId);
 
     // Check if the instance already exists first to avoid hitting createInstance quota.
     InstanceInfo instanceInfo =

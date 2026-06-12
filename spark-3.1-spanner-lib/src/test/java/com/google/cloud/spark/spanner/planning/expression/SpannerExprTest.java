@@ -23,7 +23,7 @@ public class SpannerExprTest {
                     new ColumnExpr("Active", DataTypes.BooleanType, false), aBooleanLiteral)),
             new TrueExpr());
 
-    SqlExprVisitor visitor = new SqlExprVisitor(Dialect.GOOGLE_STANDARD_SQL);
+    SqlExprVisitor visitor = SqlExprVisitor.create(Dialect.GOOGLE_STANDARD_SQL);
 
     RenderResult result = predicate.accept(visitor);
     assertThat(result.getSql()).isEqualTo("`SingerId` = @p1 AND `Active` = @p2 OR TRUE");

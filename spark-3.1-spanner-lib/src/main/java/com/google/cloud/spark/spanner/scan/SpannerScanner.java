@@ -109,7 +109,7 @@ public class SpannerScanner implements Batch, Scan {
       columns = new ArrayList<>(this.requiredColumns);
     }
 
-    logger.info(
+    logger.debug(
         "planInputPartition columns: {} \n requiredColumns: {} \n readSchema: {} \n fields: {} \n filters: {}",
         columns,
         this.requiredColumns,

@@ -2,7 +2,6 @@ package com.google.cloud.spark.spanner.rendering;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spark.spanner.SpannerInformationSchema;
-import com.google.cloud.spark.spanner.binding.ParameterRef;
 import com.google.cloud.spark.spanner.binding.ParameterRegistry;
 import com.google.cloud.spark.spanner.planning.expression.*;
 import java.util.Collections;
@@ -10,16 +9,25 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
+public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
 
-  private final Dialect dialect;
-  private final ParameterRegistry parameterRegistry;
-  private final SpannerInformationSchema infoSchema;
+  protected ParameterRegistry parameterRegistry = null;
+  private SpannerInformationSchema infoSchema = null;
 
-  public SqlExprVisitor(Dialect dialect) {
-    this.dialect = dialect;
-    this.infoSchema = SpannerInformationSchema.create(dialect);
-    this.parameterRegistry = ParameterRegistry.create(dialect);
+  protected SqlExprVisitor(
+      SpannerInformationSchema infoSchema, ParameterRegistry parameterRegistry) {
+    this.infoSchema = infoSchema;
+    this.parameterRegistry = parameterRegistry;
+  }
+
+  public static SqlExprVisitor create(Dialect dialect) {
+    switch (dialect) {
+      case POSTGRESQL:
+        return new PostgresSpannerSqlExprVisitor();
+      case GOOGLE_STANDARD_SQL:
+        return new GoogleSqlSpannerSqlExprVisitor();
+    }
+    throw new IllegalArgumentException("Unsupported dialect: " + dialect);
   }
 
   private static Map<String, LiteralExpr> merge(
@@ -108,17 +116,7 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
   }
 
   @Override
-  public RenderResult visit(LiteralExpr expr) {
-    ParameterRef ref = parameterRegistry.nextParameter();
-
-    if (dialect == Dialect.GOOGLE_STANDARD_SQL) {
-      return new RenderResult(
-          "@" + ref.getSqlName(), Collections.singletonMap(ref.getBindName(), expr));
-    } else {
-      return new RenderResult(
-          "$" + ref.getSqlName(), Collections.singletonMap(ref.getBindName(), expr));
-    }
-  }
+  public abstract RenderResult visit(LiteralExpr expr);
 
   @Override
   public RenderResult visit(TrueExpr expr) {
@@ -173,22 +171,7 @@ public final class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
     return new RenderResult("NOT" + parenthesize(value.getSql()), value.getBindings());
   }
 
-  private RenderResult like(ColumnExpr column, LiteralExpr pattern) {
-
-    RenderResult left = column.accept(this);
-
-    ParameterRef ref = parameterRegistry.nextParameter();
-
-    if (dialect == Dialect.GOOGLE_STANDARD_SQL) {
-      return new RenderResult(
-          left.getSql() + " LIKE @" + ref.getSqlName(),
-          Collections.singletonMap(ref.getBindName(), pattern));
-    } else {
-      return new RenderResult(
-          left.getSql() + " LIKE $" + ref.getSqlName(),
-          Collections.singletonMap(ref.getBindName(), pattern));
-    }
-  }
+  abstract RenderResult like(ColumnExpr column, LiteralExpr pattern);
 
   @Override
   public RenderResult visit(StartsWithExpr expr) {

@@ -83,7 +83,7 @@ public class SpannerQueryBuilder {
     Optional<BoolExpr> exprOptional = this.logicalQuery.getFilter();
     if (exprOptional.isPresent()) {
       BoolExpr expr = exprOptional.get();
-      SqlExprVisitor exprVisitor = new SqlExprVisitor(dialect);
+      SqlExprVisitor exprVisitor = SqlExprVisitor.create(dialect);
       RenderResult result = expr.accept(exprVisitor);
       return Optional.of(result);
     } else {

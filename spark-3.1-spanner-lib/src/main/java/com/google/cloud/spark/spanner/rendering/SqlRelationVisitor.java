@@ -15,7 +15,7 @@ public class SqlRelationVisitor implements RelationVisitor<RenderResult> {
 
   public SqlRelationVisitor(Dialect dialect) {
     this.infoSchema = SpannerInformationSchema.create(dialect);
-    this.sqlExprVisitor = new SqlExprVisitor(dialect);
+    this.sqlExprVisitor = SqlExprVisitor.create(dialect);
   }
 
   @Override
@@ -44,7 +44,6 @@ public class SqlRelationVisitor implements RelationVisitor<RenderResult> {
   }
 
   private String renderJoinType(JoinType joinType) {
-    // TODO: does this need to change for dialects? Do we support CROSS JOIN?
     switch (joinType) {
       case INNER:
         return "INNER JOIN";

@@ -34,6 +34,16 @@ public final class SpannerTypeBinder {
       builder.bind(parameter).to((Long) value);
     } else if (type.sameType(DataTypes.BooleanType)) {
       builder.bind(parameter).to((Boolean) value);
+    } else if (type.sameType(DataTypes.IntegerType)) {
+      builder.bind(parameter).to(((Integer) value).longValue());
+    } else if (type.sameType(DataTypes.ShortType)) {
+      builder.bind(parameter).to(((Short) value).longValue());
+    } else if (type.sameType(DataTypes.ByteType)) {
+      builder.bind(parameter).to(((Byte) value).longValue());
+    } else if (type.sameType(DataTypes.DoubleType)) {
+      builder.bind(parameter).to((Double) value);
+    } else if (type.sameType(DataTypes.FloatType)) {
+      builder.bind(parameter).to(((Float) value).doubleValue());
     } else {
       throw new UnsupportedOperationException("Unsupported type: " + type);
     }
@@ -44,10 +54,12 @@ public final class SpannerTypeBinder {
       return Type.numeric();
     } else if (type.sameType(DataTypes.StringType)) {
       return Type.string();
-    } else if (type.sameType(DataTypes.LongType)) {
+    } else if (type.sameType(DataTypes.LongType) || type.sameType(DataTypes.IntegerType)) {
       return Type.int64();
     } else if (type.sameType(DataTypes.BooleanType)) {
       return Type.bool();
+    } else if (type.sameType(DataTypes.DoubleType)) {
+      return Type.float64();
     } else {
       throw new UnsupportedOperationException(
           "Unsupported Spark type for Spanner null mapping: " + type);

@@ -5,7 +5,6 @@ public class PostgresSqlParameterRegistry extends ParameterRegistry {
   public ParameterRef nextParameter() {
     counter++;
     final String name = String.valueOf(counter);
-    ParameterRef ref = new ParameterRef("p" + String.valueOf(counter), String.valueOf(counter));
-    return ref;
+    return new ParameterRef("p" + name, name);
   }
 }

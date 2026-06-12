@@ -53,7 +53,7 @@ public class SpannerQueryBuilder {
       String columnsWithTablePrefix =
           buildColumnsWithTablePrefix(
               alias,
-              new LinkedHashSet(this.logicalQuery.getProjections()),
+              new LinkedHashSet<>(this.logicalQuery.getProjections()),
               dialect.equals(Dialect.POSTGRESQL));
       selectPrefix = "SELECT " + columnsWithTablePrefix;
     }

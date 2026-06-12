@@ -168,7 +168,7 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
   public RenderResult visit(NotExpr expr) {
     RenderResult value = expr.getValue().accept(this);
 
-    return new RenderResult("NOT" + parenthesize(value.getSql()), value.getBindings());
+    return new RenderResult("NOT " + parenthesize(value.getSql()), value.getBindings());
   }
 
   abstract RenderResult like(ColumnExpr column, LiteralExpr pattern);

@@ -5,7 +5,6 @@ public class GoogleSqlParameterRegistry extends ParameterRegistry {
   public ParameterRef nextParameter() {
     counter++;
     final String name = "p" + String.valueOf(counter);
-    ParameterRef ref = new ParameterRef(name, name);
-    return ref;
+    return new ParameterRef(name, name);
   }
 }

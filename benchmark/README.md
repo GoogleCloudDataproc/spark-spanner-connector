@@ -79,7 +79,7 @@ You can create the results bucket using the `createResultsBucket` sbt task. You'
 gsutil mb -p your-gcp-project-id -l your-gcp-region gs://your-dataproc-staging-bucket/
 
 # Create the GCS bucket for benchmark results
-sbt createResultsBucket
+sbt "createResultsBucket <environment_name>"
 ```
 
 ### 5. Service Account and Permissions
@@ -143,7 +143,7 @@ First, you need to store your GCP service account's JSON key file in a Databrick
 The `benchmark/setup_gcp_credentials.sh` script is designed to run as a cluster-scoped init script. It reads the secret you just created and installs it as the Application Default Credentials (ADC) file on each node in the cluster.
 
 1.  **Upload the init script**: Upload `benchmark/setup_gcp_credentials.sh` to a location on your Databricks workspace or DBFS (e.g., `dbfs:/databricks/init_scripts/setup_gcp_credentials.sh`).
-2.  **Configure the cluster**: In your Databricks cluster configuration, navigate to "Advanced Options" -> "Init Scripts". Add the path to the script you just uploaded.
+2.  **Configure the cluster**: In your Databricks cluster configuration, navigate to "Advanced Options" -> "Init Scripts". Add the path of the script you just uploaded.
 3.  **Set Environment Variables**: In the same cluster configuration, under "Advanced Options" -> "Spark", set the following environment variable. This tells the init script which secret to read.
     ```
     GCP_CREDENTIALS={{secrets/gcp-credentials/spanner-benchmark-sa}}

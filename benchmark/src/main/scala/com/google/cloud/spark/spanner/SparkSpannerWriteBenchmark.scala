@@ -92,7 +92,7 @@ object SparkSpannerWriteBenchmark {
 
     println(s"Beginning write to table '$writeTable' with mutationsPerTransaction: $mutationsPerTransaction")
     val startTime = System.nanoTime()
-    val provider = s"com.google.cloud.spark.spanner.Spark${buildSparkVersion.replace(".", "")}SpannerTableProvider"
+    val provider = SpannerScalaUtils.getProviderClassName(buildSparkVersion)
     dfPartitioned
       .write
       .format(provider)

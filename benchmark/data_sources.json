@@ -7,9 +7,19 @@
       "generatorNotebook": "notebooks/PrepareSource.scala"
     },
     {
+      "name": "default-100mil-data",
+      "description": "A table structure for the default 100mil records generated in-memory by the benchmark.",
+      "ddlFile": "ddl/create_spanner_table.sql"
+    },
+    {
       "name": "default-100k-data",
       "description": "A table structure for the default 100k records generated in-memory by the benchmark.",
       "ddlFile": "ddl/create_spanner_table.sql"
+    },
+    {
+      "name": "tpch-sf10",
+      "description": "TPC-H Scale Factor 10 dataset in Spanner",
+      "tables": ["customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier"]
     }
   ]
 }

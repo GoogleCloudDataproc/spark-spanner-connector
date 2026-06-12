@@ -1,0 +1,113 @@
+{
+  "tables": [
+    {
+      "table_name": "PART",
+      "file_patterns": ["gs://my-tpch-data/part.csv"],
+      "columns": [
+        {"column_name": "P_PARTKEY", "type_name": "INT64"},
+        {"column_name": "P_NAME", "type_name": "STRING"},
+        {"column_name": "P_MFGR", "type_name": "STRING"},
+        {"column_name": "P_BRAND", "type_name": "STRING"},
+        {"column_name": "P_TYPE", "type_name": "STRING"},
+        {"column_name": "P_SIZE", "type_name": "INT64"},
+        {"column_name": "P_CONTAINER", "type_name": "STRING"},
+        {"column_name": "P_RETAILPRICE", "type_name": "NUMERIC"},
+        {"column_name": "P_COMMENT", "type_name": "STRING"}
+      ]
+    },
+    {
+      "table_name": "SUPPLIER",
+      "file_patterns": ["gs://my-tpch-data/supplier.csv"],
+      "columns": [
+        {"column_name": "S_SUPPKEY", "type_name": "INT64"},
+        {"column_name": "S_NAME", "type_name": "STRING"},
+        {"column_name": "S_ADDRESS", "type_name": "STRING"},
+        {"column_name": "S_NATIONKEY", "type_name": "INT64"},
+        {"column_name": "S_PHONE", "type_name": "STRING"},
+        {"column_name": "S_ACCTBAL", "type_name": "NUMERIC"},
+        {"column_name": "S_COMMENT", "type_name": "STRING"}
+      ]
+    },
+    {
+      "table_name": "PARTSUPP",
+      "file_patterns": ["gs://my-tpch-data/partsupp.csv"],
+      "columns": [
+        {"column_name": "PS_PARTKEY", "type_name": "INT64"},
+        {"column_name": "PS_SUPPKEY", "type_name": "INT64"},
+        {"column_name": "PS_AVAILQTY", "type_name": "INT64"},
+        {"column_name": "PS_SUPPLYCOST", "type_name": "NUMERIC"},
+        {"column_name": "PS_COMMENT", "type_name": "STRING"}
+      ]
+    },
+    {
+      "table_name": "CUSTOMER",
+      "file_patterns": ["gs://my-tpch-data/customer.csv"],
+      "columns": [
+        {"column_name": "C_CUSTKEY", "type_name": "INT64"},
+        {"column_name": "C_NAME", "type_name": "STRING"},
+        {"column_name": "C_ADDRESS", "type_name": "STRING"},
+        {"column_name": "C_NATIONKEY", "type_name": "INT64"},
+        {"column_name": "C_PHONE", "type_name": "STRING"},
+        {"column_name": "C_ACCTBAL", "type_name": "NUMERIC"},
+        {"column_name": "C_MKTSEGMENT", "type_name": "STRING"},
+        {"column_name": "C_COMMENT", "type_name": "STRING"}
+      ]
+    },
+    {
+      "table_name": "ORDERS",
+      "file_patterns": ["gs://my-tpch-data/orders.csv"],
+      "columns": [
+        {"column_name": "O_ORDERKEY", "type_name": "INT64"},
+        {"column_name": "O_CUSTKEY", "type_name": "INT64"},
+        {"column_name": "O_ORDERSTATUS", "type_name": "STRING"},
+        {"column_name": "O_TOTALPRICE", "type_name": "NUMERIC"},
+        {"column_name": "O_ORDERDATE", "type_name": "DATE"},
+        {"column_name": "O_ORDERPRIORITY", "type_name": "STRING"},
+        {"column_name": "O_CLERK", "type_name": "STRING"},
+        {"column_name": "O_SHIPPRIORITY", "type_name": "INT64"},
+        {"column_name": "O_COMMENT", "type_name": "STRING"}
+      ]
+    },
+    {
+      "table_name": "LINEITEM",
+      "file_patterns": ["gs://my-tpch-data/lineitem.csv"],
+      "columns": [
+        {"column_name": "O_ORDERKEY", "type_name": "INT64"},
+        {"column_name": "L_PARTKEY", "type_name": "INT64"},
+        {"column_name": "L_SUPPKEY", "type_name": "INT64"},
+        {"column_name": "L_LINENUMBER", "type_name": "INT64"},
+        {"column_name": "L_QUANTITY", "type_name": "NUMERIC"},
+        {"column_name": "L_EXTENDEDPRICE", "type_name": "NUMERIC"},
+        {"column_name": "L_DISCOUNT", "type_name": "NUMERIC"},
+        {"column_name": "L_TAX", "type_name": "NUMERIC"},
+        {"column_name": "L_RETURNFLAG", "type_name": "STRING"},
+        {"column_name": "L_LINESTATUS", "type_name": "STRING"},
+        {"column_name": "L_SHIPDATE", "type_name": "DATE"},
+        {"column_name": "L_COMMITDATE", "type_name": "DATE"},
+        {"column_name": "L_RECEIPTDATE", "type_name": "DATE"},
+        {"column_name": "L_SHIPINSTRUCT", "type_name": "STRING"},
+        {"column_name": "L_SHIPMODE", "type_name": "STRING"},
+        {"column_name": "L_COMMENT", "type_name": "STRING"}
+      ]
+    },
+    {
+      "table_name": "NATION",
+      "file_patterns": ["gs://my-tpch-data/nation.csv"],
+      "columns": [
+        {"column_name": "N_NATIONKEY", "type_name": "INT64"},
+        {"column_name": "N_NAME", "type_name": "STRING"},
+        {"column_name": "N_REGIONKEY", "type_name": "INT64"},
+        {"column_name": "N_COMMENT", "type_name": "STRING"}
+      ]
+    },
+    {
+      "table_name": "REGION",
+      "file_patterns": ["gs://my-tpch-data/region.csv"],
+      "columns": [
+        {"column_name": "R_REGIONKEY", "type_name": "INT64"},
+        {"column_name": "R_NAME", "type_name": "STRING"},
+        {"column_name": "R_COMMENT", "type_name": "STRING"}
+      ]
+    }
+  ]
+}

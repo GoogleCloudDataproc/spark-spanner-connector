@@ -87,7 +87,7 @@ public abstract class SpannerInputPartitionReaderContextIntegrationTestBase
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
               Statement.of(sqlStmt),
-              Options.dataBoostEnabled(true));
+              Options.dataBoostEnabled(resolveDataBoostEnabled(true)));
 
       // Not using executor.execute as controlling immediate termination
       // is non-granular and out of scope of these tests.

@@ -56,6 +56,8 @@ import org.slf4j.LoggerFactory;
 class SpannerTestBase {
   private static final boolean spannerUseExistingDb =
       Boolean.parseBoolean(System.getenv("SPANNER_USE_EXISTING_DATABASE"));
+  public static final String SPANNER_OMNI_DEFAULT_ID = "default";
+  private static final String spannerOmniEndpoint = System.getenv("SPANNER_OMNI_ENDPOINT");
 
   // Since in the teardown we delete the Cloud Spanner database, here we append a random value to
   // the database ID to avoid any cross-pollution between concurrently running tests.
@@ -65,8 +67,10 @@ class SpannerTestBase {
           ? System.getenv("SPANNER_DATABASE_ID")
           : System.getenv("SPANNER_DATABASE_ID") + "-" + new Random().nextInt(10000000);
   private static final String databaseIdPg = databaseId + "-pg";
-  private static final String instanceId = System.getenv("SPANNER_INSTANCE_ID");
-  private static final String projectId = System.getenv("SPANNER_PROJECT_ID");
+  private static final String instanceId =
+      isSpannerOmni() ? SPANNER_OMNI_DEFAULT_ID : System.getenv("SPANNER_INSTANCE_ID");
+  private static final String projectId =
+      isSpannerOmni() ? SPANNER_OMNI_DEFAULT_ID : System.getenv("SPANNER_PROJECT_ID");
   private static final String table = "ATable";
   private static final String tablePg = "composite_table";
   private static final String instanceConfigId = "regional-us-central1";
@@ -76,9 +80,13 @@ class SpannerTestBase {
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
   private static SpannerOptions createSpannerOptions() {
-    return emulatorHost != null
-        ? SpannerOptions.newBuilder().setProjectId(projectId).setEmulatorHost(emulatorHost).build()
-        : SpannerOptions.newBuilder().setProjectId(projectId).build();
+    SpannerOptions.Builder builder = SpannerOptions.newBuilder().setProjectId(projectId);
+    if (isSpannerOmni()) {
+      builder.setEmulatorHost(spannerOmniEndpoint);
+    } else if (emulatorHost != null) {
+      builder.setEmulatorHost(emulatorHost);
+    }
+    return builder.build();
   }
 
   private static synchronized boolean createSpanner() {
@@ -180,18 +188,23 @@ class SpannerTestBase {
 
     // Check if the instance already exists first to avoid hitting createInstance quota.
     InstanceInfo instanceInfo =
-        InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
+        InstanceInfo.newBuilder(fullInstanceId)
             .setInstanceConfigId(InstanceConfigId.of(projectId, instanceConfigId))
             .setNodeCount(1)
             .setDisplayName("SparkSpanner Test")
             .build();
-    try {
-      instanceAdminClient.getInstance(instanceId);
-    } catch (SpannerException e) {
-      if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-        runIgnoringAlreadyExist(() -> instanceAdminClient.createInstance(instanceInfo).get());
-      } else {
-        throw e;
+
+    // Spanner Omni is automatically provided with a single default instance. Do not set up another
+    // instance.
+    if (!isSpannerOmni()) {
+      try {
+        instanceAdminClient.getInstance(instanceId);
+      } catch (SpannerException e) {
+        if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
+          runIgnoringAlreadyExist(() -> instanceAdminClient.createInstance(instanceInfo).get());
+        } else {
+          throw e;
+        }
       }
     }
 
@@ -204,12 +217,14 @@ class SpannerTestBase {
         databaseId,
         Iterables.concat(TestData.initialDDL, TestData.initialDDLGraph),
         Iterables.concat(TestData.initialDML, TestData.initialDMLGraph));
+    log.info("databaseId {} created", databaseId);
     createAndPopulateDatabase(
         databaseAdminClient,
         Dialect.POSTGRESQL,
         databaseIdPg,
         TestData.initialDDLPg,
         TestData.initialDMLPg);
+    log.info("databaseIdPg {} created", databaseIdPg);
   }
 
   private static void cleanupDatabase() {
@@ -238,7 +253,9 @@ class SpannerTestBase {
     }
     props.put("instanceId", instanceId);
     props.put("projectId", projectId);
-    if (emulatorHost != null) {
+    if (isSpannerOmni()) {
+      props.put("emulatorHost", spannerOmniEndpoint);
+    } else if (emulatorHost != null) {
       props.put("emulatorHost", emulatorHost);
     }
     return props;
@@ -448,5 +465,22 @@ class SpannerTestBase {
       val[i] = (byte) j;
     }
     return val;
+  }
+
+  private static boolean isSpannerOmni() {
+    return !Strings.isNullOrEmpty(spannerOmniEndpoint);
+  }
+
+  /**
+   * Spanner Omni does not support Data Boost.
+   *
+   * @param requestedEnabled desired setting for Data Boost
+   * @return supported setting for Data Boost
+   */
+  protected boolean resolveDataBoostEnabled(boolean requestedEnabled) {
+    if (isSpannerOmni()) {
+      return false;
+    }
+    return requestedEnabled;
   }
 }

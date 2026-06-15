@@ -583,7 +583,7 @@ public class SpannerUtils {
     return prunedSchema;
   }
 
-  static String getRequiredOption(CaseInsensitiveStringMap properties, String option) {
+  public static String getRequiredOption(CaseInsensitiveStringMap properties, String option) {
     String value = properties.get(option);
     if (value == null) {
       throw new SpannerConnectorException(

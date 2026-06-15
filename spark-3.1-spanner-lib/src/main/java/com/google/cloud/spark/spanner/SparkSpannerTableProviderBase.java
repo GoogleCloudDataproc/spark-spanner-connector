@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import java.util.HashMap;

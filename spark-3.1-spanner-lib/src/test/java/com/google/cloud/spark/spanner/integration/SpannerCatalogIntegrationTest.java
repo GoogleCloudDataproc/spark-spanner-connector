@@ -22,8 +22,8 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.spark.spanner.SpannerCatalog;
 import com.google.cloud.spark.spanner.SpannerConnectorException;
-import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.cloud.spark.spanner.TestData;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;

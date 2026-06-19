@@ -20,7 +20,7 @@ from pyspark.sql.functions import col
 
 
 def main():
-  spark = SparkSession.builder.appName('Acceptance Test on Spark').getOrCreate()
+  spark = SparkSession.builder.appName('Read Acceptance Test on Spark - table load').getOrCreate()
 
   table = 'ATable'
   df = spark.read.format('cloud-spanner') \

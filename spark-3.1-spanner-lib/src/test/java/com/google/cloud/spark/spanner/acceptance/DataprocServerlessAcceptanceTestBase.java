@@ -189,6 +189,24 @@ public class DataprocServerlessAcceptanceTestBase {
   }
 
   @Test
+  public void testFilterPushdown() throws Exception {
+    // Provide a unique test name to identify the batch associated with this test.
+    context = generateContext("filterPushdown");
+    OperationSnapshot operationSnapshot =
+        createAndRunPythonBatch(
+            context,
+            testName,
+            "read_test_filter_pushdown.py",
+            null,
+            Arrays.asList(
+                context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID));
+    assertThat(operationSnapshot.isDone()).isTrue();
+    assertThat(operationSnapshot.getErrorMessage()).isEmpty();
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).isEqualTo("PASS");
+  }
+
+  @Test
   public void testWrite() throws Exception {
     // Provide a unique test name to identify the batch associated with this test.
     context = generateContext("write");

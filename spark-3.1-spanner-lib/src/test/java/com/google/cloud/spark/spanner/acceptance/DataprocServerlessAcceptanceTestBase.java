@@ -191,7 +191,7 @@ public class DataprocServerlessAcceptanceTestBase {
   @Test
   public void testFilterPushdown() throws Exception {
     // Provide a unique test name to identify the batch associated with this test.
-    context = generateContext("filterPushdown");
+    context = generateContext("readFilterPushdown");
     OperationSnapshot operationSnapshot =
         createAndRunPythonBatch(
             context,

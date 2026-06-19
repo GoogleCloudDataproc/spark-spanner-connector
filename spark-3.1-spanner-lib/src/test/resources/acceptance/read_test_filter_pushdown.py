@@ -32,31 +32,57 @@ def main():
   print('The resulting schema is:')
   df.printSchema()
 
-  # Execute your filter operation
+  # Initialize an empty array to track validation issues
+  issues = []
+
+  print('\nRunning filter equality test\n')
   rows = (
     df
     .filter(col("B") == "2")
     .collect()
   )
 
-  # Initialize an empty array to track validation issues
-  issues = []
-
-  # 1. Replace assertEqual with a standard conditional check
   actual_row_count = len(rows)
   expected_row_count = 1
 
   if actual_row_count != expected_row_count:
-    issues.append(f"Expected {expected_row_count} row, but found {actual_row_count}")
+    issues.append(f"Filter equals: expected {expected_row_count} row, but found {actual_row_count}")
 
-  # 2. Determine Final Status safely without crashing
+  print('\nRunning filter greater than test\n')
+  rows = (
+    df
+    .filter(col("B") > "2")
+    .collect()
+  )
+
+  actual_row_count = len(rows)
+  expected_row_count = 2
+
+  if actual_row_count != expected_row_count:
+    issues.append(f"Filter greater than: expected {expected_row_count} row, but found {actual_row_count}")
+
+  print('\nRunning filter less than test\n')
+  rows = (
+    df
+    .filter(col("B") < "40")
+    .collect()
+  )
+
+  actual_row_count = len(rows)
+  expected_row_count = 3
+
+  if actual_row_count != expected_row_count:
+    issues.append(f"Filter less than: expected {expected_row_count} row, but found {actual_row_count}")
+
+
+  # Determine Final Status safely without crashing
   status_msg = "PASS" if not issues else "FAIL: " + " | ".join(issues)
 
-  # 3. Create a DataFrame from the result string using Spark Row
+  # Create a DataFrame from the result string using Spark Row
   df_result = spark.createDataFrame([Row(summary=status_msg)])
   df_result.show(truncate=False)
 
-  # 4. Coalesce and write results to the path provided in your first argument
+  # Coalesce and write results to the path provided in the first argument
   df_result.coalesce(1).write.mode("overwrite").csv(sys.argv[1])
 
 if __name__ == "__main__":

@@ -1,89 +1,104 @@
-#!/usr/bin/env python
-# Copyright 2023 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import sys
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import col
+import sys
+
+
+def load_table(spark, project_id, instance_id, database_id, table):
+    return (
+        spark.read.format("cloud-spanner")
+        .option("projectId", project_id)
+        .option("instanceId", instance_id)
+        .option("databaseId", database_id)
+        .option("table", table)
+        .load()
+    )
+
+
+def validate_row_count(df, description, predicate, expected_count):
+    actual_count = df.filter(predicate).count()
+
+    if actual_count != expected_count:
+        return (
+            f"{description}: expected {expected_count} rows, "
+            f"but found {actual_count}"
+        )
+
+    return None
+
+
+def run_tests(df):
+    print("run_tests")
+
+    tests = [
+        ("Filter equals", col("B") == "2", 1),
+        ("Filter greater than", col("B") > "2", 2),
+        ("Filter less than", col("B") < "40", 3),
+        ("Filter greater than equals", col("G") >= 0.1, 2),
+        ("Filter less than equals", col("G") <= 0.2, 3),
+        ("Filter is null safe", col("G").eqNullSafe(col("K")), 1),
+        ("Filter is null", col("C").isNull(), 3),
+        ("Filter in", col("B").isin("2","20"), 2),
+        ("Filter and", (col("B") > "2") & (col("G") < 0.2), 1),
+        ("Filter or", (col("B") == "2") | (col("B") == "30"), 2),
+        ("Filter not", ~(col("B") == "2"), 2),
+   ]
+
+    issues = []
+
+    for description, predicate, expected_count in tests:
+        print(f"\nRunning {description}")
+        issue = validate_row_count(
+            df, description, predicate, expected_count
+        )
+
+        if issue:
+            issues.append(issue)
+
+    return issues
+
+
+def write_results(spark, output_path, issues):
+    status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
+
+    print(status)
+
+    (
+        spark.createDataFrame([Row(summary=status)])
+        .coalesce(1)
+        .write.mode("overwrite")
+        .csv(output_path)
+    )
+
 
 def main():
-  # Ensure you are importing necessary modules inside your script or at the top
-  spark = SparkSession.builder.appName('Read Acceptance Test on Spark - filter pushdown').getOrCreate()
+    print ("\n\nRead Acceptance Test - Filter Pushdown\n\n")
 
-  table = 'ATable'
-  df = spark.read.format('cloud-spanner') \
-      .option("projectId", sys.argv[2]) \
-      .option("instanceId", sys.argv[3]) \
-      .option("databaseId", sys.argv[4]) \
-      .option("table", table) \
-      .load()
+    spark = (
+        SparkSession.builder
+        .appName("Read Acceptance Test - Filter Pushdown")
+        .getOrCreate()
+    )
 
-  print('The resulting schema is:')
-  df.printSchema()
+    output_path = sys.argv[1]
+    project_id = sys.argv[2]
+    instance_id = sys.argv[3]
+    database_id = sys.argv[4]
 
-  # Initialize an empty array to track validation issues
-  issues = []
+    df = load_table(
+        spark,
+        project_id,
+        instance_id,
+        database_id,
+        "ATable",
+    )
 
-  print('\nRunning filter equality test\n')
-  rows = (
-    df
-    .filter(col("B") == "2")
-    .collect()
-  )
+    print('The resulting schema is:')
+    df.printSchema()
 
-  actual_row_count = len(rows)
-  expected_row_count = 1
+    issues = run_tests(df)
 
-  if actual_row_count != expected_row_count:
-    issues.append(f"Filter equals: expected {expected_row_count} row, but found {actual_row_count}")
+    write_results(spark, output_path, issues)
 
-  print('\nRunning filter greater than test\n')
-  rows = (
-    df
-    .filter(col("B") > "2")
-    .collect()
-  )
-
-  actual_row_count = len(rows)
-  expected_row_count = 2
-
-  if actual_row_count != expected_row_count:
-    issues.append(f"Filter greater than: expected {expected_row_count} row, but found {actual_row_count}")
-
-  print('\nRunning filter less than test\n')
-  rows = (
-    df
-    .filter(col("B") < "40")
-    .collect()
-  )
-
-  actual_row_count = len(rows)
-  expected_row_count = 3
-
-  if actual_row_count != expected_row_count:
-    issues.append(f"Filter less than: expected {expected_row_count} row, but found {actual_row_count}")
-
-
-  # Determine Final Status safely without crashing
-  status_msg = "PASS" if not issues else "FAIL: " + " | ".join(issues)
-
-  # Create a DataFrame from the result string using Spark Row
-  df_result = spark.createDataFrame([Row(summary=status_msg)])
-  df_result.show(truncate=False)
-
-  # Coalesce and write results to the path provided in the first argument
-  df_result.coalesce(1).write.mode("overwrite").csv(sys.argv[1])
 
 if __name__ == "__main__":
     main()

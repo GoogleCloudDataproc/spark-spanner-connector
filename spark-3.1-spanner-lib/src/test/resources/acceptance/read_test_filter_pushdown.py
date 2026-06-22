@@ -37,10 +37,14 @@ def run_tests(df):
         ("Filter less than equals", col("G") <= 0.2, 3),
         ("Filter is null safe", col("G").eqNullSafe(col("K")), 1),
         ("Filter is null", col("C").isNull(), 3),
+        ("Filter is not null", col("K").isNotNull(), 2),
         ("Filter in", col("B").isin("2","20"), 2),
         ("Filter and", (col("B") > "2") & (col("G") < 0.2), 1),
         ("Filter or", (col("B") == "2") | (col("B") == "30"), 2),
         ("Filter not", ~(col("B") == "2"), 2),
+        ("Filter starts with", col("B").startswith("3"), 1),
+        ("Filter ends with", col("B").endswith("0"), 2),
+        ("Filter contains", col("B").contains("2"), 2),
    ]
 
     issues = []

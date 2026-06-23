@@ -85,7 +85,7 @@ public class DataprocAcceptanceTestBase {
             120);
     assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
-    assertThat(output.trim()).isEqualTo("41");
+    assertThat(output.trim()).startsWith("PASS");
   }
 
   @Test

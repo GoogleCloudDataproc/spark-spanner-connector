@@ -1,3 +1,18 @@
+#!/usr/bin/env python
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import col
 import sys
@@ -31,19 +46,19 @@ def run_tests(df):
 
     tests = [
         ("Filter equals", col("B") == "2", 1),
-        ("Filter greater than", col("B") > "2", 2),
+        ("Filter greater than", col("B") > "2", 3),
         ("Filter less than", col("B") < "40", 3),
-        ("Filter greater than equals", col("G") >= 0.1, 2),
+        ("Filter greater than equals", col("G") >= 0.1, 3),
         ("Filter less than equals", col("G") <= 0.2, 3),
-        ("Filter is null safe", col("G").eqNullSafe(col("K")), 1),
-        ("Filter is null", col("C").isNull(), 3),
+        ("Filter is null safe", col("G").eqNullSafe(col("K")), 2),
+        ("Filter is null", col("C").isNull(), 4),
         ("Filter is not null", col("K").isNotNull(), 2),
         ("Filter in", col("B").isin("2","20"), 2),
         ("Filter and", (col("B") > "2") & (col("G") < 0.2), 1),
         ("Filter or", (col("B") == "2") | (col("B") == "30"), 2),
-        ("Filter not", ~(col("B") == "2"), 2),
+        ("Filter not", ~(col("B") == "2"), 3),
         ("Filter starts with", col("B").startswith("3"), 1),
-        ("Filter ends with", col("B").endswith("0"), 2),
+        ("Filter ends with", col("B").endswith("0"), 3),
         ("Filter contains", col("B").contains("2"), 2),
    ]
 

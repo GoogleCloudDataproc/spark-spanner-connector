@@ -185,7 +185,7 @@ public class DataprocServerlessAcceptanceTestBase {
     assertThat(operationSnapshot.isDone()).isTrue();
     assertThat(operationSnapshot.getErrorMessage()).isEmpty();
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
-    assertThat(output.trim()).isEqualTo("41");
+    assertThat(output.trim()).isEqualTo("PASS");
   }
 
   @Test

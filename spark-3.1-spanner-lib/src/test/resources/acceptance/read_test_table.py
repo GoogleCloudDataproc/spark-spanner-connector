@@ -15,6 +15,7 @@
 
 import os
 import sys
+import json
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import col
 from pyspark.sql.types import *
@@ -33,7 +34,7 @@ def load_table(spark, project_id, instance_id, database_id, table):
     )
 
 def run_sum_tests(df, issues):
-    print("run_sum_tests")
+    print("\nrun_sum_tests")
 
     df = df.select("A", "B", "D", "E")
     actual_count = df.groupBy().sum('A').first()[0]
@@ -48,7 +49,7 @@ def run_sum_tests(df, issues):
 
 
 def run_schema_tests(df, issues):
-    print("run_schema_tests")
+    print("\nrun_schema_tests")
 
     expected_schema = StructType([
         StructField('A', LongType(), False),
@@ -89,7 +90,7 @@ def schemas_equivalent(actual_schema, expected_schema, issues):
 
 
 def run_type_mapping_tests(df, issues):
-    print("run_type_mapping_tests")
+    print("\nrun_type_mapping_tests")
 
     row = df.filter(col("A") == 40).first()
 
@@ -130,7 +131,7 @@ def run_type_mapping_tests(df, issues):
 
 
 def run_null_tests(df, issues):
-    print("run_null_tests")
+    print("\nrun_null_tests")
 
     row = df.filter(col("A") == 50).first()
 
@@ -164,6 +165,26 @@ def run_null_tests(df, issues):
     if row.K is not None:
         issues.append("K expected NULL")
 
+
+def run_json_tests(df, issues):
+    print("\nrun_json_tests")
+
+    expected = {"name":"john"}
+    row = df.filter(col("A") == 40).first()
+    actual = json.loads(row.J)
+
+    if actual != expected:
+        issues.append(f"J expected {expected} ")
+
+def run_array_tests(df, issues):
+    print("\nrun_array_tests")
+
+    row = df.filter(col("A") == 40).first()
+
+    if row.I != ["a", "b", "c"]:
+        issues.append(
+            f"I expected ['a','b','c'] but found {row.I}"
+        )
 
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
@@ -201,7 +222,8 @@ def main():
     run_schema_tests(df, issues)
     run_type_mapping_tests(df, issues)
     run_null_tests(df, issues)
-
+    run_json_tests(df, issues)
+    run_array_tests(df, issues)
     write_results(spark, output_path, issues)
 
 if __name__ == '__main__':

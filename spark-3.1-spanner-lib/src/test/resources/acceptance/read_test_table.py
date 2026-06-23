@@ -200,6 +200,7 @@ def main():
     run_sum_tests(df, issues)
     run_schema_tests(df, issues)
     run_type_mapping_tests(df, issues)
+    run_null_tests(df, issues)
 
     write_results(spark, output_path, issues)
 

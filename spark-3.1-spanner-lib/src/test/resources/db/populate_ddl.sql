@@ -60,7 +60,8 @@ CREATE TABLE AWriteTable (
   E NUMERIC,
   F BOOL,
   G FLOAT64,
-  H DATE
+  H DATE,
+  I ARRAY<STRING(20)>
 ) PRIMARY KEY(A);
 
 CREATE TABLE compositeTable (

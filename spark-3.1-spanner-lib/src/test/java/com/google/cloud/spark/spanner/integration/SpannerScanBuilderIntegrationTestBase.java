@@ -29,14 +29,13 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.MetadataBuilder;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.types.*;
+import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -61,18 +60,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
     MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
     jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
     StructType actualSchema = scan.readSchema();
-    StructType expectSchema =
-        new StructType(
-            Arrays.asList(
-                    new StructField("A", DataTypes.LongType, false, null),
-                    new StructField("B", DataTypes.StringType, true, null),
-                    new StructField("C", DataTypes.BinaryType, true, null),
-                    new StructField("D", DataTypes.TimestampType, true, null),
-                    new StructField("E", DataTypes.createDecimalType(38, 9), true, null),
-                    new StructField(
-                        "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
-                    new StructField("G", DataTypes.StringType, true, jsonMetaBuilder.build()))
-                .toArray(new StructField[0]));
+    StructType expectSchema = SpannerTestBase.getATableSchema();
 
     // Object.equals fails for StructType with fields so we'll
     // firstly compare lengths, then fieldNames then the simpleString.
@@ -168,14 +156,22 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     null,
                     ZonedDateTime.parse("2023-08-22T12:22:00Z"),
                     1000.282111401,
+                    true,
+                    -0.1,
+                    com.google.cloud.Date.parseDate("2023-12-31"),
                     null,
-                    null),
+                    null,
+                    -0.1),
                 makeATableInternalRow(
                     10,
                     "20",
                     null,
                     ZonedDateTime.parse("2023-08-22T12:23:00Z"),
                     10000.282111603,
+                    false,
+                    0.2,
+                    com.google.cloud.Date.parseDate("2024-01-01"),
+                    null,
                     null,
                     null),
                 makeATableInternalRow(
@@ -184,12 +180,32 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     null,
                     ZonedDateTime.parse("2023-08-22T12:24:00Z"),
                     30000.282111805,
+                    false,
+                    0.1,
+                    com.google.cloud.Date.parseDate("2025-12-31"),
                     null,
-                    null)));
+                    null,
+                    -0.1),
+                makeATableInternalRow(
+                    40,
+                    "40",
+                    new byte[] {'x', 'y', 'z'},
+                    ZonedDateTime.parse("2025-01-01T12:34:56Z"),
+                    123.456789123,
+                    true,
+                    3.14,
+                    com.google.cloud.Date.parseDate("2026-01-01"),
+                    new String[] {"a", "b", "c"},
+                    "{\"name\":\"john\"}",
+                    null),
+                makeATableInternalRow(
+                    50, null, null, null, null, null, null, null, null, null, null)));
     Collections.sort(expectRows, cmp);
 
     assertEquals(expectRows.size(), gotRows.size());
-    assertEquals(expectRows, gotRows);
+
+    final StructType expectSchema = SpannerTestBase.getATableSchema();
+    assertEquals(normalizeRows(expectRows, expectSchema), normalizeRows(gotRows, expectSchema));
   }
 
   @Test
@@ -302,5 +318,80 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
 
   private static String bytesToString(byte[] bytes) {
     return bytes == null ? "" : new String(bytes);
+  }
+
+  private static List<List<Object>> normalizeRows(List<InternalRow> rows, StructType schema) {
+
+    List<List<Object>> normalized = new ArrayList<>();
+
+    for (InternalRow row : rows) {
+      List<Object> values = new ArrayList<>();
+
+      for (int i = 0; i < schema.fields().length; i++) {
+        StructField field = schema.fields()[i];
+        DataType type = field.dataType();
+
+        if (row.isNullAt(i)) {
+          values.add(null);
+        } else {
+          values.add(normalizeValue(row.get(i, type), type));
+        }
+      }
+
+      normalized.add(values);
+    }
+
+    return normalized;
+  }
+
+  private static Object normalizeValue(Object value, DataType type) {
+
+    if (value == null) {
+      return null;
+    }
+
+    if (type.sameType(DataTypes.BinaryType)) {
+      return Arrays.toString((byte[]) value);
+    }
+
+    if (type instanceof DecimalType) {
+      if (value instanceof Decimal) {
+        return ((Decimal) value).toJavaBigDecimal();
+      }
+      return value;
+    }
+
+    if (type instanceof ArrayType) {
+      return normalizeArray(value, (ArrayType) type);
+    }
+
+    if (value instanceof UTF8String) {
+      return value.toString();
+    }
+
+    return value;
+  }
+
+  private static List<Object> normalizeArray(Object value, ArrayType arrayType) {
+
+    List<Object> result = new ArrayList<>();
+    DataType elementType = arrayType.elementType();
+
+    if (value instanceof ArrayData) {
+      ArrayData array = (ArrayData) value;
+
+      for (int i = 0; i < array.numElements(); i++) {
+        result.add(
+            array.isNullAt(i) ? null : normalizeValue(array.get(i, elementType), elementType));
+      }
+    } else if (value instanceof List<?>) {
+      for (Object element : (List<?>) value) {
+        result.add(normalizeValue(element, elementType));
+      }
+    } else {
+      throw new IllegalArgumentException("Unsupported array representation: " + value.getClass());
+    }
+
+    return result;
   }
 }

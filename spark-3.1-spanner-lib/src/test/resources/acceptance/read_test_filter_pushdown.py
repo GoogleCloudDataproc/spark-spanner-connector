@@ -90,7 +90,7 @@ def write_results(spark, output_path, issues):
 
 
 def main():
-    print ("\n\nRead Acceptance Test - Filter Pushdown\n\n")
+    print("\n\nRead Acceptance Test - Filter Pushdown\n\n")
 
     spark = (
         SparkSession.builder

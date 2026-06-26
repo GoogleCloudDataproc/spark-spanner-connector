@@ -40,8 +40,6 @@ public abstract class SpannerTableIntegrationTestBase extends SpannerTestBase {
     Map<String, String> props = this.connectionProperties();
     SpannerTable spannerTable = new SpannerTable(props);
     StructType actualSchema = spannerTable.schema();
-    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
-    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
     StructType expectSchema = SpannerTestBase.getATableSchema();
 
     // Object.equals fails for StructType with fields so we'll
@@ -56,7 +54,6 @@ public abstract class SpannerTableIntegrationTestBase extends SpannerTestBase {
     if (emulatorHost != null && !emulatorHost.isEmpty()) {
       // Spanner emulator doesn't support the PostgreSql dialect interface.
       // If the emulator is set. We return immediately here.
-      // TODO: Use logger instead of System out once logger configuration is set.
       logger.info(
           "queryPgSchemaShouldSuccessInSpannerTable is skipped since pg is not supported in Spanner emulator");
       return;

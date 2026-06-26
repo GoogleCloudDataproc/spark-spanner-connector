@@ -34,13 +34,14 @@ def main():
         StructField("F", BooleanType(), True),
         StructField("G", DoubleType(), True),
         StructField("H", DateType(), True)
+        StructField('I', ArrayType(StringType(), True), True),
     ])
 
     # 2. Prepare Data as a list of tuples
     data = [
-        (1,  "2",  None, datetime.fromisoformat("2023-08-22T12:22:00"), Decimal("1000.282111401"), True, 123.0, date(2023, 12, 25)),
-        (10, "20", None, datetime.fromisoformat("2023-08-22T12:23:00"), Decimal("10000.282111603"), False, 987.0, date(2023, 12, 24)),
-        (30, "30", None, datetime.fromisoformat("2023-08-22T12:24:00"), Decimal("30000.282111805"), True, -2121.0, date(2023, 12, 23))
+        (1,  "2",  None, datetime.fromisoformat("2023-08-22T12:22:00"), Decimal("1000.282111401"), True, 123.0, date(2023, 12, 25), NULL),
+        (10, "20", None, datetime.fromisoformat("2023-08-22T12:23:00"), Decimal("10000.282111603"), False, 987.0, date(2023, 12, 24), NULL),
+        (30, "30", None, datetime.fromisoformat("2023-08-22T12:24:00"), Decimal("30000.282111805"), True, -2121.0, date(2023, 12, 23), ["a", "b", "c"])
     ]
 
     # 3. Create the DataFrame

@@ -39,9 +39,13 @@ import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestBase {
+  private static final Logger logger =
+      LoggerFactory.getLogger(SpannerScanBuilderIntegrationTestBase.class);
 
   private static SpannerTable getSpannerTable(boolean usePostgreSql) {
     Map<String, String> connectionProperties = connectionProperties(usePostgreSql);
@@ -57,8 +61,6 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
   @Test
   public void readSchemaShouldWorkInSpannerScanBuilder() throws Exception {
     Scan scan = new SpannerScanBuilder(getSpannerTable(false)).build();
-    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
-    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
     StructType actualSchema = scan.readSchema();
     StructType expectSchema = SpannerTestBase.getATableSchema();
 
@@ -74,8 +76,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
     if (emulatorHost != null && !emulatorHost.isEmpty()) {
       // Spanner emulator doesn't support the PostgreSql dialect interface.
       // If the emulator is set. We return immediately here.
-      // TODO: Use logger instead of System out once logger configuration is set.
-      System.out.println(
+      logger.info(
           "readSchemaShouldWorkInSpannerScanBuilderForPg is skipped since pg is not supported in Spanner emulator");
       return;
     }
@@ -213,8 +214,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
     if (emulatorHost != null && !emulatorHost.isEmpty()) {
       // Spanner emulator doesn't support the PostgreSql dialect interface.
       // If the emulator is set. We return immediately here.
-      // TODO: Use logger instead of System out once logger configuration is set.
-      System.out.println(
+      logger.info(
           "planInputPartitionsShouldSucceedInSpannerScanBuilderPg is skipped since pg is not supported in Spanner emulator");
       return;
     }

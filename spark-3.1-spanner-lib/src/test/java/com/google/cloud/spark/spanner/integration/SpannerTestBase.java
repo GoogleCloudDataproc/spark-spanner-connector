@@ -49,10 +49,7 @@ import java.util.Random;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.MetadataBuilder;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
@@ -294,6 +291,8 @@ class SpannerTestBase {
 
   static StructType getATableSchema() {
     MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
+    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
+    Metadata metadata = jsonMetaBuilder.build();
 
     return new StructType(
         Arrays.asList(
@@ -307,7 +306,7 @@ class SpannerTestBase {
                 new StructField("H", DataTypes.DateType, true, null),
                 new StructField(
                     "I", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
-                new StructField("J", DataTypes.StringType, true, jsonMetaBuilder.build()),
+                new StructField("J", DataTypes.StringType, true, metadata),
                 new StructField("K", DataTypes.DoubleType, true, null))
             .toArray(new StructField[0]));
   }
@@ -336,7 +335,7 @@ class SpannerTestBase {
     if (E == null) {
       row.update(4, null);
     } else {
-      SpannerUtils.toSparkDecimal(row, new java.math.BigDecimal(E), 4);
+      SpannerUtils.toSparkDecimal(row, java.math.BigDecimal.valueOf(E), 4);
     }
     if (F == null) {
       row.update(5, null);

@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
 import json
 from pyspark.sql import SparkSession, Row
@@ -96,10 +95,10 @@ def run_type_mapping_tests(df, issues):
 
     # Verify values
     if row.A != 40:
-        issues.append(f"A expected 1 but found {row.A}")
+        issues.append(f"A expected 40 but found {row.A}")
 
     if row.B != "40":
-        issues.append(f"B expected abc but found {row.B}")
+        issues.append(f"B expected 40 but found {row.B}")
 
     if row.C != bytearray(b"xyz") and row.C != b"xyz":
         issues.append(f"C expected xyz bytes but found {row.C}")

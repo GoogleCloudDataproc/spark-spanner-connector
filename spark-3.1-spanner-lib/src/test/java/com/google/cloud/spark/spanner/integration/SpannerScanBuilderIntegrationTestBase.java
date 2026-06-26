@@ -14,7 +14,6 @@
 
 package com.google.cloud.spark.spanner.integration;
 
-import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.spark.spanner.*;
@@ -28,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
@@ -82,30 +80,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
     }
     Scan scan = new SpannerScanBuilder(getSpannerTable(true)).build();
     StructType actualSchema = scan.readSchema();
-    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
-    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
-    StructType expectSchema =
-        new StructType(
-            Arrays.asList(
-                    new StructField("id", DataTypes.LongType, false, null),
-                    new StructField("charvcol", DataTypes.StringType, true, null),
-                    new StructField("textcol", DataTypes.StringType, true, null),
-                    new StructField("varcharcol", DataTypes.StringType, true, null),
-                    new StructField("boolcol", DataTypes.BooleanType, true, null),
-                    new StructField("booleancol", DataTypes.BooleanType, true, null),
-                    new StructField("bigintcol", DataTypes.LongType, true, null),
-                    new StructField("int8col", DataTypes.LongType, true, null),
-                    new StructField("intcol", DataTypes.LongType, true, null),
-                    new StructField("doublecol", DataTypes.DoubleType, true, null),
-                    new StructField("floatcol", DataTypes.DoubleType, true, null),
-                    new StructField("bytecol", DataTypes.BinaryType, true, null),
-                    new StructField("datecol", DataTypes.DateType, true, null),
-                    new StructField("numericcol", DataTypes.createDecimalType(38, 9), true, null),
-                    new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
-                    new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
-                    new StructField("timestampcol", DataTypes.TimestampType, true, null),
-                    new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()))
-                .toArray(new StructField[0]));
+    StructType expectSchema = SpannerTestBase.getCompositeTableSchema();
 
     // Object.equals fails for StructType with fields so we'll
     // firstly compare lengths, then fieldNames then the simpleString.
@@ -114,10 +89,14 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
     assertEquals(expectSchema.simpleString(), actualSchema.simpleString());
   }
 
-  @Test
-  public void planInputPartitionsShouldSuccessInSpannerScanBuilder() throws Exception {
+  public void planInputPartitionsShouldSuccessInSpannerScanBuilderBase(
+      String tableName,
+      boolean usePostgreSql,
+      List<InternalRow> expectRows,
+      StructType expectSchema)
+      throws Exception {
     SpannerScanBuilder spannerScanBuilder =
-        new SpannerScanBuilder(getSpannerTable("ATable", false));
+        new SpannerScanBuilder(getSpannerTable(tableName, usePostgreSql));
     SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
     InputPartition[] partitions = ss.planInputPartitions();
     PartitionReaderFactory prf = ss.createReaderFactory();
@@ -148,6 +127,15 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
     Comparator<InternalRow> cmp = new InternalRowComparator();
     Collections.sort(gotRows, cmp);
 
+    Collections.sort(expectRows, cmp);
+
+    assertEquals(expectRows.size(), gotRows.size());
+
+    assertEquals(normalizeRows(expectRows, expectSchema), normalizeRows(gotRows, ss.readSchema()));
+  }
+
+  @Test
+  public void planInputPartitionsShouldSuccessInSpannerScanBuilder() throws Exception {
     List<InternalRow> expectRows =
         new ArrayList<>(
             Arrays.asList(
@@ -201,12 +189,9 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     null),
                 makeATableInternalRow(
                     50, null, null, null, null, null, null, null, null, null, null)));
-    Collections.sort(expectRows, cmp);
 
-    assertEquals(expectRows.size(), gotRows.size());
-
-    final StructType expectSchema = SpannerTestBase.getATableSchema();
-    assertEquals(normalizeRows(expectRows, expectSchema), normalizeRows(gotRows, expectSchema));
+    planInputPartitionsShouldSuccessInSpannerScanBuilderBase(
+        "ATable", false, expectRows, SpannerTestBase.getATableSchema());
   }
 
   @Test
@@ -218,37 +203,6 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
           "planInputPartitionsShouldSucceedInSpannerScanBuilderPg is skipped since pg is not supported in Spanner emulator");
       return;
     }
-    SpannerScanBuilder spannerScanBuilder =
-        new SpannerScanBuilder(getSpannerTable("composite_table", true));
-    SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
-    InputPartition[] partitions = ss.planInputPartitions();
-    PartitionReaderFactory prf = ss.createReaderFactory();
-    CopyOnWriteArrayList<InternalRow> al = new CopyOnWriteArrayList<>();
-    for (InputPartition partition : partitions) {
-      PartitionReader<InternalRow> ir = prf.createReader(partition);
-      try {
-        while (ir.next()) {
-          al.add(ir.get());
-        }
-        SpannerPartitionReader sr = ((SpannerPartitionReader) ir);
-        sr.close();
-      } catch (IOException e) {
-      }
-    }
-
-    if (prf instanceof SpannerInputPartitionReaderContext) {
-      try {
-        SpannerInputPartitionReaderContext spc = ((SpannerInputPartitionReaderContext) prf);
-        spc.close();
-      } catch (IOException e) {
-      }
-    }
-
-    List<InternalRow> gotRows = new ArrayList<>();
-    al.forEach(gotRows::add);
-
-    Comparator<InternalRow> cmp = new InternalRowComparator();
-    Collections.sort(gotRows, cmp);
 
     List<InternalRow> expectRows =
         new ArrayList<>(
@@ -268,56 +222,16 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     0L,
                     0.00000001,
                     0.00000001,
-                    "beefdead",
+                    new byte[] {'b', 'e', 'e', 'f', 'd', 'e', 'a', 'd'},
                     "1999-01-08T04:24:00Z",
                     new java.math.BigDecimal("123456"),
                     new java.math.BigDecimal("9e23"),
                     "2003-04-12T11:05:06Z",
                     "2003-04-12T12:05:06Z",
                     "{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}")));
-    Collections.sort(expectRows, cmp);
 
-    assertEquals(expectRows.size(), gotRows.size());
-    assertInternalRowPg(gotRows, expectRows);
-  }
-
-  private static void assertInternalRowPg(
-      List<InternalRow> actualRows, List<InternalRow> expectedRows) {
-    assertEquals(expectedRows.size(), actualRows.size());
-    for (int i = 0; i < actualRows.size(); i++) {
-      // We cannot use assertEqual for the whole List, since the byte[] will be
-      // compared with the object's address.
-      GenericInternalRow actualRow = (GenericInternalRow) actualRows.get(i);
-      GenericInternalRow expectedRow = (GenericInternalRow) expectedRows.get(i);
-
-      assertThat(actualRow.getLong(0)).isEqualTo(expectedRow.getLong(0));
-      assertThat(actualRow.getUTF8String(1)).isEqualTo(expectedRow.getUTF8String(1));
-      assertThat(actualRow.getUTF8String(2)).isEqualTo(expectedRow.getUTF8String(2));
-      assertThat(actualRow.getUTF8String(3)).isEqualTo(expectedRow.getUTF8String(3));
-      assertThat(actualRow.getBoolean(4)).isEqualTo(expectedRow.getBoolean(4));
-      assertThat(actualRow.getBoolean(5)).isEqualTo(expectedRow.getBoolean(5));
-      assertThat(actualRow.getLong(6)).isEqualTo(expectedRow.getLong(6));
-      assertThat(actualRow.getLong(7)).isEqualTo(expectedRow.getLong(7));
-      assertThat(actualRow.getLong(8)).isEqualTo(expectedRow.getLong(8));
-      assertThat(actualRow.getDouble(9)).isEqualTo(expectedRow.getDouble(9));
-      assertThat(actualRow.getDouble(10)).isEqualTo(expectedRow.getDouble(10));
-      assertThat(bytesToString(actualRow.getBinary(11)))
-          .isEqualTo(
-              bytesToString(
-                  expectedRow.getUTF8String(11) == null
-                      ? null
-                      : expectedRow.getUTF8String(11).getBytes()));
-      assertThat(actualRow.getInt(12)).isEqualTo(expectedRow.getInt(12));
-      assertThat(actualRow.getDecimal(13, 38, 9)).isEqualTo(expectedRow.getDecimal(13, 38, 9));
-      assertThat(actualRow.getDecimal(14, 38, 9)).isEqualTo(expectedRow.getDecimal(14, 38, 9));
-      assertThat(actualRow.getLong(15)).isEqualTo(expectedRow.getLong(15));
-      assertThat(actualRow.getLong(16)).isEqualTo(expectedRow.getLong(16));
-      assertThat(actualRow.getUTF8String(17)).isEqualTo(expectedRow.getUTF8String(17));
-    }
-  }
-
-  private static String bytesToString(byte[] bytes) {
-    return bytes == null ? "" : new String(bytes);
+    planInputPartitionsShouldSuccessInSpannerScanBuilderBase(
+        "composite_table", true, expectRows, SpannerTestBase.getCompositeTableSchema());
   }
 
   private static List<List<Object>> normalizeRows(List<InternalRow> rows, StructType schema) {

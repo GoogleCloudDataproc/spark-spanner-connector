@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.scan;
 
+import com.google.cloud.spark.spanner.InputPartitionContext;
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;

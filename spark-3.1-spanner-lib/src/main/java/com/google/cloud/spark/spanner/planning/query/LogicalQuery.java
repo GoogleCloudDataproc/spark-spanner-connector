@@ -1,13 +1,12 @@
 package com.google.cloud.spark.spanner.planning.query;
 
 import com.google.cloud.spark.spanner.scan.SpannerTable;
-import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
 
-public final class LogicalQuery implements Serializable {
+public final class LogicalQuery {
   public SpannerTable getSource() {
     return spannerTable;
   }
@@ -17,7 +16,7 @@ public final class LogicalQuery implements Serializable {
   }
 
   public Filter[] getFilter() {
-    return pushedFilters;
+    return pushedFilters != null ? pushedFilters.clone() : new Filter[0];
   }
 
   public Map<String, StructField> getFields() {
@@ -35,9 +34,13 @@ public final class LogicalQuery implements Serializable {
       Filter[] pushedFilters,
       Map<String, StructField> fields) {
 
+    if (spannerTable == null) {
+      throw new NullPointerException("spannerTable cannot be null");
+    }
     this.spannerTable = spannerTable;
-    this.requiredColumns = requiredColumns;
-    this.pushedFilters = pushedFilters;
-    this.fields = fields;
+    this.requiredColumns =
+        requiredColumns != null ? requiredColumns : java.util.Collections.emptySet();
+    this.pushedFilters = pushedFilters != null ? pushedFilters.clone() : new Filter[0];
+    this.fields = fields != null ? fields : java.util.Collections.emptyMap();
   }
 }

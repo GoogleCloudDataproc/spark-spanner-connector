@@ -75,8 +75,7 @@ public class SpannerScanner implements Batch, Scan {
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
     SpannerQueryBuilder result =
-        SpannerQueryBuilder.newBuilder(
-            this.logicalQuery, this.spannerTable.schema(), batchClient.databaseClient.getDialect());
+        SpannerQueryBuilder.newBuilder(this.logicalQuery, batchClient.databaseClient.getDialect());
 
     boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {

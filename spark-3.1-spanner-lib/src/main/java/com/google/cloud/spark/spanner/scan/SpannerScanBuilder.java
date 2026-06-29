@@ -40,10 +40,9 @@ public class SpannerScanBuilder
   private List<Filter> pushedFilters;
   private Set<String> requiredColumns;
   private SpannerScanner scanner;
-  private static final Logger log = LoggerFactory.getLogger(SpannerScanBuilder.class);
+  private static final Logger logger = LoggerFactory.getLogger(SpannerScanBuilder.class);
   private SpannerTable spannerTable;
   private Map<String, StructField> fields;
-  private static final Logger logger = LoggerFactory.getLogger(SpannerScanBuilder.class);
 
   public SpannerScanBuilder(SpannerTable spannerTable) {
     this.pushedFilters = new ArrayList<Filter>();

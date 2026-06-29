@@ -11,7 +11,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,16 +18,14 @@ public class SpannerQueryBuilder {
   private static final Logger logger = LoggerFactory.getLogger(SpannerQueryBuilder.class);
 
   private final LogicalQuery logicalQuery;
-  private final StructType schema;
   private final Dialect dialect;
   private final SpannerTable spannerTable;
   private final Set<String> requiredColumns;
   private final Filter[] filters;
   private final Map<String, StructField> fields;
 
-  private SpannerQueryBuilder(LogicalQuery logicalQuery, StructType schema, Dialect dialect) {
+  private SpannerQueryBuilder(LogicalQuery logicalQuery, Dialect dialect) {
     this.logicalQuery = logicalQuery;
-    this.schema = schema;
     this.dialect = dialect;
     this.spannerTable = logicalQuery.getSource();
     this.requiredColumns = logicalQuery.getProjections();
@@ -36,9 +33,8 @@ public class SpannerQueryBuilder {
     this.fields = logicalQuery.getFields();
   }
 
-  public static SpannerQueryBuilder newBuilder(
-      LogicalQuery logicalQuery, StructType schema, Dialect dialect) {
-    return new SpannerQueryBuilder(logicalQuery, schema, dialect);
+  public static SpannerQueryBuilder newBuilder(LogicalQuery logicalQuery, Dialect dialect) {
+    return new SpannerQueryBuilder(logicalQuery, dialect);
   }
 
   public static String buildColumnsWithTablePrefix(

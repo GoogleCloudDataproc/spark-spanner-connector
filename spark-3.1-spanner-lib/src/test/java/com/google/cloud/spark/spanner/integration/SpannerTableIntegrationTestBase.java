@@ -27,29 +27,20 @@ import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public abstract class SpannerTableIntegrationTestBase extends SpannerTestBase {
+  private static final Logger logger =
+      LoggerFactory.getLogger(SpannerTableIntegrationTestBase.class);
 
   @Test
   public void querySchemaShouldSuccessInSpannerTable() {
     Map<String, String> props = this.connectionProperties();
     SpannerTable spannerTable = new SpannerTable(props);
     StructType actualSchema = spannerTable.schema();
-    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
-    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
-    StructType expectSchema =
-        new StructType(
-            Arrays.asList(
-                    new StructField("A", DataTypes.LongType, false, null),
-                    new StructField("B", DataTypes.StringType, true, null),
-                    new StructField("C", DataTypes.BinaryType, true, null),
-                    new StructField("D", DataTypes.TimestampType, true, null),
-                    new StructField("E", DataTypes.createDecimalType(38, 9), true, null),
-                    new StructField(
-                        "F", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
-                    new StructField("G", DataTypes.StringType, true, jsonMetaBuilder.build()))
-                .toArray(new StructField[0]));
+    StructType expectSchema = SpannerTestBase.getATableSchema();
 
     // Object.equals fails for StructType with fields so we'll
     // firstly compare lengths, then fieldNames then the simpleString.
@@ -63,8 +54,7 @@ public abstract class SpannerTableIntegrationTestBase extends SpannerTestBase {
     if (emulatorHost != null && !emulatorHost.isEmpty()) {
       // Spanner emulator doesn't support the PostgreSql dialect interface.
       // If the emulator is set. We return immediately here.
-      // TODO: Use logger instead of System out once logger configuration is set.
-      System.out.println(
+      logger.info(
           "queryPgSchemaShouldSuccessInSpannerTable is skipped since pg is not supported in Spanner emulator");
       return;
     }

@@ -85,7 +85,22 @@ public class DataprocAcceptanceTestBase {
             120);
     assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
-    assertThat(output.trim()).isEqualTo("41");
+    assertThat(output.trim()).startsWith("PASS");
+  }
+
+  @Test
+  public void testReadFilterPushdown() throws Exception {
+    String testName = "test-read-filter-pushdown";
+    Job result =
+        createAndRunPythonJob(
+            testName,
+            "read_test_filter_pushdown.py",
+            null,
+            Arrays.asList(context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID),
+            120);
+    assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).startsWith("PASS");
   }
 
   @Test

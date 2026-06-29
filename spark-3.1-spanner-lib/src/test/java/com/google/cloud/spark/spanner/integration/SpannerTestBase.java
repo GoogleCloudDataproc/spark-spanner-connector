@@ -49,6 +49,7 @@ import java.util.Random;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
+import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
@@ -288,29 +289,71 @@ class SpannerTestBase {
     return row;
   }
 
+  static StructType getATableSchema() {
+    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
+    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
+
+    return new StructType(
+        Arrays.asList(
+                new StructField("A", DataTypes.LongType, false, null),
+                new StructField("B", DataTypes.StringType, true, null),
+                new StructField("C", DataTypes.BinaryType, true, null),
+                new StructField("D", DataTypes.TimestampType, true, null),
+                new StructField("E", DataTypes.createDecimalType(38, 9), true, null),
+                new StructField("F", DataTypes.BooleanType, true, null),
+                new StructField("G", DataTypes.DoubleType, true, null),
+                new StructField("H", DataTypes.DateType, true, null),
+                new StructField(
+                    "I", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
+                new StructField("J", DataTypes.StringType, true, jsonMetaBuilder.build()),
+                new StructField("K", DataTypes.DoubleType, true, null))
+            .toArray(new StructField[0]));
+  }
+
   static InternalRow makeATableInternalRow(
-      long A, String B, byte[] C, ZonedDateTime D, double E, String[] F, String G) {
-    GenericInternalRow row = new GenericInternalRow(7);
+      long A,
+      String B,
+      byte[] C,
+      ZonedDateTime D,
+      Double E,
+      Boolean F,
+      Double G,
+      com.google.cloud.Date H,
+      String[] I,
+      String J,
+      Double K) {
+    GenericInternalRow row = new GenericInternalRow(11);
     row.setLong(0, A);
     row.update(1, UTF8String.fromString(B));
-    if (C == null) {
-      row.update(2, null);
-    } else {
-      row.update(2, new GenericArrayData(C));
-    }
+    row.update(2, C);
     row.update(3, SpannerUtils.zonedDateTimeToSparkTimestamp(D));
-    SpannerUtils.toSparkDecimal(row, new java.math.BigDecimal(E), 4);
-
+    if (E == null) {
+      row.update(4, null);
+    } else {
+      SpannerUtils.toSparkDecimal(row, java.math.BigDecimal.valueOf(E), 4);
+    }
     if (F == null) {
       row.update(5, null);
     } else {
-      List<UTF8String> fDest = new ArrayList<>(F.length);
-      for (String s : F) {
-        fDest.add(UTF8String.fromString(s));
-      }
-      row.update(5, fDest);
+      row.setBoolean(5, F);
     }
-    row.update(6, G == null ? null : UTF8String.fromString(G));
+    if (G == null) {
+      row.update(6, null);
+    } else {
+      row.setDouble(6, G);
+    }
+    row.update(7, SpannerUtils.toSparkDate(H));
+    if (I == null) {
+      row.update(8, null);
+    } else {
+      row.update(8, new GenericArrayData(Arrays.stream(I).map(UTF8String::fromString).toArray()));
+    }
+    row.update(9, J == null ? null : UTF8String.fromString(J));
+    if (K == null) {
+      row.update(10, null);
+    } else {
+      row.setDouble(10, K);
+    }
     return row;
   }
 
@@ -320,6 +363,33 @@ class SpannerTestBase {
     public int compare(InternalRow r1, InternalRow r2) {
       return r1.toString().compareTo(r2.toString());
     }
+  }
+
+  static StructType getCompositeTableSchema() {
+    MetadataBuilder jsonMetaBuilder = new MetadataBuilder();
+    jsonMetaBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
+
+    return new StructType(
+        Arrays.asList(
+                new StructField("id", DataTypes.LongType, false, null),
+                new StructField("charvcol", DataTypes.StringType, true, null),
+                new StructField("textcol", DataTypes.StringType, true, null),
+                new StructField("varcharcol", DataTypes.StringType, true, null),
+                new StructField("boolcol", DataTypes.BooleanType, true, null),
+                new StructField("booleancol", DataTypes.BooleanType, true, null),
+                new StructField("bigintcol", DataTypes.LongType, true, null),
+                new StructField("int8col", DataTypes.LongType, true, null),
+                new StructField("intcol", DataTypes.LongType, true, null),
+                new StructField("doublecol", DataTypes.DoubleType, true, null),
+                new StructField("floatcol", DataTypes.DoubleType, true, null),
+                new StructField("bytecol", DataTypes.BinaryType, true, null),
+                new StructField("datecol", DataTypes.DateType, true, null),
+                new StructField("numericcol", DataTypes.createDecimalType(38, 9), true, null),
+                new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
+                new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
+                new StructField("timestampcol", DataTypes.TimestampType, true, null),
+                new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()))
+            .toArray(new StructField[0]));
   }
 
   public static InternalRow makeCompositeTableRow(
@@ -374,7 +444,7 @@ class SpannerTestBase {
       Long intCol,
       Double doubleCol,
       Double float8Col,
-      String byteCol,
+      byte[] byteCol,
       String dateCol,
       java.math.BigDecimal numericCol,
       java.math.BigDecimal decimalCol,
@@ -421,7 +491,7 @@ class SpannerTestBase {
     } else {
       row.setDouble(10, float8Col);
     }
-    row.update(11, charvCol == null ? null : UTF8String.fromString(byteCol));
+    row.update(11, byteCol);
     row.update(
         12,
         dateCol == null

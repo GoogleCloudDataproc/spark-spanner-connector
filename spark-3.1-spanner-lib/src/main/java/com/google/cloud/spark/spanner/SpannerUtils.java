@@ -378,6 +378,9 @@ public class SpannerUtils {
   }
 
   public static Long zonedDateTimeToSparkTimestamp(ZonedDateTime zdt) {
+    if (zdt == null) {
+      return null;
+    }
     // Convert the zonedDateTime to microseconds which Spark supports.
     return zdt.toEpochSecond() * 1_000_000;
   }

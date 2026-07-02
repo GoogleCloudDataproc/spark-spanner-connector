@@ -576,7 +576,7 @@ public class SpannerUtils {
 
   public static StructType pruneSchema(
       StructType originalSchema, @Nullable Set<String> includeColumns) {
-    if (includeColumns == null) return originalSchema;
+    if (includeColumns == null || includeColumns.isEmpty()) return originalSchema;
     StructType prunedSchema = new StructType();
     for (StructField field : originalSchema.fields()) {
       if (includeColumns.contains(field.name())) {

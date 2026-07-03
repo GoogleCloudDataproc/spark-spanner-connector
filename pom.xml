@@ -97,6 +97,18 @@
         <module>spark-4.0-spanner</module>
       </modules>
     </profile>
+    <profile>
+      <id>4.1</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <modules>
+        <module>spark-3.2-spanner-lib</module>
+        <module>spark-3.3-spanner-lib</module>
+        <module>spark-3.5-spanner-lib</module>
+        <module>spark-4.0-spanner-lib</module>
+        <module>spark-4.1-spanner-lib</module>
+        <module>spark-4.1-spanner</module>
+      </modules>
+    </profile>
  </profiles>
 
 </project>

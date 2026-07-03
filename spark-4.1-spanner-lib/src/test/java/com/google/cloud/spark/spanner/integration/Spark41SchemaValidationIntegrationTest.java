@@ -14,6 +14,7 @@
 
 package com.google.cloud.spark.spanner.integration;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class Spark41SchemaValidationIntegrationTest extends SchemaValidationIntegrationTestBase {
@@ -23,13 +24,9 @@ public class Spark41SchemaValidationIntegrationTest extends SchemaValidationInte
 
   @Override
   @Test
+  @Ignore(
+      "TODO: this behaviour needs clarification. In Spark 4.1 there is a fundamental change in how Spark's underlying DataSource V2 (DSv2) framework handles schema validation and column pruning compared to Spark 4.0. As a consequence this test does not throw a Spark AnalysisException anymore. We need to review if enablePartialRowUpdates is still relevant given Spark 4.1 allows partial row updates anyway.")
   public void testPartialWriteFailsWithoutOption() {
-    // TODO: this behaviour needs clarification.
-    // In Spark 4.1 there is a fundamental change in how Spark's underlying DataSource V2 (DSv2)
-    // framework handles schema validation and column pruning compared to Spark 4.0.
-    // As a consequence this test does not throw a Spark AnalysisException anymore.
-    // We need to review if enablePartialRowUpdates is still relevant given Spark 4.1 allows partial
-    // row updates anyway.
-    return;
+    super.testPartialWriteFailsWithoutOption();
   }
 }

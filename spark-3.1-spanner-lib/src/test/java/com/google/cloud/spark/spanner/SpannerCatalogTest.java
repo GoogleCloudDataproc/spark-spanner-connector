@@ -33,6 +33,7 @@ import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;

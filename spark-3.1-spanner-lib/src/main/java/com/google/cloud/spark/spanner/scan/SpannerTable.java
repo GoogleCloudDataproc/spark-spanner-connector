@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.scan;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.connection.Connection;
+import com.google.cloud.spark.spanner.*;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;

@@ -43,7 +43,7 @@ You can find the released jar file from the Releases tag on right of the github 
 | spark-3.1-spanner |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; | Note 1  | Note 1  |
 | spark-3.2-spanner |         |                     |                     |         |         | &check; | &check; | &check; | &check; | Note 1  | Note 1  |
 | spark-3.3-spanner |         |                     |                     |         |         |         | &check; | &check; | &check; | Note 1  | Note 1  |
-| spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; | Note 1  | Note 1  | 
+| spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; | Note 1  | Note 1  |
 | spark-4.0-spanner |         |                     |                     |         |         |         |         |         |         | &check; | Note 1  |
 | spark-4.1-spanner |         |                     |                     |         |         |         |         |         |         |         | &check; |
 

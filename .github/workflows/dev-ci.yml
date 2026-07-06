@@ -41,6 +41,9 @@ jobs:
       - name: Build for Spark 4.0
         run: |
           mvn -B -e install -P4.0 -DskipTests
+      - name: Build for Spark 4.1
+        run: |
+          mvn -B -e install -P4.1 -DskipTests
       - name: Get short commit hash
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT

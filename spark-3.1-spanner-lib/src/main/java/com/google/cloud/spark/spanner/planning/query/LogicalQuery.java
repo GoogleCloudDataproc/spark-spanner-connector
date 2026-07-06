@@ -14,15 +14,15 @@
 
 package com.google.cloud.spark.spanner.planning.query;
 
-import com.google.cloud.spark.spanner.scan.SpannerTable;
+import com.google.cloud.spark.spanner.planning.relation.Relation;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
 
 public final class LogicalQuery {
-  public SpannerTable getSource() {
-    return spannerTable;
+  public Relation getSource() {
+    return source;
   }
 
   public Set<String> getProjections() {
@@ -37,21 +37,21 @@ public final class LogicalQuery {
     return fields;
   }
 
-  private final SpannerTable spannerTable;
+  private final Relation source;
   private final Set<String> requiredColumns;
   private final Filter[] pushedFilters;
   private final Map<String, StructField> fields;
 
   public LogicalQuery(
-      SpannerTable spannerTable,
+      Relation source,
       Set<String> requiredColumns,
       Filter[] pushedFilters,
       Map<String, StructField> fields) {
 
-    if (spannerTable == null) {
-      throw new NullPointerException("spannerTable cannot be null");
+    if (source == null) {
+      throw new NullPointerException("source cannot be null");
     }
-    this.spannerTable = spannerTable;
+    this.source = source;
     this.requiredColumns =
         requiredColumns != null ? requiredColumns : java.util.Collections.emptySet();
     this.pushedFilters = pushedFilters != null ? pushedFilters.clone() : new Filter[0];

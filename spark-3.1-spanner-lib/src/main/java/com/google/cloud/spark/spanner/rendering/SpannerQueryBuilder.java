@@ -18,7 +18,10 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.Relation;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -41,7 +44,14 @@ public class SpannerQueryBuilder {
   private SpannerQueryBuilder(LogicalQuery logicalQuery, Dialect dialect) {
     this.logicalQuery = logicalQuery;
     this.dialect = dialect;
-    this.spannerTable = logicalQuery.getSource();
+    Relation relation = logicalQuery.getSource();
+    if (relation instanceof TableRelation) {
+      this.spannerTable = ((TableRelation) relation).getTable();
+    } else {
+      this.spannerTable = null;
+      logger.error("Unsupported relation type: " + relation);
+    }
+
     this.requiredColumns = logicalQuery.getProjections();
     this.filters = logicalQuery.getFilter();
     this.fields = logicalQuery.getFields();
@@ -51,6 +61,59 @@ public class SpannerQueryBuilder {
     return new SpannerQueryBuilder(logicalQuery, dialect);
   }
 
+  private RenderResult buildSql() {
+    final boolean isPostgreSql = this.dialect.equals(Dialect.POSTGRESQL);
+    Relation relation = logicalQuery.getSource();
+    String alias = null;
+    if (relation instanceof TableRelation) {
+      TableRelation tableRelation = (TableRelation) relation;
+      alias = tableRelation.getAlias();
+    }
+
+    // 1. Use * if no requiredColumns were requested else select them.
+    String selectPrefix = "SELECT *";
+    if (this.logicalQuery.getProjections() != null
+        && this.logicalQuery.getProjections().size() > 0) {
+      // Prefix each column with the table name to avoid ambiguity when column name
+      // matches table name
+      String columnsWithTablePrefix =
+          buildColumnsWithTablePrefix(
+              alias,
+              new LinkedHashSet<>(this.logicalQuery.getProjections()),
+              dialect.equals(Dialect.POSTGRESQL));
+      selectPrefix = "SELECT " + columnsWithTablePrefix;
+    }
+
+    SqlRelationVisitor relationVisitor = new SqlRelationVisitor(this.dialect);
+    String query =
+        selectPrefix + " FROM " + logicalQuery.getSource().accept(relationVisitor).getSql();
+
+    if (this.filters.length > 0) {
+      query +=
+          " WHERE "
+              + SparkFilterUtils.getCompiledFilter(
+                  true, Optional.empty(), isPostgreSql, fields, this.filters);
+    }
+
+    logger.debug("query: {}", query);
+    return new RenderResult(query, null);
+  }
+
+  private Statement buildNewStatement() {
+    RenderResult renderResult = this.buildSql();
+
+    Statement.Builder builder = Statement.newBuilder(renderResult.getSql());
+    return builder.build();
+  }
+
+  public Statement buildStatement() {
+    if (true) {
+      return buildLegacySql();
+    } else {
+      return buildNewStatement();
+    }
+  }
+
   public static String buildColumnsWithTablePrefix(
       String tableName, Set<String> columns, boolean isPostgreSql) {
     String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
@@ -58,6 +121,10 @@ public class SpannerQueryBuilder {
         .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
         .map(quotedCol -> quotedTableName + "." + quotedCol)
         .collect(Collectors.joining(", "));
+  }
+
+  private String parenthesize(String in) {
+    return "(" + in + ")";
   }
 
   private Statement buildLegacySql() {
@@ -83,9 +150,5 @@ public class SpannerQueryBuilder {
                   true, Optional.empty(), isPostgreSql, fields, this.filters);
     }
     return Statement.of(sqlStmt);
-  }
-
-  public Statement buildStatement() {
-    return buildLegacySql();
   }
 }

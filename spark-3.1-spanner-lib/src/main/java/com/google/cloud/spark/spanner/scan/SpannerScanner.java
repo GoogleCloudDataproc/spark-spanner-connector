@@ -22,6 +22,8 @@ import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.Relation;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
 import java.util.stream.Collectors;
@@ -39,7 +41,6 @@ import org.slf4j.LoggerFactory;
  * SpannerScanner implements Scan.
  */
 public class SpannerScanner implements Batch, Scan {
-  private final SpannerTable spannerTable;
   private final CaseInsensitiveStringMap opts;
   private final Timestamp INIT_TIME = Timestamp.now();
   private final StructType readSchema;
@@ -47,10 +48,17 @@ public class SpannerScanner implements Batch, Scan {
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(LogicalQuery logicalQuery) {
-    this.spannerTable = logicalQuery.getSource();
-    this.opts = this.spannerTable.properties();
-    this.readSchema =
-        SpannerUtils.pruneSchema(this.spannerTable.schema(), logicalQuery.getProjections());
+    Relation relation = logicalQuery.getSource();
+    if (relation instanceof TableRelation) {
+      final SpannerTable spannerTable = ((TableRelation) relation).getTable();
+      this.opts = spannerTable.properties();
+      this.readSchema =
+          SpannerUtils.pruneSchema(spannerTable.schema(), logicalQuery.getProjections());
+    } else {
+      this.opts = null;
+      this.readSchema = null;
+      logger.error("Unsupported relation type: " + relation);
+    }
     this.logicalQuery = logicalQuery;
   }
 

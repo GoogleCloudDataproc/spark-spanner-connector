@@ -2,6 +2,15 @@
 
 ## Next
 
+*   Add support for TPC-H benchmarking (framework integration and Databricks execution).
+*   Add integration test support for Spanner Omni.
+*   Add foundational changes for join pushdown support.
+*   Add Spark 4.1 support.
+*   Testing enhancements:
+    *   Upgrade acceptance testing for read operations.
+    *   Explicitly configure the service account in acceptance tests for Dataproc Serverless 3.0+.
+    *   Configure Google Cloud Build to run integration tests using the Spanner emulator.
+
 ## 1.4.0 - 2026-05-08
 
 *   Add Spark 4.0 support.

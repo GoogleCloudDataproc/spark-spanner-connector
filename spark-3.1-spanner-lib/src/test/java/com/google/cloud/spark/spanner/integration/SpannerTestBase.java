@@ -124,16 +124,6 @@ class SpannerTestBase {
       Iterable<String> ddls,
       Iterable<String> dmls)
       throws Exception {
-    if (Dialect.POSTGRESQL.equals(dialect) && emulatorHost != null && !emulatorHost.isEmpty()) {
-      // Spanner emulator doesn't support the PostgreSql dialect interface.
-      // If the emulator is set. We return immediately here.
-      // TODO: Throw an exception here instead of failing silently.
-      // Caveat: This populatePgDatabase function is always called regardless of whether PG
-      // databases are needed or not. Making this throw an exception (instead of failing silently)
-      // will stop all tests from using an emulator. A bigger refactoring of the test setup process
-      // will be needed to address this.
-      return;
-    }
 
     switch (dialect) {
       case GOOGLE_STANDARD_SQL:

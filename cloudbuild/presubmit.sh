@@ -38,10 +38,19 @@ case $STEP in
 
 
   # Run integration tests with Spanner emulator.
-  integrationtest-real-spanner)
+  integrationtest-spanner-emulator)
     # Starts the Spanner emulator and setup the gcloud command.
     # Sets the env used in the integration test.
-    $MVN -P3.1,3.2,3.3,3.5,4.0,4.1,integration failsafe:integration-test failsafe:verify
+    echo "Starting Spanner emulator..."
+    export TZDIR=/usr/share/zoneinfo
+    gcloud emulators spanner start --host-port=0.0.0.0:9010 &
+    SP_EMU_PID=$!
+    trap 'kill $SP_EMU_PID 2>/dev/null || true' EXIT
+
+    # Wait for the emulator to start up and listen on port 9010
+    timeout 15 bash -c 'until echo > /dev/tcp/localhost/9010; do sleep 0.5; done' 2>/dev/null || sleep 5
+
+    $MVN -P3.1,3.2,3.3,3.5,4.0,4.1,integration clean verify -Dsurefire.skip=true -Dintegration.forkCount=1
     ;;
 
   acceptance-test)

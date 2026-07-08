@@ -86,7 +86,9 @@ public class SpannerCatalogIntegrationTest extends SparkCatalogSpannerIntegratio
 
   @After
   public void teardownCatalog() {
-    catalog.close();
+    if (catalog != null) {
+      catalog.close();
+    }
   }
 
   @Test
@@ -214,6 +216,9 @@ public class SpannerCatalogIntegrationTest extends SparkCatalogSpannerIntegratio
 
   @Test
   public void testOverwriteTruncateMode() {
+    org.junit.Assume.assumeFalse(
+        "Emulator has limited support for PG Partitioned DML (truncate)",
+        usePostgresSql && emulatorHost != null && !emulatorHost.isEmpty());
     testOverwriteImpl("truncate");
   }
 

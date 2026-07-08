@@ -19,6 +19,7 @@
     <shade.skip>true</shade.skip>
     <toolchain.jdk.version>[17,18)</toolchain.jdk.version>
     <maven.compiler.release>17</maven.compiler.release>
+    <integration.forkCount>10</integration.forkCount>
   </properties>
   <licenses>
     <license>
@@ -63,7 +64,7 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-failsafe-plugin</artifactId>
             <configuration>
-              <forkCount>10</forkCount>
+              <forkCount>${integration.forkCount}</forkCount>
               <reuseForks>false</reuseForks>
               <includes>
                 <include>**/*IntegrationTest.java</include>

@@ -3,6 +3,8 @@ package com.google.cloud.spark.spanner.planning.expression;
 public interface SpannerExprVisitor<T> {
   T visit(EqExpr expr);
 
+  T visit(EqNullSafeExpr expr);
+
   T visit(GtExpr expr);
 
   T visit(GteExpr expr);

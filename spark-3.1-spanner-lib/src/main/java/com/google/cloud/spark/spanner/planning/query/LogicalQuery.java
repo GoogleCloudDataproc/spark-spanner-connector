@@ -14,13 +14,21 @@
 
 package com.google.cloud.spark.spanner.planning.query;
 
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
 
 public final class LogicalQuery {
+  private final Relation source;
+  private final Set<String> requiredColumns;
+  private final Filter[] pushedFilters;
+  private final Map<String, StructField> fields;
+
+  // Spark 4.1+
+  private final JoinRelation join;
+
   public Relation getSource() {
     return source;
   }
@@ -37,24 +45,65 @@ public final class LogicalQuery {
     return fields;
   }
 
-  private final Relation source;
-  private final Set<String> requiredColumns;
-  private final Filter[] pushedFilters;
-  private final Map<String, StructField> fields;
+  public Optional<JoinRelation> getJoin() {
+    return Optional.ofNullable(join);
+  }
 
-  public LogicalQuery(
-      Relation source,
-      Set<String> requiredColumns,
-      Filter[] pushedFilters,
-      Map<String, StructField> fields) {
-
-    if (source == null) {
-      throw new NullPointerException("source cannot be null");
-    }
-    this.source = source;
+  private LogicalQuery(Builder builder) {
+    this.source = builder.source;
     this.requiredColumns =
-        requiredColumns != null ? requiredColumns : java.util.Collections.emptySet();
-    this.pushedFilters = pushedFilters != null ? pushedFilters.clone() : new Filter[0];
-    this.fields = fields != null ? fields : java.util.Collections.emptyMap();
+        builder.requiredColumns != null
+            ? builder.requiredColumns
+            : java.util.Collections.emptySet();
+    this.pushedFilters =
+        builder.pushedFilters != null ? builder.pushedFilters.clone() : new Filter[0];
+    this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
+    this.join = builder.join;
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static final class Builder {
+
+    private Relation source;
+    private JoinRelation join;
+    private Set<String> requiredColumns = Collections.emptySet();
+    private Filter[] pushedFilters = new Filter[0];
+    private Map<String, StructField> fields = java.util.Collections.emptyMap();
+
+    private Builder() {}
+
+    public Builder source(Relation source) {
+      this.source = source;
+      return this;
+    }
+
+    public Builder requiredColumns(Set<String> requiredColumns) {
+      this.requiredColumns = requiredColumns;
+      return this;
+    }
+
+    public Builder pushedFilters(Filter[] pushedFilters) {
+      this.pushedFilters = pushedFilters;
+      return this;
+    }
+
+    public Builder join(JoinRelation join) {
+      this.join = join;
+      return this;
+    }
+
+    public Builder fields(Map<String, StructField> fields) {
+      this.fields = fields;
+      return this;
+    }
+
+    public LogicalQuery build() {
+      Objects.requireNonNull(source, "source");
+
+      return new LogicalQuery(this);
+    }
   }
 }

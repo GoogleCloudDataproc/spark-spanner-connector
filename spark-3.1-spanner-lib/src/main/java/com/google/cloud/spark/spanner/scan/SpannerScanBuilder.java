@@ -61,7 +61,12 @@ public class SpannerScanBuilder
     TableRelation tableRelation =
         new TableRelation(this.spannerTable.name(), this.spannerTable.name(), this.spannerTable);
     LogicalQuery logicalQuery =
-        new LogicalQuery(tableRelation, this.requiredColumns, pushedFilters(), this.fields);
+        LogicalQuery.builder()
+            .source(tableRelation)
+            .requiredColumns(this.requiredColumns)
+            .pushedFilters(pushedFilters())
+            .fields(this.fields)
+            .build();
 
     this.scanner = new SpannerScanner(logicalQuery);
     return this.scanner;

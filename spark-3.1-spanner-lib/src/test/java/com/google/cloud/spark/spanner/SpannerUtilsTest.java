@@ -51,7 +51,22 @@ public class SpannerUtilsTest {
             });
 
     // Should not throw any exception
-    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME);
+    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, false);
+  }
+
+  @Test
+  public void testValidateSchemaSuccessEnablePartialRowUpdates() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("name", DataTypes.StringType, true, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should not throw any exception
+    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, true);
   }
 
   @Test
@@ -65,7 +80,7 @@ public class SpannerUtilsTest {
             });
 
     // Should not throw any exception
-    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME);
+    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, true);
   }
 
   @Test
@@ -79,7 +94,7 @@ public class SpannerUtilsTest {
             });
 
     // Should not throw any exception
-    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME);
+    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, true);
   }
 
   @Test
@@ -95,7 +110,7 @@ public class SpannerUtilsTest {
     SpannerConnectorException exception =
         assertThrows(
             SpannerConnectorException.class,
-            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, false));
     assertTrue(exception.getMessage().contains("DataFrame column 'non_existent_col' not found"));
   }
 
@@ -111,7 +126,7 @@ public class SpannerUtilsTest {
     SpannerConnectorException exception =
         assertThrows(
             SpannerConnectorException.class,
-            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, false));
     assertTrue(exception.getMessage().contains("Data type mismatch for column 'id'"));
     assertTrue(
         exception
@@ -138,7 +153,7 @@ public class SpannerUtilsTest {
     SpannerConnectorException exception =
         assertThrows(
             SpannerConnectorException.class,
-            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, false));
     assertTrue(exception.getMessage().contains("Data type mismatch for column 'price'"));
     assertTrue(
         exception

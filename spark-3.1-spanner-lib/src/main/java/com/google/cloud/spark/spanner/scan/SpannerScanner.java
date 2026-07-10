@@ -55,9 +55,7 @@ public class SpannerScanner implements Batch, Scan {
       this.readSchema =
           SpannerUtils.pruneSchema(spannerTable.schema(), logicalQuery.getProjections());
     } else {
-      this.opts = null;
-      this.readSchema = null;
-      logger.error("Unsupported relation type: " + relation);
+      throw new UnsupportedOperationException("Unsupported relation type: " + relation);
     }
     this.logicalQuery = logicalQuery;
   }

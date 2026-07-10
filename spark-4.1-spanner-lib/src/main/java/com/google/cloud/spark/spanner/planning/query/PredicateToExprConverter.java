@@ -109,16 +109,24 @@ public final class PredicateToExprConverter {
   }
 
   private static BoolExpr translateIn(Predicate predicate, StructType schema) {
-    // TODO: confirm if IN is represented as
-    //  Predicate
-    //    children[]
-
-    ColumnExpr column = (ColumnExpr) translateExpression(predicate.children()[0], schema);
+    if (predicate.children().length == 0) {
+      throw new IllegalArgumentException("IN predicate must have at least 1 child");
+    }
+    ValueExpr left = translateExpression(predicate.children()[0], schema);
+    if (!(left instanceof ColumnExpr)) {
+      throw new UnsupportedOperationException(
+          "Left side of IN predicate must be a column reference");
+    }
+    ColumnExpr column = (ColumnExpr) left;
 
     List<LiteralExpr> values = new ArrayList<>();
 
     for (int i = 1; i < predicate.children().length; i++) {
-      values.add((LiteralExpr) translateExpression(predicate.children()[i], schema));
+      ValueExpr val = translateExpression(predicate.children()[i], schema);
+      if (!(val instanceof LiteralExpr)) {
+        throw new UnsupportedOperationException("Values of IN predicate must be literals");
+      }
+      values.add((LiteralExpr) val);
     }
 
     return new InExpr(column, values);
@@ -174,6 +182,17 @@ public final class PredicateToExprConverter {
       Predicate predicate,
       StructType schema,
       BiFunction<ColumnExpr, LiteralExpr, BoolExpr> factory) {
+
+    if (predicate.children().length < 2) {
+      throw new IllegalArgumentException("Binary predicate must have at least 2 children");
+    }
+    if (!(predicate.children()[0] instanceof NamedReference)) {
+      throw new UnsupportedOperationException(
+          "Left side of binary predicate must be a column reference");
+    }
+    if (!(predicate.children()[1] instanceof Literal)) {
+      throw new UnsupportedOperationException("Right side of binary predicate must be a literal");
+    }
 
     NamedReference reference = (NamedReference) predicate.children()[0];
 

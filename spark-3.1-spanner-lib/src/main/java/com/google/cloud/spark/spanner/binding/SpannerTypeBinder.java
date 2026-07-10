@@ -54,11 +54,14 @@ public final class SpannerTypeBinder {
       return Type.numeric();
     } else if (type.sameType(DataTypes.StringType)) {
       return Type.string();
-    } else if (type.sameType(DataTypes.LongType) || type.sameType(DataTypes.IntegerType)) {
+    } else if (type.sameType(DataTypes.LongType)
+        || type.sameType(DataTypes.IntegerType)
+        || type.sameType(DataTypes.ShortType)
+        || type.sameType(DataTypes.ByteType)) {
       return Type.int64();
     } else if (type.sameType(DataTypes.BooleanType)) {
       return Type.bool();
-    } else if (type.sameType(DataTypes.DoubleType)) {
+    } else if (type.sameType(DataTypes.DoubleType) || type.sameType(DataTypes.FloatType)) {
       return Type.float64();
     } else {
       throw new UnsupportedOperationException(

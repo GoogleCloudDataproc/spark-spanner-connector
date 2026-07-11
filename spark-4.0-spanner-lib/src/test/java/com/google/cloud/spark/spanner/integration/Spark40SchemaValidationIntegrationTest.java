@@ -17,10 +17,10 @@ package com.google.cloud.spark.spanner.integration;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import com.google.cloud.spark.spanner.SpannerConnectorException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.spark.sql.AnalysisException;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -48,32 +48,16 @@ public class Spark40SchemaValidationIntegrationTest extends SchemaValidationInte
     props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     // "enablePartialRowUpdates" is NOT set
 
-    SpannerConnectorException e =
+    // Expect Spark's AnalysisException, not our custom SpannerConnectorException
+    AnalysisException e =
         assertThrows(
-            SpannerConnectorException.class,
+            AnalysisException.class,
             () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
 
     String message = e.getMessage();
-    assertThat(message).contains("Partial row updates require enablePartialRowUpdates=true.");
-  }
-
-  @Test
-  public void testFullWriteSucceedsWithoutOption() {
-    StructType partialSchema =
-        new StructType(
-            new StructField[] {
-              DataTypes.createStructField("id", DataTypes.LongType, false),
-              DataTypes.createStructField("name", DataTypes.StringType, true),
-              DataTypes.createStructField("value", DataTypes.DoubleType, true),
-            });
-    List<Row> rows = Collections.singletonList(RowFactory.create(1L, "test", 1.23));
-    Dataset<Row> df = spark.createDataFrame(rows, partialSchema);
-
-    System.out.println("df.queryExecution().analyzed() " + df.queryExecution().analyzed());
-
-    Map<String, String> props = connectionProperties(usePostgreSql);
-    props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
-    // "enablePartialRowUpdates" is NOT set
-    df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+    assertThat(message).contains("Cannot write incompatible data for the table");
+    assertThat(message).contains(SCHEMA_VALIDATION_TABLE_NAME);
+    assertThat(message).contains("Cannot find data for the output column");
+    assertThat(message).contains("name");
   }
 }

@@ -21,6 +21,13 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
 public class GraphReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
+  @org.junit.Before
+  public void skipGraphOnEmulator() {
+    org.junit.Assume.assumeFalse(
+        "Emulator has limited support for Spanner Graph",
+        emulatorHost != null && !emulatorHost.isEmpty());
+  }
+
   public DataFrameReader reader() {
     Map<String, String> props = connectionProperties();
     DataFrameReader reader =

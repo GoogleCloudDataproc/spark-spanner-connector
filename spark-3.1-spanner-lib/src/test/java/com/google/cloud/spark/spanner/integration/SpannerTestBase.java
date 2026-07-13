@@ -29,10 +29,10 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
-import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.cloud.spark.spanner.SpannerTestUtils;
 import com.google.cloud.spark.spanner.SpannerUtils;
 import com.google.cloud.spark.spanner.TestData;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -124,16 +124,6 @@ class SpannerTestBase {
       Iterable<String> ddls,
       Iterable<String> dmls)
       throws Exception {
-    if (Dialect.POSTGRESQL.equals(dialect) && emulatorHost != null && !emulatorHost.isEmpty()) {
-      // Spanner emulator doesn't support the PostgreSql dialect interface.
-      // If the emulator is set. We return immediately here.
-      // TODO: Throw an exception here instead of failing silently.
-      // Caveat: This populatePgDatabase function is always called regardless of whether PG
-      // databases are needed or not. Making this throw an exception (instead of failing silently)
-      // will stop all tests from using an emulator. A bigger refactoring of the test setup process
-      // will be needed to address this.
-      return;
-    }
 
     switch (dialect) {
       case GOOGLE_STANDARD_SQL:

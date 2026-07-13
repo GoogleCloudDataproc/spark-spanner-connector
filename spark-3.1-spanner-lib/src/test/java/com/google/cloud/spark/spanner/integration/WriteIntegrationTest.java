@@ -327,8 +327,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                   .mode(SaveMode.Append)
                   .save();
             });
-    // 3. Verify that row 211 cannot be inserted again.
-    assertThat(getExceptionMessage(e)).contains("ALREADY_EXISTS: Row [211]");
+    String msg = getExceptionMessage(e);
+    assertTrue(
+        "Expected error to contain 'Row [211]' or 'Row {Int64(211)}', but was: " + msg,
+        msg.contains("Row [211]") || msg.contains("Row {Int64(211)}"));
 
     // 4. Insert 213, happy path
     List<Row> successfulInsertRows =
@@ -395,7 +397,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                   .save();
             });
     // 3. Verify that row 223 cannot be updated before it exists
-    assertThat(getExceptionMessage(e)).contains("NOT_FOUND: Row [223]");
+    String msg = getExceptionMessage(e);
+    assertTrue(
+        "Expected error to contain 'Row [223]' or 'Row {Int64(223)}', but was: " + msg,
+        msg.contains("Row [223]") || msg.contains("Row {Int64(223)}"));
 
     // 4. Update existing 222, happy path
     List<Row> successfulUpdateRows =

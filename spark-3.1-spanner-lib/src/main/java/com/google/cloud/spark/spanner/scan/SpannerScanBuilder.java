@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spark.spanner;
+package com.google.cloud.spark.spanner.scan;
 
+import com.google.cloud.spark.spanner.SparkFilterUtils;
+import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -38,7 +40,7 @@ public class SpannerScanBuilder
   private List<Filter> pushedFilters;
   private Set<String> requiredColumns;
   private SpannerScanner scanner;
-  private static final Logger log = LoggerFactory.getLogger(SpannerScanBuilder.class);
+  private static final Logger logger = LoggerFactory.getLogger(SpannerScanBuilder.class);
   private SpannerTable spannerTable;
   private Map<String, StructField> fields;
 
@@ -53,13 +55,12 @@ public class SpannerScanBuilder
 
   @Override
   public Scan build() {
-    this.scanner =
-        new SpannerScanner(
-            this.spannerTable.properties(),
-            this.spannerTable,
-            this.fields,
-            this.pushedFilters(),
-            this.requiredColumns);
+    // Build the LogicalQuery
+
+    LogicalQuery logicalQuery =
+        new LogicalQuery(this.spannerTable, this.requiredColumns, pushedFilters(), this.fields);
+
+    this.scanner = new SpannerScanner(logicalQuery);
     return this.scanner;
   }
 
@@ -85,7 +86,7 @@ public class SpannerScanBuilder
 
   /*
    * pruneColumns applies column pruning with respect to the requiredSchema.
-   * The docs recommend implementing this methood to push down required columns
+   * The docs recommend implementing this method to push down required columns
    * to the data source and only read these columns during scan to
    * reduce the size of the data to be read.
    */

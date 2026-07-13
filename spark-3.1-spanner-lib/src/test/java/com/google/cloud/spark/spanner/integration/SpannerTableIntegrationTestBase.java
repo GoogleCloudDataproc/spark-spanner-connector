@@ -16,8 +16,8 @@ package com.google.cloud.spark.spanner.integration;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.spark.spanner.SpannerTable;
 import com.google.cloud.spark.spanner.SpannerUtils;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.util.Arrays;
 import java.util.Map;
 import org.apache.spark.sql.types.DataTypes;

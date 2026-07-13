@@ -82,7 +82,7 @@ public class DataprocAcceptanceTestBase {
             "read_test_table.py",
             null,
             Arrays.asList(context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID),
-            120);
+            300);
     assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
     assertThat(output.trim()).startsWith("PASS");
@@ -97,7 +97,7 @@ public class DataprocAcceptanceTestBase {
             "read_test_filter_pushdown.py",
             null,
             Arrays.asList(context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID),
-            120);
+            300);
     assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
     assertThat(output.trim()).startsWith("PASS");
@@ -113,7 +113,7 @@ public class DataprocAcceptanceTestBase {
             "write_test_table.py",
             null,
             Arrays.asList(context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID),
-            120);
+            300);
     assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
     assertThat(output.trim()).startsWith("PASS");

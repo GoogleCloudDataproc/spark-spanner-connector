@@ -302,13 +302,33 @@ public class DataprocServerlessAcceptanceTestBase {
     runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.projectId", PROJECT_ID);
     runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.instanceId", INSTANCE_ID);
     runtimeConfigBuilder.putProperties("spark.sql.catalog.spanner.databaseId", DATABASE_ID);
-    Batch batch =
+    Batch.Builder batchBuilder =
         Batch.newBuilder()
             .setName(parent + "/batches/" + context.clusterId)
             .setPysparkBatch(createPySparkBatchBuilder(context, testName, pythonZipUri, args))
-            .setRuntimeConfig(runtimeConfigBuilder)
-            .build();
-
+            .setRuntimeConfig(runtimeConfigBuilder);
+    if (isServerless30OrAbove()) {
+      String serviceAccount = System.getenv("ACCEPTANCE_TEST_SERVICE_ACCOUNT");
+      if (serviceAccount != null && !serviceAccount.isEmpty()) {
+        batchBuilder.setEnvironmentConfig(
+            EnvironmentConfig.newBuilder()
+                .setExecutionConfig(
+                    ExecutionConfig.newBuilder()
+                        .setAuthenticationConfig(
+                            AuthenticationConfig.newBuilder()
+                                .setUserWorkloadAuthenticationType(
+                                    AuthenticationConfig.AuthenticationType.SERVICE_ACCOUNT)
+                                .build())
+                        .setServiceAccount(serviceAccount)
+                        .build())
+                .build());
+      } else {
+        logger.warn(
+            "ACCEPTANCE_TEST_SERVICE_ACCOUNT is not set. Workload authentication will default to"
+                + " END_USER_CREDENTIALS.");
+      }
+    }
+    Batch batch = batchBuilder.build();
     OperationFuture<Batch, BatchOperationMetadata> batchAsync =
         batchController.createBatchAsync(
             CreateBatchRequest.newBuilder()
@@ -343,5 +363,24 @@ public class DataprocServerlessAcceptanceTestBase {
     String clusterName = String.format("spanner-serverless-acceptance-%s", testId);
     // cluster name must conform to pattern '[a-z0-9][a-z0-9\-]{2,61}[a-z0-9]'
     return clusterName.toLowerCase();
+  }
+
+  private boolean isServerless30OrAbove() {
+    if (s8sImageVersion == null) {
+      return false;
+    }
+    if ("latest".equals(s8sImageVersion)) {
+      return true;
+    }
+    try {
+      String[] parts = s8sImageVersion.split("\\.");
+      if (parts.length > 0) {
+        int major = Integer.parseInt(parts[0]);
+        return major >= 3;
+      }
+    } catch (NumberFormatException e) {
+      // Ignore and fall through
+    }
+    return false;
   }
 }

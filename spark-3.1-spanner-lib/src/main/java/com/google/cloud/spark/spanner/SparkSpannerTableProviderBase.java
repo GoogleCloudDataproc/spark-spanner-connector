@@ -59,7 +59,8 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
     boolean hasGraph = options.containsKey("graph");
     if (hasTable && !hasGraph) {
       if (enablePartialRowUpdates) {
-        return new SpannerTable(options, schema);
+        return createSpannerTable(options, schema);
+        // The following will go with the handling of enablePartialRowUpdates harmonization.
       } else {
         return new SpannerTable(options);
       }
@@ -70,6 +71,10 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
           SpannerErrorCode.INVALID_ARGUMENT,
           "properties must contain one of \"table\" or \"graph\"");
     }
+  }
+
+  public SpannerTable createSpannerTable(CaseInsensitiveStringMap options, StructType schema) {
+    return new SpannerTable(options, schema);
   }
 
   /*

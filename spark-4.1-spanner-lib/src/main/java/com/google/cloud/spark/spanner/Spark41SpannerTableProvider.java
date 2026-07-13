@@ -14,4 +14,15 @@
 
 package com.google.cloud.spark.spanner;
 
-public class Spark41SpannerTableProvider extends SparkSpannerTableProviderBase {}
+import com.google.cloud.spark.spanner.scan.SpannerTable;
+import com.google.cloud.spark.spanner.scan.Spark41SpannerTable;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+
+public class Spark41SpannerTableProvider extends SparkSpannerTableProviderBase {
+
+  @Override
+  public SpannerTable createSpannerTable(CaseInsensitiveStringMap options, StructType schema) {
+    return new Spark41SpannerTable(options, schema);
+  }
+}

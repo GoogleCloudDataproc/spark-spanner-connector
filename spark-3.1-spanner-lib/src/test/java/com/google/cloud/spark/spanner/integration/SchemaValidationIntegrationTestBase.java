@@ -135,8 +135,6 @@ public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegration
     List<Row> rows = Collections.singletonList(RowFactory.create(1L, "test", 1.23));
     Dataset<Row> df = spark.createDataFrame(rows, partialSchema);
 
-    System.out.println("df.queryExecution().analyzed() " + df.queryExecution().analyzed());
-
     Map<String, String> props = connectionProperties(usePostgreSql);
     props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
     // "enablePartialRowUpdates" is NOT set

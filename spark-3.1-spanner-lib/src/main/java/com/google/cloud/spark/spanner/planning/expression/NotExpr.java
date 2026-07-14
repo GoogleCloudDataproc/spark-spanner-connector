@@ -14,11 +14,13 @@
 
 package com.google.cloud.spark.spanner.planning.expression;
 
+import java.util.Objects;
+
 public final class NotExpr implements BoolExpr {
   private final BoolExpr value;
 
   public NotExpr(BoolExpr value) {
-    this.value = value;
+    this.value = Objects.requireNonNull(value, "value cannot be null");
   }
 
   public BoolExpr getValue() {

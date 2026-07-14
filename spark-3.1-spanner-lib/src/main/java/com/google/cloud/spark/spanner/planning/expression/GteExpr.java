@@ -14,13 +14,15 @@
 
 package com.google.cloud.spark.spanner.planning.expression;
 
+import java.util.Objects;
+
 public final class GteExpr implements BoolExpr {
   private final ValueExpr left;
   private final ValueExpr right;
 
   public GteExpr(ValueExpr left, ValueExpr right) {
-    this.left = left;
-    this.right = right;
+    this.left = Objects.requireNonNull(left, "left cannot be null");
+    this.right = Objects.requireNonNull(right, "right cannot be null");
   }
 
   public ValueExpr getLeft() {

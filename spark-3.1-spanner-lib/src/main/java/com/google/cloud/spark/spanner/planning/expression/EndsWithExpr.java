@@ -14,13 +14,15 @@
 
 package com.google.cloud.spark.spanner.planning.expression;
 
+import java.util.Objects;
+
 public final class EndsWithExpr implements BoolExpr {
   private final ColumnExpr left;
   private final LiteralExpr suffix;
 
   public EndsWithExpr(ColumnExpr left, LiteralExpr suffix) {
-    this.left = left;
-    this.suffix = suffix;
+    this.left = Objects.requireNonNull(left, "left cannot be null");
+    this.suffix = Objects.requireNonNull(suffix, "suffix cannot be null");
   }
 
   public ColumnExpr getLeft() {

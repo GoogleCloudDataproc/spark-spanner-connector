@@ -27,7 +27,7 @@ public final class JoinRelation implements Relation {
     this.left = Objects.requireNonNull(left, "left relation cannot be null");
     this.right = Objects.requireNonNull(right, "right relation cannot be null");
     this.joinType = Objects.requireNonNull(joinType, "joinType cannot be null");
-    this.condition = condition;
+    this.condition = Objects.requireNonNull(condition, "condition cannot be null");
   }
 
   public Relation getLeft() {

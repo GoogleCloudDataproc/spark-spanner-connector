@@ -16,14 +16,16 @@ package com.google.cloud.spark.spanner.planning.expression;
 
 import org.apache.spark.sql.types.DataType;
 
+import java.util.Objects;
+
 public final class ColumnExpr implements ValueExpr {
   private final String columnName;
   private final DataType sparkType;
   private final boolean nullable;
 
   public ColumnExpr(String columnName, DataType sparkType, boolean nullable) {
-    this.columnName = columnName;
-    this.sparkType = sparkType;
+    this.columnName = Objects.requireNonNull(columnName, "columnName cannot be null");
+    this.sparkType = Objects.requireNonNull(sparkType, "sparkType cannot be null");
     this.nullable = nullable;
   }
 

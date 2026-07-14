@@ -14,13 +14,15 @@
 
 package com.google.cloud.spark.spanner.planning.expression;
 
+import java.util.Objects;
+
 public final class ContainsExpr implements BoolExpr {
   private final ColumnExpr left;
   private final LiteralExpr value;
 
   public ContainsExpr(ColumnExpr left, LiteralExpr value) {
-    this.left = left;
-    this.value = value;
+    this.left = Objects.requireNonNull(left, "left cannot be null");
+    this.value = Objects.requireNonNull(value, "value cannot be null");
   }
 
   public ColumnExpr getLeft() {

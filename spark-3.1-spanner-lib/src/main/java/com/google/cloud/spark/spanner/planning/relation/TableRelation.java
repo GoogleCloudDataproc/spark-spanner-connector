@@ -16,6 +16,8 @@ package com.google.cloud.spark.spanner.planning.relation;
 
 import com.google.cloud.spark.spanner.scan.SpannerTable;
 
+import java.util.Objects;
+
 public final class TableRelation implements Relation {
   private final String tableName;
   private final String alias;
@@ -24,7 +26,7 @@ public final class TableRelation implements Relation {
   public TableRelation(String tableName, String alias, SpannerTable table) {
     this.tableName = tableName;
     this.alias = alias;
-    this.table = table;
+    this.table = Objects.requireNonNull(table, "table cannot be null");
   }
 
   public String getAlias() {

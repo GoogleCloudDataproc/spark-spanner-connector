@@ -15,7 +15,6 @@
 package com.google.cloud.spark.spanner.planning.relation;
 
 import com.google.cloud.spark.spanner.scan.SpannerTable;
-
 import java.util.Objects;
 
 public final class TableRelation implements Relation {

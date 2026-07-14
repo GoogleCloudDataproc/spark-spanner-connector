@@ -14,9 +14,8 @@
 
 package com.google.cloud.spark.spanner.planning.expression;
 
-import org.apache.spark.sql.types.DataType;
-
 import java.util.Objects;
+import org.apache.spark.sql.types.DataType;
 
 public final class ColumnExpr implements ValueExpr {
   private final String columnName;

@@ -17,19 +17,19 @@ package com.google.cloud.spark.spanner.planning.expression;
 import java.util.Objects;
 
 public final class EndsWithExpr implements BoolExpr {
-  private final ColumnExpr left;
-  private final LiteralExpr suffix;
+  private final ValueExpr left;
+  private final ValueExpr suffix;
 
-  public EndsWithExpr(ColumnExpr left, LiteralExpr suffix) {
+  public EndsWithExpr(ValueExpr left, ValueExpr suffix) {
     this.left = Objects.requireNonNull(left, "left cannot be null");
     this.suffix = Objects.requireNonNull(suffix, "suffix cannot be null");
   }
 
-  public ColumnExpr getLeft() {
+  public ValueExpr getLeft() {
     return left;
   }
 
-  public LiteralExpr getSuffix() {
+  public ValueExpr getSuffix() {
     return suffix;
   }
 

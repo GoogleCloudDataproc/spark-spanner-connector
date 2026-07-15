@@ -19,19 +19,19 @@ import java.util.List;
 import java.util.Objects;
 
 public final class InExpr implements BoolExpr {
-  private final ColumnExpr left;
-  private final List<LiteralExpr> values;
+  private final ValueExpr left;
+  private final List<ValueExpr> values;
 
-  public InExpr(ColumnExpr left, List<LiteralExpr> values) {
+  public InExpr(ValueExpr left, List<ValueExpr> values) {
     this.left = Objects.requireNonNull(left, "left cannot be null");
     this.values = ImmutableList.copyOf(Objects.requireNonNull(values, "values cannot be null"));
   }
 
-  public ColumnExpr getLeft() {
+  public ValueExpr getLeft() {
     return left;
   }
 
-  public List<LiteralExpr> getValues() {
+  public List<ValueExpr> getValues() {
     return values;
   }
 

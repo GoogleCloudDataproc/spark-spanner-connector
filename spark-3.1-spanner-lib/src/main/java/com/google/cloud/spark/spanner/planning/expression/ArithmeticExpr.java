@@ -33,7 +33,7 @@ public final class ArithmeticExpr implements ValueExpr {
   public ArithmeticExpr(ValueExpr left, Operator operator, ValueExpr right) {
     this.left = Objects.requireNonNull(left, "left cannot be null");
     this.operator = Objects.requireNonNull(operator, "operator cannot be null");
-    this.right = Objects.requireNonNull(right, "left cannot be null");
+    this.right = Objects.requireNonNull(right, "right cannot be null");
   }
 
   @Override

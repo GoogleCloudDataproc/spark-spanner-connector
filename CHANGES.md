@@ -2,6 +2,7 @@
 
 ## Next
 
+*   Add a `readTimestamp` option for reading tables from a consistent database snapshot.
 *   Add support for TPC-H benchmarking (framework integration and Databricks execution).
 *   Add integration test support for Spanner Omni.
 *   Add foundational changes for join pushdown support.

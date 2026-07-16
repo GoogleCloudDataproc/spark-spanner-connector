@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SpannerScanner implements Batch, Scan {
   private final CaseInsensitiveStringMap opts;
-  private final Timestamp INIT_TIME = Timestamp.now();
+  private final TimestampBound readTimestamp;
   private final StructType readSchema;
   private final LogicalQuery logicalQuery;
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
@@ -75,6 +75,12 @@ public class SpannerScanner implements Batch, Scan {
     return new SpannerPartitionReaderFactory();
   }
 
+  static TimestampBound getReadTimestamp(CaseInsensitiveStringMap options) {
+    String timestamp = options.get("readTimestamp");
+    return TimestampBound.ofReadTimestamp(
+        timestamp == null ? Timestamp.now() : Timestamp.parseTimestamp(timestamp));
+  }
+
   @Override
   public InputPartition[] planInputPartitions() {
 
@@ -89,8 +95,7 @@ public class SpannerScanner implements Batch, Scan {
     }
 
     try (BatchReadOnlyTransaction txn =
-        batchClient.batchClient.batchReadOnlyTransaction(
-            TimestampBound.ofReadTimestamp(INIT_TIME))) {
+        batchClient.batchClient.batchReadOnlyTransaction(readTimestamp)) {
       String mapAsJSON = SpannerUtils.serializeMap(this.opts);
       java.util.List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(

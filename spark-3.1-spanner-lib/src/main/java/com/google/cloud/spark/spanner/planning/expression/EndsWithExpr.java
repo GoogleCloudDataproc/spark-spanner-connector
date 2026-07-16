@@ -1,19 +1,35 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package com.google.cloud.spark.spanner.planning.expression;
 
-public final class EndsWithExpr implements BoolExpr {
-  private final ColumnExpr left;
-  private final LiteralExpr suffix;
+import java.util.Objects;
 
-  public EndsWithExpr(ColumnExpr left, LiteralExpr suffix) {
-    this.left = left;
-    this.suffix = suffix;
+public final class EndsWithExpr implements BoolExpr {
+  private final ValueExpr left;
+  private final ValueExpr suffix;
+
+  public EndsWithExpr(ValueExpr left, ValueExpr suffix) {
+    this.left = Objects.requireNonNull(left, "left cannot be null");
+    this.suffix = Objects.requireNonNull(suffix, "suffix cannot be null");
   }
 
-  public ColumnExpr getLeft() {
+  public ValueExpr getLeft() {
     return left;
   }
 
-  public LiteralExpr getSuffix() {
+  public ValueExpr getSuffix() {
     return suffix;
   }
 

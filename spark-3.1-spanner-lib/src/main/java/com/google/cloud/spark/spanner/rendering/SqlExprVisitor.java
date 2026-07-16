@@ -4,10 +4,7 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spark.spanner.SpannerInformationSchema;
 import com.google.cloud.spark.spanner.binding.ParameterRegistry;
 import com.google.cloud.spark.spanner.planning.expression.*;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult> {
 
@@ -150,27 +147,28 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
 
   @Override
   public RenderResult visit(InExpr expr) {
+
     RenderResult left = expr.getLeft().accept(this);
 
     StringBuilder sql = new StringBuilder();
     sql.append(left.getSql());
     sql.append(" IN (");
 
-    Map<String, LiteralExpr> bindings = new LinkedHashMap<>();
-    bindings.putAll(left.getBindings());
-    List<LiteralExpr> values = expr.getValues();
-    for (int i = 0; i < values.size(); i++) {
-      RenderResult value = values.get(i).accept(this);
+    Map<String, LiteralExpr> bindings = new LinkedHashMap<>(left.getBindings());
 
-      if (i > 0) {
-        sql.append(", ");
-      }
+    Iterator<ValueExpr> iterator = expr.getValues().iterator();
+    while (iterator.hasNext()) {
+      RenderResult value = iterator.next().accept(this);
 
       sql.append(value.getSql());
       bindings.putAll(value.getBindings());
+
+      if (iterator.hasNext()) {
+        sql.append(", ");
+      }
     }
 
-    sql.append(")");
+    sql.append(')');
 
     return new RenderResult(sql.toString(), bindings);
   }
@@ -182,27 +180,141 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
     return new RenderResult("NOT " + parenthesize(value.getSql()), value.getBindings());
   }
 
-  abstract RenderResult like(ColumnExpr column, LiteralExpr pattern);
+  abstract String renderStartsWith(String left, String right);
+
+  abstract String renderEndsWith(String left, String right);
+
+  abstract String renderContains(String left, String right);
 
   @Override
   public RenderResult visit(StartsWithExpr expr) {
-    return like(
-        expr.getLeft(),
-        new LiteralExpr(expr.getPrefix().getValue() + "%", expr.getPrefix().getSparkType()));
+
+    RenderResult left = expr.getLeft().accept(this);
+    RenderResult value = expr.getPrefix().accept(this);
+
+    Map<String, LiteralExpr> bindings = new LinkedHashMap<>();
+    bindings.putAll(left.getBindings());
+    bindings.putAll(value.getBindings());
+
+    return new RenderResult(renderStartsWith(left.getSql(), value.getSql()), bindings);
   }
 
   @Override
   public RenderResult visit(EndsWithExpr expr) {
-    return like(
-        expr.getLeft(),
-        new LiteralExpr("%" + expr.getSuffix().getValue(), expr.getSuffix().getSparkType()));
+
+    RenderResult left = expr.getLeft().accept(this);
+    RenderResult value = expr.getSuffix().accept(this);
+
+    Map<String, LiteralExpr> bindings = new LinkedHashMap<>();
+    bindings.putAll(left.getBindings());
+    bindings.putAll(value.getBindings());
+
+    return new RenderResult(renderEndsWith(left.getSql(), value.getSql()), bindings);
   }
 
   @Override
   public RenderResult visit(ContainsExpr expr) {
-    return like(
-        expr.getLeft(),
-        new LiteralExpr("%" + expr.getValue().getValue() + "%", expr.getValue().getSparkType()));
+
+    RenderResult left = expr.getLeft().accept(this);
+    RenderResult value = expr.getValue().accept(this);
+
+    Map<String, LiteralExpr> bindings = new LinkedHashMap<>();
+    bindings.putAll(left.getBindings());
+    bindings.putAll(value.getBindings());
+
+    return new RenderResult(renderContains(left.getSql(), value.getSql()), bindings);
+  }
+
+  @Override
+  public RenderResult visit(ArithmeticExpr expr) {
+    RenderResult left = expr.getLeft().accept(this);
+    RenderResult right = expr.getRight().accept(this);
+    switch (expr.getOperator()) {
+      case ADD:
+        return new RenderResult(
+            left.getSql() + "+" + right.getSql(), merge(left.getBindings(), right.getBindings()));
+
+      case SUBTRACT:
+        return new RenderResult(
+            left.getSql() + "-" + right.getSql(), merge(left.getBindings(), right.getBindings()));
+
+      case MULTIPLY:
+        return new RenderResult(
+            left.getSql() + "*" + right.getSql(), merge(left.getBindings(), right.getBindings()));
+
+      case DIVIDE:
+        return new RenderResult(
+            left.getSql() + "/" + right.getSql(), merge(left.getBindings(), right.getBindings()));
+
+      case MOD:
+        return new RenderResult(
+            "MOD(" + left.getSql() + "," + right.getSql() + ")",
+            merge(left.getBindings(), right.getBindings()));
+
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Unsupported operator: %s", expr.getOperator()));
+    }
+  }
+
+  @Override
+  public RenderResult visit(FunctionExpr expr) {
+    return renderFunction(expr.function(), expr.arguments());
+  }
+
+  private String renderFunctionName(FunctionExpr.Function function) {
+
+    switch (function) {
+      case LOWER:
+        return "LOWER";
+
+      case UPPER:
+        return "UPPER";
+
+      case LENGTH:
+        return "LENGTH";
+
+      case CONCAT:
+        return "CONCAT";
+
+      case COALESCE:
+        return "COALESCE";
+
+      case GREATEST:
+        return "GREATEST";
+
+      case LEAST:
+        return "LEAST";
+
+      default:
+        throw new UnsupportedOperationException("Unsupported function: " + function);
+    }
+  }
+
+  private RenderResult renderFunction(FunctionExpr.Function function, List<ValueExpr> arguments) {
+
+    StringBuilder sql = new StringBuilder();
+
+    sql.append(renderFunctionName(function));
+    sql.append("(");
+
+    Map<String, LiteralExpr> bindings = new LinkedHashMap<>();
+
+    for (int i = 0; i < arguments.size(); i++) {
+
+      RenderResult result = arguments.get(i).accept(this);
+
+      if (i > 0) {
+        sql.append(", ");
+      }
+
+      sql.append(result.getSql());
+      bindings.putAll(result.getBindings());
+    }
+
+    sql.append(')');
+
+    return new RenderResult(sql.toString(), bindings);
   }
 
   private String parenthesize(String in) {

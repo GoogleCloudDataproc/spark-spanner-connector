@@ -117,19 +117,14 @@ public final class PredicateToExprConverter {
       throw new UnsupportedOperationException(
           "Left side of IN predicate must be a column reference");
     }
-    ColumnExpr column = (ColumnExpr) left;
 
-    List<LiteralExpr> values = new ArrayList<>();
+    List<ValueExpr> values = new ArrayList<>();
 
     for (int i = 1; i < predicate.children().length; i++) {
-      ValueExpr val = translateExpression(predicate.children()[i], schema);
-      if (!(val instanceof LiteralExpr)) {
-        throw new UnsupportedOperationException("Values of IN predicate must be literals");
-      }
-      values.add((LiteralExpr) val);
+      values.add(translateExpression(predicate.children()[i], schema));
     }
 
-    return new InExpr(column, values);
+    return new InExpr(left, values);
   }
 
   private static ValueExpr translateExpression(Expression expression, StructType schema) {

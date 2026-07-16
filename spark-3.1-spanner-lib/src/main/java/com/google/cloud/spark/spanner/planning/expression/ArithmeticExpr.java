@@ -26,14 +26,26 @@ public final class ArithmeticExpr implements ValueExpr {
     MOD
   }
 
-  Operator operator;
-  ValueExpr left;
-  ValueExpr right;
+  private Operator operator;
+  private ValueExpr left;
+  private ValueExpr right;
 
   public ArithmeticExpr(ValueExpr left, Operator operator, ValueExpr right) {
     this.left = Objects.requireNonNull(left, "left cannot be null");
     this.operator = Objects.requireNonNull(operator, "operator cannot be null");
     this.right = Objects.requireNonNull(right, "right cannot be null");
+  }
+
+  public Operator getOperator() {
+    return operator;
+  }
+
+  public ValueExpr getLeft() {
+    return left;
+  }
+
+  public ValueExpr getRight() {
+    return right;
   }
 
   @Override

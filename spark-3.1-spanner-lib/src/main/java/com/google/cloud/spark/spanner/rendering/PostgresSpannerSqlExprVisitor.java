@@ -4,7 +4,6 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spark.spanner.SpannerInformationSchema;
 import com.google.cloud.spark.spanner.binding.ParameterRef;
 import com.google.cloud.spark.spanner.binding.ParameterRegistry;
-import com.google.cloud.spark.spanner.planning.expression.ColumnExpr;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import java.util.Collections;
 
@@ -25,14 +24,17 @@ public class PostgresSpannerSqlExprVisitor extends SqlExprVisitor {
   }
 
   @Override
-  public RenderResult like(ColumnExpr column, LiteralExpr pattern) {
+  public String renderStartsWith(String left, String right) {
+    return left + " LIKE '" + right + "%'";
+  }
 
-    RenderResult left = column.accept(this);
+  @Override
+  public String renderEndsWith(String left, String right) {
+    return left + " LIKE '%" + right + "'";
+  }
 
-    ParameterRef ref = parameterRegistry.nextParameter();
-
-    return new RenderResult(
-        left.getSql() + " LIKE $" + ref.getSqlName(),
-        Collections.singletonMap(ref.getBindName(), pattern));
+  @Override
+  public String renderContains(String left, String right) {
+    return left + " LIKE '%" + right + "%'";
   }
 }

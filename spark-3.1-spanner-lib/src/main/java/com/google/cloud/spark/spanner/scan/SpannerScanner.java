@@ -48,15 +48,16 @@ public class SpannerScanner implements Batch, Scan {
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(LogicalQuery logicalQuery) {
-    Relation relation = logicalQuery.getSource();
-    if (relation instanceof TableRelation) {
-      final SpannerTable spannerTable = ((TableRelation) relation).getTable();
-      this.opts = spannerTable.properties();
-      this.readSchema =
-          SpannerUtils.pruneSchema(spannerTable.schema(), logicalQuery.getProjections());
-    } else {
+    final Relation relation = logicalQuery.getSource();
+    if (!(relation instanceof TableRelation)) {
       throw new UnsupportedOperationException("Unsupported relation type: " + relation);
     }
+
+    final SpannerTable spannerTable = ((TableRelation) relation).getTable();
+    this.opts = spannerTable.properties();
+    this.readTimestamp = getReadTimestamp(this.opts);
+    this.readSchema =
+        SpannerUtils.pruneSchema(spannerTable.schema(), logicalQuery.getProjections());
     this.logicalQuery = logicalQuery;
   }
 

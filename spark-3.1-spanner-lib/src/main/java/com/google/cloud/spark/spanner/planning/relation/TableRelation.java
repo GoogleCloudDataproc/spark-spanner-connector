@@ -23,7 +23,7 @@ public final class TableRelation implements Relation {
   private final SpannerTable table;
 
   public TableRelation(String tableName, String alias, SpannerTable table) {
-    this.tableName = tableName;
+    this.tableName = Objects.requireNonNull(tableName, "tableName cannot be null");
     this.alias = alias;
     this.table = Objects.requireNonNull(table, "table cannot be null");
   }

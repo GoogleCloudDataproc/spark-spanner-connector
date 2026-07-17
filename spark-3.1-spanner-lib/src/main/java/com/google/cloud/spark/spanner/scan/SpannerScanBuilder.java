@@ -16,6 +16,7 @@ package com.google.cloud.spark.spanner.scan;
 
 import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
@@ -44,6 +45,7 @@ public class SpannerScanBuilder
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanBuilder.class);
   private SpannerTable spannerTable;
   private Map<String, StructField> fields;
+  private JoinRelation join;
 
   public SpannerScanBuilder(SpannerTable spannerTable) {
     this.pushedFilters = new ArrayList<Filter>();
@@ -57,12 +59,17 @@ public class SpannerScanBuilder
   @Override
   public Scan build() {
     // Build the LogicalQuery
+    LogicalQuery.Builder builder = LogicalQuery.builder();
 
-    TableRelation tableRelation =
-        new TableRelation(this.spannerTable.name(), this.spannerTable.name(), this.spannerTable);
-    LogicalQuery logicalQuery =
-        LogicalQuery.builder()
-            .source(tableRelation)
+    if (join != null) {
+      builder.source(join);
+    } else if (this.spannerTable != null) {
+      builder.source(
+          new TableRelation(this.spannerTable.name(), this.spannerTable.name(), this.spannerTable));
+    }
+
+    final LogicalQuery logicalQuery =
+        builder
             .requiredColumns(this.requiredColumns)
             .pushedFilters(pushedFilters())
             .fields(this.fields)
@@ -104,6 +111,10 @@ public class SpannerScanBuilder
     // and we should still be able to serve them back their
     // query without deduplication.
     this.requiredColumns = ImmutableSet.copyOf(requiredSchema.fieldNames());
+  }
+
+  public void setJoin(JoinRelation join) {
+    this.join = join;
   }
 
   public String getDatabaseId() {

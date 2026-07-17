@@ -14,7 +14,6 @@
 
 package com.google.cloud.spark.spanner.planning.query;
 
-import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import java.util.*;
 import org.apache.spark.sql.sources.Filter;
@@ -25,9 +24,6 @@ public final class LogicalQuery {
   private final Set<String> requiredColumns;
   private final Filter[] pushedFilters;
   private final Map<String, StructField> fields;
-
-  // Spark 4.1+
-  private final JoinRelation join;
 
   public Relation getSource() {
     return source;
@@ -45,10 +41,6 @@ public final class LogicalQuery {
     return fields;
   }
 
-  public Optional<JoinRelation> getJoin() {
-    return Optional.ofNullable(join);
-  }
-
   private LogicalQuery(Builder builder) {
     this.source = builder.source;
     this.requiredColumns =
@@ -58,7 +50,6 @@ public final class LogicalQuery {
     this.pushedFilters =
         builder.pushedFilters != null ? builder.pushedFilters.clone() : new Filter[0];
     this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
-    this.join = builder.join;
   }
 
   public static Builder builder() {
@@ -68,7 +59,6 @@ public final class LogicalQuery {
   public static final class Builder {
 
     private Relation source;
-    private JoinRelation join;
     private Set<String> requiredColumns = Collections.emptySet();
     private Filter[] pushedFilters = new Filter[0];
     private Map<String, StructField> fields = java.util.Collections.emptyMap();
@@ -87,11 +77,6 @@ public final class LogicalQuery {
 
     public Builder pushedFilters(Filter[] pushedFilters) {
       this.pushedFilters = pushedFilters;
-      return this;
-    }
-
-    public Builder join(JoinRelation join) {
-      this.join = join;
       return this;
     }
 

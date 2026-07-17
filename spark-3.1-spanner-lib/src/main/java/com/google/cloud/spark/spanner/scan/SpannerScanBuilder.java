@@ -105,4 +105,16 @@ public class SpannerScanBuilder
     // query without deduplication.
     this.requiredColumns = ImmutableSet.copyOf(requiredSchema.fieldNames());
   }
+
+  public String getDatabaseId() {
+    return spannerTable.getDatabaseId();
+  }
+
+  public String getInstanceId() {
+    return spannerTable.getInstanceId();
+  }
+
+  public InterleaveTableMetadata getInterleavedTableMetadata() {
+    return spannerTable.getInterleavedTableMetadata();
+  }
 }

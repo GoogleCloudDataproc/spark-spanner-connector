@@ -15,8 +15,11 @@
 package com.google.cloud.spark.spanner.scan;
 
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spark.spanner.*;
+import com.google.cloud.spark.spanner.SpannerInformationSchema;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -58,6 +61,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
       ImmutableSet.of(
           TableCapability.BATCH_READ, TableCapability.BATCH_WRITE, TableCapability.TRUNCATE);
   private final CaseInsensitiveStringMap properties;
+  protected Map<String, InterleaveTableMetadata> interleavedTables;
 
   private static final Logger log = LoggerFactory.getLogger(SpannerTable.class);
 
@@ -124,6 +128,8 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
       // Still get the DB schema for validation.
       this.dbSchema = new SpannerTableSchema(conn, tableName, isPostgreSql);
       this.dfSchema = dfSchema;
+
+      this.interleavedTables = getInterleaving(conn);
     }
   }
 
@@ -321,5 +327,34 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
         String.format("%s/%s", projectId, instanceId),
         "openlineage.dataset.storageDatasetFacet.storageLayer",
         "spanner");
+  }
+
+  private Map<String, InterleaveTableMetadata> getInterleaving(Connection connection) {
+    Statement statement = SpannerInformationSchema.getInterleaving();
+    try (ResultSet resultSet = connection.executeQuery(statement)) {
+      Map<String, InterleaveTableMetadata> tables = new HashMap<>();
+      while (resultSet.next()) {
+        final String tableName = resultSet.getString("table_name");
+        InterleaveTableMetadata interleaveTableMetadata =
+            new InterleaveTableMetadata(
+                tableName,
+                resultSet.getString("parent_table_name"),
+                resultSet.getString("interleave_type"));
+        tables.put(tableName, interleaveTableMetadata);
+      }
+      return tables;
+    }
+  }
+
+  public String getDatabaseId() {
+    return databaseId;
+  }
+
+  public String getInstanceId() {
+    return instanceId;
+  }
+
+  public InterleaveTableMetadata getInterleavedTableMetadata() {
+    return interleavedTables.get(this.tableName);
   }
 }

@@ -20,9 +20,6 @@ import org.apache.spark.sql.connector.read.SupportsPushDownJoin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/*
- * Allows us to implement ScanBuilder.
- */
 public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements SupportsPushDownJoin {
   private static final Logger logger = LoggerFactory.getLogger(Spark41SpannerScanBuilder.class);
 
@@ -31,7 +28,14 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
   }
 
   public boolean isOtherSideCompatibleForJoin(SupportsPushDownJoin other) {
-    return false;
+    if (!(other instanceof SpannerScanBuilder)) {
+      return false;
+    }
+
+    SpannerScanBuilder otherScan = (SpannerScanBuilder) other;
+
+    return this.getDatabaseId().equals(otherScan.getDatabaseId())
+        && this.getInstanceId().equals(otherScan.getInstanceId());
   }
 
   public boolean pushDownJoin(
@@ -40,6 +44,26 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       ColumnWithAlias[] leftSideRequiredColumnsWithAliases,
       ColumnWithAlias[] rightSideRequiredColumnsWithAliases,
       Predicate condition) {
-    return false;
+
+    if (!(other instanceof SpannerScanBuilder)) {
+      return false;
+    }
+
+    SpannerScanBuilder right = (SpannerScanBuilder) other;
+
+    if (!isInterleavedJoin(right)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private boolean isInterleavedJoin(SpannerScanBuilder other) {
+    final InterleaveTableMetadata thisTableMetadata = this.getInterleavedTableMetadata();
+    final InterleaveTableMetadata otherTableMetadata = other.getInterleavedTableMetadata();
+    final String thisTableParent = thisTableMetadata.getTableName();
+    final String otherTableParent = otherTableMetadata.getTableName();
+    return otherTableParent != null && thisTableMetadata.getTableName().equals(otherTableParent)
+        || thisTableParent != null && otherTableMetadata.getTableName().equals(thisTableParent);
   }
 }

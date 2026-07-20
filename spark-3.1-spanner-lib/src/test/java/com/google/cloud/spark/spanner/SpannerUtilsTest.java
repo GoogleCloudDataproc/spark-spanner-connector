@@ -51,22 +51,7 @@ public class SpannerUtilsTest {
             });
 
     // Should not throw any exception
-    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, false);
-  }
-
-  @Test
-  public void testValidateSchemaSuccessEnablePartialRowUpdates() {
-    StructType spannerSchema = createSpannerSchema();
-    StructType dfSchema =
-        new StructType(
-            new StructField[] {
-              new StructField("id", DataTypes.LongType, false, null),
-              new StructField("name", DataTypes.StringType, true, null),
-              new StructField("value", DataTypes.DoubleType, true, null)
-            });
-
-    // Should not throw any exception
-    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, true);
+    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME);
   }
 
   @Test
@@ -80,7 +65,7 @@ public class SpannerUtilsTest {
             });
 
     // Should not throw any exception
-    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, true);
+    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME);
   }
 
   @Test
@@ -94,7 +79,7 @@ public class SpannerUtilsTest {
             });
 
     // Should not throw any exception
-    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, true);
+    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME);
   }
 
   @Test
@@ -110,7 +95,7 @@ public class SpannerUtilsTest {
     SpannerConnectorException exception =
         assertThrows(
             SpannerConnectorException.class,
-            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, false));
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
     assertTrue(exception.getMessage().contains("DataFrame column 'non_existent_col' not found"));
   }
 
@@ -126,7 +111,7 @@ public class SpannerUtilsTest {
     SpannerConnectorException exception =
         assertThrows(
             SpannerConnectorException.class,
-            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, false));
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
     assertTrue(exception.getMessage().contains("Data type mismatch for column 'id'"));
     assertTrue(
         exception
@@ -153,13 +138,87 @@ public class SpannerUtilsTest {
     SpannerConnectorException exception =
         assertThrows(
             SpannerConnectorException.class,
-            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME, false));
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
     assertTrue(exception.getMessage().contains("Data type mismatch for column 'price'"));
     assertTrue(
         exception
             .getMessage()
             .contains(
                 "DataFrame has type decimal(38,10) but Spanner table expects type decimal(38,9)"));
+  }
+
+  @Test
+  public void testPartialRowUpdatesSuccessEnablePartialRowUpdates() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("name", DataTypes.StringType, true, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should not throw any exception
+    SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, true);
+  }
+
+  @Test
+  public void testPartialRowUpdatesSuccessDisablePartialRowUpdates() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("name", DataTypes.StringType, true, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should not throw any exception
+    SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, false);
+  }
+
+  @Test
+  public void testPartialRowUpdatesValidateSkippedWhenDataFrameNull() {
+    StructType spannerSchema = createSpannerSchema();
+
+    // Should not throw any exception
+    SpannerUtils.validatePartialRowUpdates(null, spannerSchema, true);
+  }
+
+  @Test
+  public void
+      testPartialRowUpdatesValidateSkippedWhenEnablePartialRowUpdatesTrueAndPartialDFSchema() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should not throw any exception
+    SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, true);
+  }
+
+  @Test
+  public void testPartialRowUpdatesFailsWhenDisablePartialRowUpdatesAndPartialDFSchema() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should throw an exception
+    SpannerConnectorException exception =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, false));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains("Partial row updates require enablePartialRowUpdates=true."));
   }
 
   @Test

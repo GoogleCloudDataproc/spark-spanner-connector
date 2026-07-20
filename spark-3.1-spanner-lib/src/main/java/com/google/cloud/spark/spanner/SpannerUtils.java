@@ -596,10 +596,7 @@ public class SpannerUtils {
   }
 
   public static void validateSchema(
-      StructType dfSchema,
-      StructType spannerSchema,
-      String tableName,
-      boolean enablePartialRowUpdates) {
+      StructType dfSchema, StructType spannerSchema, String tableName) {
     // Create a map of Spanner columns (lowercase name -> StructField) for efficient,
     // case-insensitive lookups.
     Map<String, StructField> spannerSchemaMap =
@@ -637,11 +634,16 @@ public class SpannerUtils {
 
       // 3. Nullability checks are deferred to Spanner at write time since Spark can't guarantee it.
     }
+  }
 
-    // 4. Check that DataFrame schema matches the Spanner Table schema.
-    // For enablePartialRowUpdates = false
-    // the Spanner Table schema should be the same as the DataFrame schema.
-    if (!enablePartialRowUpdates && dfSchema.fields().length != spannerSchema.fields().length) {
+  public static void validatePartialRowUpdates(
+      StructType dfSchema, StructType spannerSchema, boolean enablePartialRowUpdates) {
+
+    // 4. Where partial row updates are not allowed check that DataFrame schema matches the Spanner
+    // Table schema.
+    if (!enablePartialRowUpdates
+        && dfSchema != null
+        && dfSchema.fields().length != spannerSchema.fields().length) {
       throw new SpannerConnectorException(
           SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
           "Partial row updates require enablePartialRowUpdates=true.");

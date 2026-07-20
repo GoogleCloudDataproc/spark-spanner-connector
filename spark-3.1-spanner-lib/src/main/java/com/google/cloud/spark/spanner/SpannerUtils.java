@@ -639,7 +639,7 @@ public class SpannerUtils {
   public static void validatePartialRowUpdates(
       StructType dfSchema, StructType spannerSchema, boolean enablePartialRowUpdates) {
 
-    // 4. Where partial row updates are not allowed check that DataFrame schema matches the Spanner
+    // Where partial row updates are not allowed check that DataFrame schema matches the Spanner
     // Table schema.
     if (!enablePartialRowUpdates
         && dfSchema != null

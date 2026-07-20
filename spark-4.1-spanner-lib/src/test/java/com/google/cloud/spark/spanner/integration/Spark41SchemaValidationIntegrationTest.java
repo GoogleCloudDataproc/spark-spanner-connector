@@ -14,7 +14,20 @@
 
 package com.google.cloud.spark.spanner.integration;
 
-import org.junit.Ignore;
+import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
+
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
 public class Spark41SchemaValidationIntegrationTest extends SchemaValidationIntegrationTestBase {
@@ -24,9 +37,23 @@ public class Spark41SchemaValidationIntegrationTest extends SchemaValidationInte
 
   @Override
   @Test
-  @Ignore(
-      "TODO: this behaviour needs clarification. In Spark 4.1 there is a fundamental change in how Spark's underlying DataSource V2 (DSv2) framework handles schema validation and column pruning compared to Spark 4.0. As a consequence this test does not throw a Spark AnalysisException anymore. We need to review if enablePartialRowUpdates is still relevant given Spark 4.1 allows partial row updates anyway.")
   public void testPartialWriteFailsWithoutOption() {
-    super.testPartialWriteFailsWithoutOption();
+    StructType partialSchema =
+        new StructType(
+            new StructField[] {DataTypes.createStructField("id", DataTypes.LongType, false)});
+    List<Row> rows = Collections.singletonList(RowFactory.create(1L));
+    Dataset<Row> df = spark.createDataFrame(rows, partialSchema);
+
+    Map<String, String> props = connectionProperties(usePostgreSql);
+    props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
+    // "enablePartialRowUpdates" is NOT set
+
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
+
+    String message = e.getMessage();
+    assertThat(message).contains("Partial row updates require enablePartialRowUpdates=true.");
   }
 }

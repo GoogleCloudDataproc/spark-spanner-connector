@@ -124,6 +124,24 @@ public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegration
   }
 
   @Test
+  public void testFullWriteSucceedsWithoutOption() {
+    StructType partialSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("id", DataTypes.LongType, false),
+              DataTypes.createStructField("name", DataTypes.StringType, true),
+              DataTypes.createStructField("value", DataTypes.DoubleType, true),
+            });
+    List<Row> rows = Collections.singletonList(RowFactory.create(1L, "test", 1.23));
+    Dataset<Row> df = spark.createDataFrame(rows, partialSchema);
+
+    Map<String, String> props = connectionProperties(usePostgreSql);
+    props.put("table", SCHEMA_VALIDATION_TABLE_NAME);
+    // "enablePartialRowUpdates" is NOT set
+    df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
+  }
+
+  @Test
   public void testNumericScaleMismatchFailsInGoogleSql() {
     if (usePostgreSql) {
       // This validation is specific to GoogleSQL's strict NUMERIC(38,9) type.

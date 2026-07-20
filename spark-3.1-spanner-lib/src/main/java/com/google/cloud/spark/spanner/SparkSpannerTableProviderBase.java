@@ -58,11 +58,7 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
     boolean hasTable = options.containsKey("table");
     boolean hasGraph = options.containsKey("graph");
     if (hasTable && !hasGraph) {
-      if (enablePartialRowUpdates) {
-        return new SpannerTable(options, schema);
-      } else {
-        return new SpannerTable(options);
-      }
+      return new SpannerTable(options, schema);
     } else if (!hasTable && hasGraph) {
       return SpannerGraphBuilder.build(options);
     } else {

@@ -64,8 +64,7 @@ public class SpannerScanBuilder
     if (join != null) {
       builder.source(join);
     } else if (this.spannerTable != null) {
-      builder.source(
-          new TableRelation(this.spannerTable.name(), this.spannerTable.name(), this.spannerTable));
+      builder.source(getTableRelation());
     }
 
     final LogicalQuery logicalQuery =
@@ -123,6 +122,14 @@ public class SpannerScanBuilder
 
   public String getInstanceId() {
     return spannerTable.getInstanceId();
+  }
+
+  public StructType getSchema() {
+    return spannerTable.schema();
+  }
+
+  public TableRelation getTableRelation() {
+    return new TableRelation(this.spannerTable.name(), this.spannerTable.name(), this.spannerTable);
   }
 
   public InterleaveTableMetadata getInterleavedTableMetadata() {

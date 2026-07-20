@@ -16,6 +16,8 @@ package com.google.cloud.spark.spanner.rendering;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
@@ -107,7 +109,7 @@ public class SpannerQueryBuilder {
   }
 
   public Statement buildStatement() {
-    if (true) {
+    if (false) {
       return buildLegacySql();
     } else {
       return buildNewStatement();
@@ -129,6 +131,13 @@ public class SpannerQueryBuilder {
 
   private Statement buildLegacySql() {
     boolean isPostgreSql = this.dialect.equals(Dialect.POSTGRESQL);
+    Relation relation = this.logicalQuery.getSource();
+    if (!(relation instanceof TableRelation)) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT,
+          "Spanner Table not defined for legacy SQL generation.");
+    }
+    SpannerTable spannerTable = ((TableRelation) relation).getTable();
 
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
@@ -136,7 +145,7 @@ public class SpannerQueryBuilder {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
       String columnsWithTablePrefix =
-          buildColumnsWithTablePrefix(this.spannerTable.name(), this.requiredColumns, isPostgreSql);
+          buildColumnsWithTablePrefix(spannerTable.name(), this.requiredColumns, isPostgreSql);
       selectPrefix = "SELECT " + columnsWithTablePrefix;
     }
 

@@ -61,10 +61,10 @@ public class SpannerScanBuilder
     // Build the LogicalQuery
     LogicalQuery.Builder builder = LogicalQuery.builder();
 
-    if (join != null) {
-      builder.source(join);
+    if (this.join != null) {
+      builder.source(this.join);
     } else if (this.spannerTable != null) {
-      builder.source(getTableRelation());
+      builder.source(createTableRelation());
     }
 
     final LogicalQuery logicalQuery =
@@ -128,7 +128,7 @@ public class SpannerScanBuilder
     return spannerTable.schema();
   }
 
-  public TableRelation getTableRelation() {
+  public TableRelation createTableRelation() {
     return new TableRelation(this.spannerTable.name(), this.spannerTable.name(), this.spannerTable);
   }
 

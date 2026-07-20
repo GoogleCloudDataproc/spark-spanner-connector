@@ -75,8 +75,8 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
     BoolExpr predicate = PredicateToExprConverter.translatePredicate(condition, joinSchema);
     JoinRelation joinRelation =
         new JoinRelation(
-            this.getTableRelation(),
-            right.getTableRelation(),
+            this.createTableRelation(),
+            right.createTableRelation(),
             sparkToConnector(joinType),
             predicate);
     setJoin(joinRelation);

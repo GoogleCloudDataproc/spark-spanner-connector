@@ -19,14 +19,13 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spark.spanner.SpannerConnectorException;
 import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.SparkFilterUtils;
+import com.google.cloud.spark.spanner.binding.SpannerTypeBinder;
+import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
@@ -91,8 +90,12 @@ public class SpannerQueryBuilder {
     }
 
     SqlRelationVisitor relationVisitor = new SqlRelationVisitor(this.dialect);
-    String query =
-        selectPrefix + " FROM " + logicalQuery.getSource().accept(relationVisitor).getSql();
+    String query = selectPrefix + " FROM ";
+    RenderResult result = logicalQuery.getSource().accept(relationVisitor);
+    query += result.getSql();
+
+    Map<String, LiteralExpr> bindings = new HashMap<>();
+    bindings.putAll(result.getBindings());
 
     if (this.filters.length > 0) {
       query +=
@@ -102,13 +105,27 @@ public class SpannerQueryBuilder {
     }
 
     logger.debug("query: {}", query);
-    return new RenderResult(query, null);
+    for (Map.Entry<String, LiteralExpr> entry : bindings.entrySet()) {
+      logger.debug(
+          "bindings: Key: {}, Value type: {}: {}",
+          entry.getKey(),
+          entry.getValue().getSparkType().toString(),
+          entry.getValue().getValue().toString());
+    }
+
+    return new RenderResult(query, bindings);
   }
 
   private Statement buildNewStatement() {
     RenderResult renderResult = this.buildSql();
 
     Statement.Builder builder = Statement.newBuilder(renderResult.getSql());
+    Map<String, LiteralExpr> bindings = renderResult.getBindings();
+    if (bindings != null) {
+      for (Map.Entry<String, LiteralExpr> entry : bindings.entrySet()) {
+        SpannerTypeBinder.bind(builder, entry.getKey(), entry.getValue());
+      }
+    }
     return builder.build();
   }
 

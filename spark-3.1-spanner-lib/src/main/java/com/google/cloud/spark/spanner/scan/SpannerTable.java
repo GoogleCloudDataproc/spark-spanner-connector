@@ -311,6 +311,13 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   @Override
   public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
     SpannerUtils.validateSchema(info.schema(), this.dbSchema.schema, this.tableName);
+
+    final boolean enablePartialRowUpdates =
+        this.properties.getOrDefault("enablePartialRowUpdates", "false").equalsIgnoreCase("true");
+
+    SpannerUtils.validatePartialRowUpdates(
+        this.dfSchema, this.dbSchema.schema, enablePartialRowUpdates);
+
     return new SpannerWriteBuilder(info, this.properties);
   }
 

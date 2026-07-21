@@ -148,6 +148,80 @@ public class SpannerUtilsTest {
   }
 
   @Test
+  public void testPartialRowUpdatesSuccessEnablePartialRowUpdates() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("name", DataTypes.StringType, true, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should not throw any exception
+    SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, true);
+  }
+
+  @Test
+  public void testPartialRowUpdatesSuccessDisablePartialRowUpdates() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("name", DataTypes.StringType, true, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should not throw any exception
+    SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, false);
+  }
+
+  @Test
+  public void testPartialRowUpdatesValidateSkippedWhenDataFrameNull() {
+    StructType spannerSchema = createSpannerSchema();
+
+    // Should not throw any exception
+    SpannerUtils.validatePartialRowUpdates(null, spannerSchema, true);
+  }
+
+  @Test
+  public void
+      testPartialRowUpdatesValidateSkippedWhenEnablePartialRowUpdatesTrueAndPartialDFSchema() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should not throw any exception
+    SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, true);
+  }
+
+  @Test
+  public void testPartialRowUpdatesFailsWhenDisablePartialRowUpdatesAndPartialDFSchema() {
+    StructType spannerSchema = createSpannerSchema();
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("value", DataTypes.DoubleType, true, null)
+            });
+
+    // Should throw an exception
+    SpannerConnectorException exception =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, false));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains("Partial row updates require enablePartialRowUpdates=true."));
+  }
+
+  @Test
   public void testGetRequiredOptionCaseInsensitive() {
     Map<String, String> props = new HashMap<>();
     props.put("TABLE", "my_table");

@@ -635,4 +635,18 @@ public class SpannerUtils {
       // 3. Nullability checks are deferred to Spanner at write time since Spark can't guarantee it.
     }
   }
+
+  public static void validatePartialRowUpdates(
+      StructType dfSchema, StructType spannerSchema, boolean enablePartialRowUpdates) {
+
+    // Where partial row updates are not allowed check that DataFrame schema matches the Spanner
+    // Table schema.
+    if (!enablePartialRowUpdates
+        && dfSchema != null
+        && dfSchema.fields().length != spannerSchema.fields().length) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+          "Partial row updates require enablePartialRowUpdates=true.");
+    }
+  }
 }

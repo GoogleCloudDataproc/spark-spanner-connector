@@ -345,12 +345,16 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
         InterleaveTableMetadata interleaveTableMetadata =
             new InterleaveTableMetadata(
                 tableName,
-                resultSet.getString("parent_table_name"),
-                resultSet.getString("interleave_type"));
+                getNullableString(resultSet, "parent_table_name"),
+                getNullableString(resultSet, "interleave_type"));
         tables.put(tableName, interleaveTableMetadata);
       }
       return tables;
     }
+  }
+
+  private static String getNullableString(ResultSet rs, String columnName) {
+    return rs.isNull(columnName) ? null : rs.getString(columnName);
   }
 
   public String getDatabaseId() {

@@ -42,8 +42,10 @@ public class SpannerQueryBuilder {
   private final Set<String> requiredColumns;
   private final Filter[] filters;
   private final Map<String, StructField> fields;
+  private final boolean enablePredicateSql;
 
-  private SpannerQueryBuilder(LogicalQuery logicalQuery, Dialect dialect) {
+  private SpannerQueryBuilder(
+      LogicalQuery logicalQuery, Dialect dialect, boolean enablePredicateSql) {
     this.logicalQuery = logicalQuery;
     this.dialect = dialect;
     Relation relation = logicalQuery.getSource();
@@ -57,10 +59,12 @@ public class SpannerQueryBuilder {
     this.requiredColumns = logicalQuery.getProjections();
     this.filters = logicalQuery.getFilter();
     this.fields = logicalQuery.getFields();
+    this.enablePredicateSql = enablePredicateSql;
   }
 
-  public static SpannerQueryBuilder newBuilder(LogicalQuery logicalQuery, Dialect dialect) {
-    return new SpannerQueryBuilder(logicalQuery, dialect);
+  public static SpannerQueryBuilder newBuilder(
+      LogicalQuery logicalQuery, Dialect dialect, boolean enablePredicateSql) {
+    return new SpannerQueryBuilder(logicalQuery, dialect, enablePredicateSql);
   }
 
   private RenderResult buildSql() {
@@ -109,10 +113,10 @@ public class SpannerQueryBuilder {
   }
 
   public Statement buildStatement() {
-    if (false) {
-      return buildLegacySql();
-    } else {
+    if (enablePredicateSql) {
       return buildNewStatement();
+    } else {
+      return buildLegacySql();
     }
   }
 

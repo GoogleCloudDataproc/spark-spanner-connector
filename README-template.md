@@ -179,6 +179,7 @@ table|String|The Table of the Cloud Spanner database that you are reading from
 enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note1: the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing). Note2: this feature is not supported in Spanner Omni.
 readTimestamp|String|An RFC 3339 timestamp identifying the database snapshot to read. Multiple table reads using the same timestamp observe a consistent snapshot. By default, each table read uses the time when its scan is created.
 emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`) or a Spanner Omni instance (e.g. `localhost:15000`). When set, the connector connects to the emulator or Spanner Omni instead of Cloud Spanner. Useful for local development and testing.
+enablePredicateSql|Boolean|Enable SQL generation for Spark Predicates
 
 ### Writing to Spanner Tables
 

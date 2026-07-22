@@ -198,7 +198,11 @@ def write_results(spark, output_path, issues):
     )
 
 def main():
+    print("\n\nRead Acceptance Test - table load\n\n")
+
     spark = SparkSession.builder.appName('Read Acceptance Test on Spark - table load').getOrCreate()
+
+    print("spark.version: ", spark.version)
 
     output_path = sys.argv[1]
     project_id = sys.argv[2]

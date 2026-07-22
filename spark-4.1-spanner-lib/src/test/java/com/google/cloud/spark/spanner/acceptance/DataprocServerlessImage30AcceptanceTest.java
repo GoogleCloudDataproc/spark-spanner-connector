@@ -14,8 +14,14 @@
 
 package com.google.cloud.spark.spanner.acceptance;
 
+import static com.google.common.truth.Truth.assertThat;
+
+import com.google.api.gax.longrunning.OperationSnapshot;
+import java.util.Arrays;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -37,6 +43,26 @@ public final class DataprocServerlessImage30AcceptanceTest
   @AfterClass
   public static void cleanUp() throws Exception {
     teardown();
+  }
+
+  @Ignore(
+      "Skipping this test until Managed Service for Apache Spark 3.0 is shipped with Spark 4.1+.")
+  @Test
+  public void testJoin() throws Exception {
+    // Provide a unique test name to identify the batch associated with this test.
+    context = generateContext("join");
+    OperationSnapshot operationSnapshot =
+        createAndRunPythonBatch(
+            context,
+            testName,
+            "read_test_join_pushdown.py",
+            null,
+            Arrays.asList(
+                context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID));
+    assertThat(operationSnapshot.isDone()).isTrue();
+    assertThat(operationSnapshot.getErrorMessage()).isEmpty();
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).isEqualTo("PASS");
   }
 
   public DataprocServerlessImage30AcceptanceTest() {

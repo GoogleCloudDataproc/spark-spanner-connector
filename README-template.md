@@ -50,16 +50,17 @@ You can find the released jar file from the Releases tag on right of the github 
 Note 1: Spark compatibility to be tested.
 
 ### Connector to Dataproc Image Compatibility Matrix
-| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | 3.0     | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 | Serverless<br>Image 3.0 |
-|----------------------------|---------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
-| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.5-spanner          |         |         |         |         |         | &check; | Note 1  |                         | &check;                 |                         |                         | &check;                 | Note 1                  |
-| spark-4.0-spanner          |         |         |         |         |         |         | &check; |                         |                         |                         |                         |                         | &check;                 |
-| spark-4.1-spanner          |         |         |         |         |         |         | &check; |                         |                         |                         |                         |                         | &check;                 |
+| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | 3.0            | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 | Serverless<br>Image 3.0 |
+|----------------------------|---------|---------|---------|---------|---------|---------|----------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
+| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.5-spanner          |         |         |         |         |         | &check; | Note 1         |                         | &check;                 |                         |                         | &check;                 | Note 1                  |
+| spark-4.0-spanner          |         |         |         |         |         |         | &check;        |                         |                         |                         |                         |                         | &check;                 |
+| spark-4.1-spanner          |         |         |         |         |         |         | &check; Note 2 |                         |                         |                         |                         |                         | &check; Note 2          |
 
 Note 1: Dataproc compatibility to be tested.
+Note 2: SupportsPushDownJoin requires Managed Service for Apache Spark Dataproc image 3.0-debian13. Serverless image supports Spark 4.0.1 not Spark 4.1. SupportsPushDownJoin is not available in serverless.
 
 ### Connector to Java Compatibility
 

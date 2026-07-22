@@ -147,12 +147,12 @@ public final class PredicateToExprConverter {
       return translateExpression((NamedReference) expression, schema);
     }
 
-    if (expression instanceof Literal<?>) {
-      return translateExpression((Literal<?>) expression, schema);
-    }
-
     if (expression instanceof GeneralScalarExpression) {
       return translateExpression((GeneralScalarExpression) expression, schema);
+    }
+
+    if (expression instanceof Literal<?>) {
+      throw new UnsupportedOperationException("Literal translation requires column context");
     }
 
     throw new UnsupportedOperationException(
@@ -214,19 +214,32 @@ public final class PredicateToExprConverter {
       case "-":
         return UnaryExpr.Operator.NEGATE;
       default:
-        throw new UnsupportedOperationException("Unsupported arithmetic operator: " + name);
+        throw new UnsupportedOperationException("Unsupported unary operator: " + name);
     }
   }
 
   private static BoolExpr binary(
       Predicate predicate, StructType schema, BiFunction<ValueExpr, ValueExpr, BoolExpr> factory) {
 
-    if (predicate.children().length < 2) {
-      throw new IllegalArgumentException("Binary predicate must have at least 2 children");
+    if (predicate.children().length != 2) {
+      throw new IllegalArgumentException("Binary predicate must have exactly 2 children");
     }
-    ValueExpr left = translateExpression((Expression) predicate.children()[0], schema);
 
-    ValueExpr right = translateExpression((Expression) predicate.children()[1], schema);
+    Expression leftExpression = predicate.children()[0];
+    Expression rightExpression = predicate.children()[1];
+
+    ValueExpr left = translateExpression(leftExpression, schema);
+
+    ValueExpr right;
+
+    if (rightExpression instanceof Literal<?> && leftExpression instanceof NamedReference) {
+      // Literal types need to be inferred from the column they are compared with
+      Literal<?> literal = (Literal<?>) rightExpression;
+      NamedReference reference = (NamedReference) leftExpression;
+      right = translateExpression(literal, reference, schema);
+    } else {
+      right = translateExpression(rightExpression, schema);
+    }
 
     return factory.apply(left, right);
   }

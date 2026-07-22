@@ -48,7 +48,7 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       JoinType joinType,
       ColumnWithAlias[] leftSideRequiredColumnsWithAliases,
       ColumnWithAlias[] rightSideRequiredColumnsWithAliases,
-      Predicate condition) {
+      Predicate predicate) {
     if (!(other instanceof SpannerScanBuilder)) {
       return false;
     }
@@ -72,14 +72,21 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
             calculateJoinOutputSchema(rightSideRequiredColumnsWithAliases, right.getSchema()),
             false);
 
-    BoolExpr predicate = PredicateToExprConverter.translatePredicate(condition, joinSchema);
-    JoinRelation joinRelation =
-        new JoinRelation(
-            this.createTableRelation(),
-            right.createTableRelation(),
-            sparkToConnector(joinType),
-            predicate);
-    setJoin(joinRelation);
+    try {
+      BoolExpr condition = PredicateToExprConverter.translatePredicate(predicate, joinSchema);
+
+      JoinRelation joinRelation =
+          new JoinRelation(
+              this.createTableRelation(),
+              right.createTableRelation(),
+              sparkToConnector(joinType),
+              condition);
+
+      setJoin(joinRelation);
+    } catch (UnsupportedOperationException e) {
+      // If predicate conversion fails, fall back to Spark-side execution.
+      return false;
+    }
 
     return true;
   }

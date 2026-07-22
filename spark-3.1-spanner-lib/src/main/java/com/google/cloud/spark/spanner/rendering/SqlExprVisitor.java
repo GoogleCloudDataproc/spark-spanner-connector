@@ -1,3 +1,16 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package com.google.cloud.spark.spanner.rendering;
 
 import com.google.cloud.spanner.Dialect;
@@ -250,6 +263,23 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
         return new RenderResult(
             "MOD(" + left.getSql() + "," + right.getSql() + ")",
             merge(left.getBindings(), right.getBindings()));
+
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Unsupported operator: %s", expr.getOperator()));
+    }
+  }
+
+  @Override
+  public RenderResult visit(UnaryExpr expr) {
+    RenderResult operand = expr.getOperand().accept(this);
+
+    switch (expr.getOperator()) {
+      case PLUS:
+        return new RenderResult("+(" + operand.getSql() + ")", operand.getBindings());
+
+      case NEGATE:
+        return new RenderResult("-(" + operand.getSql() + ")", operand.getBindings());
 
       default:
         throw new UnsupportedOperationException(

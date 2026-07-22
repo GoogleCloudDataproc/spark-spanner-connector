@@ -14,46 +14,33 @@
 
 package com.google.cloud.spark.spanner.planning.expression;
 
-public interface SpannerExprVisitor<T> {
-  T visit(EqExpr expr);
+import java.util.Objects;
 
-  T visit(EqNullSafeExpr expr);
+public final class UnaryExpr implements ValueExpr {
 
-  T visit(GtExpr expr);
+  public enum Operator {
+    NEGATE,
+    PLUS
+  }
 
-  T visit(GteExpr expr);
+  private final Operator operator;
+  private final ValueExpr operand;
 
-  T visit(LtExpr expr);
+  public UnaryExpr(Operator operator, ValueExpr operand) {
+    this.operator = Objects.requireNonNull(operator);
+    this.operand = Objects.requireNonNull(operand);
+  }
 
-  T visit(LteExpr expr);
+  public Operator getOperator() {
+    return operator;
+  }
 
-  T visit(AndExpr expr);
+  public ValueExpr getOperand() {
+    return operand;
+  }
 
-  T visit(OrExpr expr);
-
-  T visit(ColumnExpr expr);
-
-  T visit(LiteralExpr expr);
-
-  T visit(TrueExpr expr);
-
-  T visit(IsNullExpr expr);
-
-  T visit(IsNotNullExpr expr);
-
-  T visit(InExpr expr);
-
-  T visit(NotExpr expr);
-
-  T visit(StartsWithExpr expr);
-
-  T visit(EndsWithExpr expr);
-
-  T visit(ContainsExpr expr);
-
-  T visit(ArithmeticExpr expr);
-
-  T visit(UnaryExpr expr);
-
-  T visit(FunctionExpr expr);
+  @Override
+  public <T> T accept(SpannerExprVisitor<T> visitor) {
+    return visitor.visit(this);
+  }
 }

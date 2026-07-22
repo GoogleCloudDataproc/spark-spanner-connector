@@ -1,9 +1,24 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package com.google.cloud.spark.spanner.binding;
 
+import com.google.cloud.ByteArray;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import java.math.BigDecimal;
+import java.time.Instant;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DecimalType;
@@ -44,6 +59,41 @@ public final class SpannerTypeBinder {
       builder.bind(parameter).to((Double) value);
     } else if (type.sameType(DataTypes.FloatType)) {
       builder.bind(parameter).to(((Float) value).doubleValue());
+    } else if (type.sameType(DataTypes.TimestampType)) {
+
+      if (value instanceof Instant) {
+        Instant instant = (Instant) value;
+        builder
+            .bind(parameter)
+            .to(
+                com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
+                    instant.getEpochSecond(), instant.getNano()));
+
+      } else if (value instanceof java.sql.Timestamp) {
+        java.sql.Timestamp ts = (java.sql.Timestamp) value;
+        Instant instant = ts.toInstant();
+        builder
+            .bind(parameter)
+            .to(
+                com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
+                    instant.getEpochSecond(), instant.getNano()));
+
+      } else {
+        throw new IllegalArgumentException(
+            "Unexpected timestamp literal type: " + value.getClass());
+      }
+    } else if (type.sameType(DataTypes.DateType)) {
+      java.sql.Date date = (java.sql.Date) value;
+
+      builder
+          .bind(parameter)
+          .to(
+              com.google.cloud.Date.fromYearMonthDay(
+                  date.toLocalDate().getYear(),
+                  date.toLocalDate().getMonthValue(),
+                  date.toLocalDate().getDayOfMonth()));
+    } else if (type.sameType(DataTypes.BinaryType)) {
+      builder.bind(parameter).to(ByteArray.copyFrom((byte[]) value));
     } else {
       throw new UnsupportedOperationException("Unsupported type: " + type);
     }
@@ -63,6 +113,12 @@ public final class SpannerTypeBinder {
       return Type.bool();
     } else if (type.sameType(DataTypes.DoubleType) || type.sameType(DataTypes.FloatType)) {
       return Type.float64();
+    } else if (type.sameType(DataTypes.TimestampType)) {
+      return Type.timestamp();
+    } else if (type.sameType(DataTypes.DateType)) {
+      return Type.date();
+    } else if (type.sameType(DataTypes.BinaryType)) {
+      return Type.bytes();
     } else {
       throw new UnsupportedOperationException(
           "Unsupported Spark type for Spanner null mapping: " + type);

@@ -129,6 +129,9 @@ public class SpannerScanBuilder
   }
 
   public TableRelation createTableRelation() {
+    // Join pushdown currently supports only interleaved parent/child tables.
+    // Self-joins are rejected by isOtherSideCompatibleForJoin(), so using the
+    // table name as the default alias is currently safe.
     return new TableRelation(this.spannerTable.name(), this.spannerTable.name(), this.spannerTable);
   }
 

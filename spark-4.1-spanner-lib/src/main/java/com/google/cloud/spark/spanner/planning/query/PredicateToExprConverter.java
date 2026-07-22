@@ -1,9 +1,23 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package com.google.cloud.spark.spanner.planning.query;
 
 import com.google.cloud.spark.spanner.planning.expression.*;
 import java.util.*;
 import java.util.function.BiFunction;
 import org.apache.spark.sql.connector.expressions.Expression;
+import org.apache.spark.sql.connector.expressions.GeneralScalarExpression;
 import org.apache.spark.sql.connector.expressions.Literal;
 import org.apache.spark.sql.connector.expressions.NamedReference;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
@@ -137,26 +151,9 @@ public final class PredicateToExprConverter {
       return translateExpression((Literal<?>) expression, schema);
     }
 
-    /*
-    TODO: add if we need to start supporting
-    A + 5 > 10
-
-    if (expression instanceof Add) {
-    ...
+    if (expression instanceof GeneralScalarExpression) {
+      return translateExpression((GeneralScalarExpression) expression, schema);
     }
-
-    if (expression instanceof Subtract) {
-    ...
-    }
-
-    if (expression instanceof Cast) {
-    ...
-    }
-
-    if (expression instanceof ScalarFunction) {
-    ...
-    }
-     */
 
     throw new UnsupportedOperationException(
         "Unsupported expression: " + expression.getClass().getName());
@@ -173,26 +170,64 @@ public final class PredicateToExprConverter {
     return ExprConverterUtils.toLiteral(literal.value(), schema, reference.fieldNames()[0]);
   }
 
+  private static ValueExpr translateExpression(
+      GeneralScalarExpression expression, StructType schema) {
+
+    Expression[] children = expression.children();
+
+    if (children.length == 2) {
+      return new ArithmeticExpr(
+          translateExpression(children[0], schema),
+          toArithmeticOperator(expression.name()),
+          translateExpression(children[1], schema));
+    } else if (children.length == 1) {
+      return new UnaryExpr(
+          toUnaryOperator(expression.name()), translateExpression(children[0], schema));
+    }
+    throw new UnsupportedOperationException(
+        "Expression does not have 1 or 2 arguments. Actual: " + children.length);
+  }
+
+  // Translates Spark predicate operator representation to this connector's internal representation.
+  private static ArithmeticExpr.Operator toArithmeticOperator(String name) {
+    switch (name) {
+      case "+":
+        return ArithmeticExpr.Operator.ADD;
+      case "-":
+        return ArithmeticExpr.Operator.SUBTRACT;
+      case "*":
+        return ArithmeticExpr.Operator.MULTIPLY;
+      case "/":
+        return ArithmeticExpr.Operator.DIVIDE;
+      case "%":
+        return ArithmeticExpr.Operator.MOD;
+      default:
+        throw new UnsupportedOperationException("Unsupported arithmetic operator: " + name);
+    }
+  }
+
+  // Translates Spark predicate operator representation to this connector's internal representation.
+  private static UnaryExpr.Operator toUnaryOperator(String name) {
+    switch (name) {
+      case "+":
+        return UnaryExpr.Operator.PLUS;
+      case "-":
+        return UnaryExpr.Operator.NEGATE;
+      default:
+        throw new UnsupportedOperationException("Unsupported arithmetic operator: " + name);
+    }
+  }
+
   private static BoolExpr binary(
-      Predicate predicate,
-      StructType schema,
-      BiFunction<ColumnExpr, LiteralExpr, BoolExpr> factory) {
+      Predicate predicate, StructType schema, BiFunction<ValueExpr, ValueExpr, BoolExpr> factory) {
 
     if (predicate.children().length < 2) {
       throw new IllegalArgumentException("Binary predicate must have at least 2 children");
     }
-    if (!(predicate.children()[0] instanceof NamedReference)) {
-      throw new UnsupportedOperationException(
-          "Left side of binary predicate must be a column reference");
-    }
-    if (!(predicate.children()[1] instanceof Literal)) {
-      throw new UnsupportedOperationException("Right side of binary predicate must be a literal");
-    }
+    ValueExpr left = translateExpression((Expression) predicate.children()[0], schema);
 
-    NamedReference reference = (NamedReference) predicate.children()[0];
+    ValueExpr right = translateExpression((Expression) predicate.children()[1], schema);
 
-    return factory.apply(
-        translateExpression(reference, schema),
-        translateExpression((Literal<?>) predicate.children()[1], reference, schema));
+    return factory.apply(left, right);
   }
 }

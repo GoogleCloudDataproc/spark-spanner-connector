@@ -14,10 +14,16 @@
 
 package com.google.cloud.spark.spanner.planning.query;
 
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import java.util.*;
+import java.util.stream.Stream;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 
 public final class LogicalQuery {
   private final Relation source;
@@ -50,6 +56,23 @@ public final class LogicalQuery {
     this.pushedFilters =
         builder.pushedFilters != null ? builder.pushedFilters.clone() : new Filter[0];
     this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
+  }
+
+  public StructType schema() {
+    if (this.source instanceof TableRelation) {
+      return ((TableRelation) this.source).getTableSchema();
+    }
+    if (this.source instanceof JoinRelation) {
+      JoinRelation join = (JoinRelation) this.source;
+      // Assumes that join is between two tables.
+      return new StructType(
+          Stream.concat(
+                  Arrays.stream(((TableRelation) join.getLeft()).getTable().schema().fields()),
+                  Arrays.stream(((TableRelation) join.getRight()).getTable().schema().fields()))
+              .toArray(StructField[]::new));
+    }
+    throw new SpannerConnectorException(
+        SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + this.source.getClass());
   }
 
   public static Builder builder() {

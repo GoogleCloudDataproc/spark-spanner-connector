@@ -341,6 +341,11 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     try (ResultSet resultSet = connection.executeQuery(statement)) {
       Map<String, InterleaveTableMetadata> tables = new HashMap<>();
       while (resultSet.next()) {
+        log.info(
+            "getInterleaving: table_name={}, parent_table_name={}, interleave_type={}",
+            resultSet.getString("table_name"),
+            getNullableString(resultSet, "parent_table_name"),
+            getNullableString(resultSet, "interleave_type"));
         final String tableName = resultSet.getString("table_name");
         InterleaveTableMetadata interleaveTableMetadata =
             new InterleaveTableMetadata(
@@ -366,6 +371,9 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   }
 
   public InterleaveTableMetadata getInterleavedTableMetadata() {
-    return interleavedTables.get(this.tableName);
+    log.info("getInterleavedTableMetadata retrieving tableName={}", this.tableName);
+    InterleaveTableMetadata metadata = interleavedTables.get(this.tableName);
+    log.info(metadata.toString());
+    return metadata;
   }
 }

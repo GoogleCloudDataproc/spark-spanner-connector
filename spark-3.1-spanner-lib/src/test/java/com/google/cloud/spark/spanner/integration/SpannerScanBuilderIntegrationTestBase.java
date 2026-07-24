@@ -49,20 +49,30 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
   private static final Logger logger =
       LoggerFactory.getLogger(SpannerScanBuilderIntegrationTestBase.class);
 
-  private static SpannerTable getSpannerTable(boolean usePostgreSql) {
+  private SpannerTable getSpannerTable(boolean usePostgreSql) {
     Map<String, String> connectionProperties = connectionProperties(usePostgreSql);
     return new SpannerTable(connectionProperties);
   }
 
-  protected static SpannerTable getSpannerTable(String tableName, boolean usePostgreSql) {
+  private SpannerTable getSpannerTable(String tableName, boolean usePostgreSql) {
     Map<String, String> connectionProperties = connectionProperties(usePostgreSql);
     connectionProperties.put("table", tableName);
     return new SpannerTable(connectionProperties);
   }
 
+  protected SpannerScanBuilder createSpannerScanBuilder(boolean usePostgreSql) {
+    logger.info("Creating SpannerScanBuilder");
+    return new SpannerScanBuilder(getSpannerTable(usePostgreSql));
+  }
+
+  protected SpannerScanBuilder createSpannerScanBuilder(String tableName, boolean usePostgreSql) {
+    logger.info("Creating SpannerScanBuilder");
+    return new SpannerScanBuilder(getSpannerTable(tableName, usePostgreSql));
+  }
+
   @Test
   public void readSchemaShouldWorkInSpannerScanBuilder() throws Exception {
-    Scan scan = new SpannerScanBuilder(getSpannerTable(false)).build();
+    Scan scan = createSpannerScanBuilder(false).build();
     StructType actualSchema = scan.readSchema();
     StructType expectSchema = SpannerTestBase.getATableSchema();
 
@@ -82,7 +92,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
           "readSchemaShouldWorkInSpannerScanBuilderForPg is skipped since pg is not supported in Spanner emulator");
       return;
     }
-    Scan scan = new SpannerScanBuilder(getSpannerTable(true)).build();
+    Scan scan = createSpannerScanBuilder(true).build();
     StructType actualSchema = scan.readSchema();
     StructType expectSchema = SpannerTestBase.getCompositeTableSchema();
 
@@ -99,8 +109,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
       List<InternalRow> expectRows,
       StructType expectSchema)
       throws Exception {
-    SpannerScanBuilder spannerScanBuilder =
-        new SpannerScanBuilder(getSpannerTable(tableName, usePostgreSql));
+    SpannerScanBuilder spannerScanBuilder = createSpannerScanBuilder(tableName, usePostgreSql);
     SpannerScanner ss = ((SpannerScanner) spannerScanBuilder.build());
     InputPartition[] partitions = ss.planInputPartitions();
     PartitionReaderFactory prf = ss.createReaderFactory();

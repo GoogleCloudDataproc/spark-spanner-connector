@@ -27,8 +27,6 @@ import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.apache.spark.sql.sources.Filter;
-import org.apache.spark.sql.types.StructField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,27 +35,12 @@ public class SpannerQueryBuilder {
 
   private final LogicalQuery logicalQuery;
   private final Dialect dialect;
-  private final SpannerTable spannerTable;
-  private final Set<String> requiredColumns;
-  private final Filter[] filters;
-  private final Map<String, StructField> fields;
   private final boolean enablePredicateSql;
 
   private SpannerQueryBuilder(
       LogicalQuery logicalQuery, Dialect dialect, boolean enablePredicateSql) {
     this.logicalQuery = logicalQuery;
     this.dialect = dialect;
-    Relation relation = logicalQuery.getSource();
-    if (relation instanceof TableRelation) {
-      this.spannerTable = ((TableRelation) relation).getTable();
-    } else {
-      this.spannerTable = null;
-      logger.error("Unsupported relation type: " + relation);
-    }
-
-    this.requiredColumns = logicalQuery.getProjections();
-    this.filters = logicalQuery.getFilter();
-    this.fields = logicalQuery.getFields();
     this.enablePredicateSql = enablePredicateSql;
   }
 
@@ -78,7 +61,7 @@ public class SpannerQueryBuilder {
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
     if (this.logicalQuery.getProjections() != null
-        && this.logicalQuery.getProjections().size() > 0) {
+        && !this.logicalQuery.getProjections().isEmpty()) {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
       String columnsWithTablePrefix =
@@ -97,11 +80,15 @@ public class SpannerQueryBuilder {
     Map<String, LiteralExpr> bindings = new HashMap<>();
     bindings.putAll(result.getBindings());
 
-    if (this.filters.length > 0) {
+    if (this.logicalQuery.getFilter().length > 0) {
       query +=
           " WHERE "
               + SparkFilterUtils.getCompiledFilter(
-                  true, Optional.empty(), isPostgreSql, fields, this.filters);
+                  true,
+                  Optional.empty(),
+                  isPostgreSql,
+                  this.logicalQuery.getFields(),
+                  this.logicalQuery.getFilter());
     }
 
     logger.debug("query: {}", query);
@@ -118,7 +105,7 @@ public class SpannerQueryBuilder {
 
   private Statement buildNewStatement() {
     RenderResult renderResult = this.buildSql();
-
+    logger.info("buildNewStatement renderResult: {}", renderResult.getSql());
     Statement.Builder builder = Statement.newBuilder(renderResult.getSql());
     Map<String, LiteralExpr> bindings = renderResult.getBindings();
     if (bindings != null) {
@@ -162,22 +149,28 @@ public class SpannerQueryBuilder {
 
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
-    if (this.logicalQuery.getProjections() != null && !this.requiredColumns.isEmpty()) {
+    if (this.logicalQuery.getProjections() != null
+        && !this.logicalQuery.getProjections().isEmpty()) {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
       String columnsWithTablePrefix =
-          buildColumnsWithTablePrefix(spannerTable.name(), this.requiredColumns, isPostgreSql);
+          buildColumnsWithTablePrefix(
+              spannerTable.name(), this.logicalQuery.getProjections(), isPostgreSql);
       selectPrefix = "SELECT " + columnsWithTablePrefix;
     }
 
     String quotedTableName =
         isPostgreSql ? "\"" + spannerTable.name() + "\"" : "`" + spannerTable.name() + "`";
     String sqlStmt = selectPrefix + " FROM " + quotedTableName;
-    if (this.filters.length > 0) {
+    if (this.logicalQuery.getFilter().length > 0) {
       sqlStmt +=
           " WHERE "
               + SparkFilterUtils.getCompiledFilter(
-                  true, Optional.empty(), isPostgreSql, fields, this.filters);
+                  true,
+                  Optional.empty(),
+                  isPostgreSql,
+                  this.logicalQuery.getFields(),
+                  this.logicalQuery.getFilter());
     }
     return Statement.of(sqlStmt);
   }

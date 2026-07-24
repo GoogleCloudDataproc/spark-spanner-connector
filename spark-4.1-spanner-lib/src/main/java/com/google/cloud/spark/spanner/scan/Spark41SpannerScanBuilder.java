@@ -30,17 +30,22 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
 
   public Spark41SpannerScanBuilder(SpannerTable spannerTable) {
     super(spannerTable);
+    logger.info("Spark41SpannerScanBuilder created");
   }
 
   public boolean isOtherSideCompatibleForJoin(SupportsPushDownJoin other) {
-    if (!(other instanceof SpannerScanBuilder)) {
+    logger.info("isOtherSideCompatibleForJoin: {}", other);
+    if (!(other instanceof Spark41SpannerScanBuilder)) {
       return false;
     }
 
-    SpannerScanBuilder otherScan = (SpannerScanBuilder) other;
+    Spark41SpannerScanBuilder otherScan = (Spark41SpannerScanBuilder) other;
 
-    return this.getDatabaseId().equals(otherScan.getDatabaseId())
-        && this.getInstanceId().equals(otherScan.getInstanceId());
+    boolean isCompatible =
+        this.getDatabaseId().equals(otherScan.getDatabaseId())
+            && this.getInstanceId().equals(otherScan.getInstanceId());
+    logger.info("isCompatible: {}", isCompatible);
+    return isCompatible;
   }
 
   public boolean pushDownJoin(
@@ -49,16 +54,19 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       ColumnWithAlias[] leftSideRequiredColumnsWithAliases,
       ColumnWithAlias[] rightSideRequiredColumnsWithAliases,
       Predicate predicate) {
-    if (!(other instanceof SpannerScanBuilder)) {
+    if (!(other instanceof Spark41SpannerScanBuilder)) {
+      logger.error("pushDownJoin: other is not a SpannerScanBuilder");
       return false;
     }
-    SpannerScanBuilder right = (SpannerScanBuilder) other;
+    Spark41SpannerScanBuilder right = (Spark41SpannerScanBuilder) other;
 
     if (!isJoinTypeAllowed(joinType)) {
+      logger.error("pushDownJoin: join type is not allowed");
       return false;
     }
 
     if (!isInterleavedJoin(right)) {
+      logger.error("pushDownJoin: right is not interleaved");
       return false;
     }
 
@@ -85,18 +93,20 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       setJoin(joinRelation);
     } catch (UnsupportedOperationException e) {
       // If predicate conversion fails, fall back to Spark-side execution.
+      logger.error("pushDownJoin: predicate conversion fails");
       return false;
     }
 
+    logger.info("pushDownJoin: OK");
     return true;
   }
 
   private boolean isInterleavedJoin(SpannerScanBuilder other) {
     final InterleaveTableMetadata thisTableMetadata = this.getInterleavedTableMetadata();
     final InterleaveTableMetadata otherTableMetadata = other.getInterleavedTableMetadata();
-    final String thisTableParent = thisTableMetadata.getTableName();
-    final String otherTableParent = otherTableMetadata.getTableName();
-    return otherTableParent != null && thisTableMetadata.getTableName().equals(otherTableParent)
+    final String thisTableParent = thisTableMetadata.getParentTable();
+    final String otherTableParent = otherTableMetadata.getParentTable();
+     return otherTableParent != null && thisTableMetadata.getTableName().equals(otherTableParent)
         || thisTableParent != null && otherTableMetadata.getTableName().equals(thisTableParent);
   }
 

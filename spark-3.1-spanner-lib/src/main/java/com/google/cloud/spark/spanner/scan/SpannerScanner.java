@@ -22,6 +22,7 @@ import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
@@ -48,16 +49,19 @@ public class SpannerScanner implements Batch, Scan {
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(LogicalQuery logicalQuery) {
-    final Relation relation = logicalQuery.getSource();
-    if (!(relation instanceof TableRelation)) {
-      throw new UnsupportedOperationException("Unsupported relation type: " + relation);
+    final Relation source = logicalQuery.getSource();
+    if (source instanceof TableRelation) {
+      this.opts = ((TableRelation) source).getTable().properties();
+    } else if (source instanceof JoinRelation) {
+      // This assumes that a join will be between two tables and not a child join.
+      this.opts = ((TableRelation) ((JoinRelation) source).getLeft()).getTable().properties();
+    } else {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + source.getClass());
     }
-
-    final SpannerTable spannerTable = ((TableRelation) relation).getTable();
-    this.opts = spannerTable.properties();
     this.readTimestamp = getReadTimestamp(this.opts);
     this.readSchema =
-        SpannerUtils.pruneSchema(spannerTable.schema(), logicalQuery.getProjections());
+        SpannerUtils.pruneSchema(logicalQuery.schema(), logicalQuery.getProjections());
     this.logicalQuery = logicalQuery;
   }
 
@@ -90,6 +94,7 @@ public class SpannerScanner implements Batch, Scan {
     boolean enablePredicateSql = false;
     if (this.opts.containsKey("enablePredicateSql")) {
       enablePredicateSql = this.opts.get("enablePredicateSql").equalsIgnoreCase("true");
+      logger.info("Enable Predicate Sql: {}", enablePredicateSql);
     }
 
     SpannerQueryBuilder result =

@@ -45,6 +45,9 @@ def run_inner_join_tests(orders, lineitem, issues):
         )
     )
 
+    print("\nrun_inner_join_tests Execution plan:")
+    joined.explain(True)
+
     actual = joined.count()
     expected = 13
 
@@ -71,6 +74,9 @@ def run_join_projection_tests(orders, lineitem, issues):
         )
     )
 
+    print("\nrun_join_projection_tests Execution plan:")
+    joined.explain(True)
+
     expected_columns = [
         "O_ORDERKEY",
         "O_CUSTKEY",
@@ -88,7 +94,7 @@ def run_join_projection_tests(orders, lineitem, issues):
 
     if actual_rows != expected_rows:
         issues.append(
-            f"Join projection expected {actual_rows} rows but found {actual_rows}"
+            f"Join projection expected {expected_rows} rows but found {actual_rows}"
         )
 
 def run_join_filter_tests(orders, lineitem, issues):
@@ -102,18 +108,21 @@ def run_join_filter_tests(orders, lineitem, issues):
             "inner"
         )
         .filter(col("l.L_QUANTITY") > 20)
-        .collect()
     )
 
+    print("\nrun_join_filter_tests Execution plan:")
+    joined.explain(True)
+
+    actual = joined.count()
     expected = 10
 
-    if len(joined) != expected:
-        issues.append(...)
+    if actual != expected:
+        issues.append(f"Join filter expected {expected} rows but found {actual}")
 
 def run_join_value_tests(orders, lineitem, issues):
     print("\nrun_join_value_tests")
 
-    row = (
+    joined = (
         orders.alias("o")
         .join(
             lineitem.alias("l"),
@@ -126,14 +135,30 @@ def run_join_value_tests(orders, lineitem, issues):
             col("l.L_PARTKEY"),
             col("l.L_LINENUMBER")
         )
-        .first()
     )
 
-    if row.O_CUSTKEY != 36901:
-        issues.append(...)
+    print("\nrun_join_value_tests Execution plan:")
+    joined.explain(True)
+    actual = joined.first()
 
-    if row.L_PARTKEY != 155190:
-        issues.append(...)
+    if actual.O_CUSTKEY != 36901:
+        issues.append(f"Join value expected {36901} rows but found {actual.O_CUSTKEY}")
+
+    if actual.L_PARTKEY != 155190:
+        issues.append(f"Join value expected {155190} rows but found {actual.L_PARTKEY}")
+
+def run_simple_join_tests(orders, lineitem, issues):
+    print("\nrun_simple_join_tests")
+
+    joined = orders.join(
+        lineitem,
+        "O_ORDERKEY"
+    )
+
+    print("\nrun_simple_join_tests Execution plan:")
+    joined.explain(True)
+    actual = joined.count()
+    print(f"actual count: {actual}")
 
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
@@ -151,6 +176,15 @@ def main():
     print("\n\nRead Acceptance Test - join pushdown\n\n")
 
     spark = SparkSession.builder.appName('Read Acceptance Test on Spark - join pushdown').getOrCreate()
+    spark.conf.set(
+        "spark.sql.optimizer.datasourceV2JoinPushdown",
+        "true"
+    )
+    print(
+        spark.conf.get(
+            "spark.sql.optimizer.datasourceV2JoinPushdown"
+        )
+    )
 
     print("spark.version: ", spark.version)
 
@@ -185,6 +219,8 @@ def main():
     run_inner_join_tests(orders, lineitem, issues)
     run_join_projection_tests(orders, lineitem, issues)
     run_join_filter_tests(orders, lineitem, issues)
+    run_join_value_tests(orders, lineitem, issues)
+    run_simple_join_tests(orders, lineitem, issues)
     write_results(spark, output_path, issues)
 
 if __name__ == '__main__':

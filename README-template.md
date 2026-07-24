@@ -612,3 +612,29 @@ timestamptz/timestamp with time zone |TimestampType| Only microseconds will be c
 Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. For the jsonb column, `IN` filter is not pushdown to Cloud Spanner.
 
 Filters containing array column will not be pushed down.
+
+#### Join Pushdown
+
+Spanner requires that pushdown joins are on interleaved tables. Attempts to pushdown joins on other tables will result in Spark executing the join.
+Spark currently supports pushdown joins in the Managed Service for Apache Spark Dataproc image 3.0-debian13 or later. Debian12 does not support this.
+Spark requires that the Spark session is configured with `spark.sql.optimizer.datasourceV2JoinPushdown` set to `true` to enable the pushdown join feature.
+
+```
+    spark = SparkSession.builder.appName('MyApp').getOrCreate()
+    spark.conf.set(
+        "spark.sql.optimizer.datasourceV2JoinPushdown",
+        "true"
+    )
+```
+
+Further this connector requires that `enablePredicateSql` is also set to generate the join SQL for pushdown.
+
+```
+    spark.read.format("cloud-spanner")
+    .option("projectId", project_id)
+    .option("instanceId", instance_id)
+    .option("databaseId", database_id)
+    .option("table", table)
+    .option("enablePredicateSql", True)
+    .load()
+```

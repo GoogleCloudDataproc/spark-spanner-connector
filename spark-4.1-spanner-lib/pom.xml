@@ -13,7 +13,7 @@
   <version>${revision}</version>
   <name>Connector code for spanner DataSource v2 for Spark 4.1</name>
   <properties>
-    <spark.version>4.1.0</spark.version>
+    <spark.version>4.1.2</spark.version>
     <scala.version>2.13</scala.version>
     <netty.version>4.2.7.Final</netty.version>
     <shade.skip>true</shade.skip>

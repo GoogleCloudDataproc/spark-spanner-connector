@@ -104,3 +104,52 @@ VALUES
     (9223372036854775807, CAST("+inf" AS FLOAT64), +9.9999999999999999999999999999999999999E+28, DATE("4000-12-30T23:59:59Z"), TIMESTAMP("2222-02-22T22:22:22.999999Z")),
     (0, CAST("-inf" AS FLOAT64), 10.389, DATE("1900-12-30T23:59:59Z"), TIMESTAMP("2023-09-28 21:59:59", "America/Los_Angeles")),
     (1, CAST("0.657818" AS FLOAT64), -10.389, DATE("2023-09-28T00:00:00Z"), TIMESTAMP("0001-01-03T00:00:01Z"));
+
+DELETE FROM ORDERS WHERE 1=1;
+INSERT INTO
+    ORDERS(O_ORDERKEY,
+           O_CUSTKEY,
+           O_ORDERSTATUS,
+           O_TOTALPRICE,
+           O_ORDERDATE,
+           O_ORDERPRIORITY ,
+           O_CLERK,
+           O_SHIPPRIORITY,
+           O_COMMENT)
+VALUES
+(1,36901,"O",173665.47,DATE("1996-01-02"),"5-LOW","Clerk#000000951",0,"nstructions sleep furiously among"),
+(2,78002,"O",46929.18,DATE("1996-12-01"),"1-URGENT","Clerk#000000880",0, "foxes. pending accounts at the pending, silent asymptot"),
+(3,123314,"F",193846.25,DATE("1993-10-14"),"5-LOW","Clerk#000000955",0,"sly final accounts boost. carefully regular ideas cajole carefully. depos");
+
+DELETE FROM LINEITEM WHERE 1=1;
+INSERT INTO
+    LINEITEM(O_ORDERKEY,
+                        L_PARTKEY,
+                        L_SUPPKEY,
+                        L_LINENUMBER,
+                        L_QUANTITY,
+                        L_EXTENDEDPRICE,
+                        L_DISCOUNT,
+                        L_TAX,
+                        L_RETURNFLAG,
+                        L_LINESTATUS,
+                        L_SHIPDATE,
+                        L_COMMITDATE,
+                        L_RECEIPTDATE,
+                        L_SHIPINSTRUCT,
+                        L_SHIPMODE,
+                        L_COMMENT)
+VALUES
+    (1,155190,7706,1,17,21168.23,0.04,0.02,"N","O",DATE("1996-03-13"),DATE("1996-02-12"),DATE("1996-03-22"),"DELIVER IN PERSON","TRUCK","egular courts above the"),
+(1,67310,7311,2,36,45983.16,0.09,0.06,"N","O",DATE("1996-04-12"),DATE("1996-02-28"),DATE("1996-04-20"),"TAKE BACK RETURN","MAIL","ly final dependencies: slyly bold "),
+(1,63700,3701,3,8,13309.60,0.10,0.02,"N","O",DATE("1996-01-29"),DATE("1996-03-05"),DATE("1996-01-31"),"TAKE BACK RETURN","REG AIR","riously. regular, express dep"),
+(1,2132,4633,4,28,28955.64,0.09,0.06,"N","O",DATE("1996-04-21"),DATE("1996-03-30"),DATE("1996-05-16"),"NONE","AIR","lites. fluffily even de"),
+(1,24027,1534,5,24,22824.48,0.10,0.04,"N","O",DATE("1996-03-30"),DATE("1996-03-14"),DATE("1996-04-01"),"NONE","FOB", "pending foxes. slyly re"),
+(1,15635,638,6,32,49620.16,0.07,0.02,"N","O",DATE("1996-01-30"),DATE("1996-02-07"),DATE("1996-02-03"),"DELIVER IN PERSON","MAIL","arefully slyly ex"),
+(2,106170,1191,1,38,44694.46,0.00,0.05,"N","O",DATE("1997-01-28"),DATE("1997-01-14"),DATE("1997-02-02"),"TAKE BACK RETURN","RAIL","ven requests. deposits breach a"),
+(3,4297,1798,1,45,54058.05,0.06,0.00,"R","F",DATE("1994-02-02"),DATE("1994-01-04"),DATE("1994-02-23"),"NONE","AIR","ongside of the furiously brave acco"),
+(3,19036,6540,2,49,46796.47,0.10,0.00,"R","F",DATE("1993-11-09"),DATE("1993-12-20"),DATE("1993-11-24"),"TAKE BACK RETURN","RAIL", "unusual accounts. eve"),
+(3,128449,3474,3,27,39890.88,0.06,0.07,"A","F",DATE("1994-01-16"),DATE("1993-11-22"),DATE("1994-01-23"),"DELIVER IN PERSON","SHIP","nal foxes wake."),
+(3,29380,1883,4,2,2618.76,0.01,0.06,"A","F",DATE("1993-12-04"),DATE("1994-01-07"),DATE("1994-01-01"),"NONE","TRUCK","y. fluffily pending d"),
+(3,183095,650,5,28,32986.52,0.04,0.00,"R","F",DATE("1993-12-14"),DATE("1994-01-10"),DATE("1994-01-01"),"TAKE BACK RETURN","FOB","ages nag slyly pending"),
+(3,62143,9662,6,26,28733.64,0.10,0.02,"A","F",DATE("1993-10-29"),DATE("1993-12-18"),DATE("1993-11-04"),"TAKE BACK RETURN","RAIL","ges sleep after the caref")

@@ -16,36 +16,27 @@ package com.google.cloud.spark.spanner.planning.expression;
 
 import java.util.Objects;
 
-public final class ArithmeticExpr implements ValueExpr {
+public final class UnaryExpr implements ValueExpr {
 
   public enum Operator {
-    ADD,
-    SUBTRACT,
-    MULTIPLY,
-    DIVIDE,
-    MOD
+    NEGATE,
+    PLUS
   }
 
-  private Operator operator;
-  private ValueExpr left;
-  private ValueExpr right;
+  private final Operator operator;
+  private final ValueExpr operand;
 
-  public ArithmeticExpr(ValueExpr left, Operator operator, ValueExpr right) {
-    this.left = Objects.requireNonNull(left, "left cannot be null");
-    this.operator = Objects.requireNonNull(operator, "operator cannot be null");
-    this.right = Objects.requireNonNull(right, "right cannot be null");
+  public UnaryExpr(Operator operator, ValueExpr operand) {
+    this.operator = Objects.requireNonNull(operator);
+    this.operand = Objects.requireNonNull(operand);
   }
 
   public Operator getOperator() {
     return operator;
   }
 
-  public ValueExpr getLeft() {
-    return left;
-  }
-
-  public ValueExpr getRight() {
-    return right;
+  public ValueExpr getOperand() {
+    return operand;
   }
 
   @Override

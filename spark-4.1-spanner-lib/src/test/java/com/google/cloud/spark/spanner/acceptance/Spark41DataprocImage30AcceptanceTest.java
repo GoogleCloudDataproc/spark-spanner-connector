@@ -14,9 +14,14 @@
 
 package com.google.cloud.spark.spanner.acceptance;
 
+import static com.google.common.truth.Truth.assertThat;
+
+import com.google.cloud.dataproc.v1.*;
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -34,11 +39,26 @@ public final class Spark41DataprocImage30AcceptanceTest extends DataprocAcceptan
   public static void setup() throws Exception {
     context =
         DataprocAcceptanceTestBase.setup(
-            "3.0-debian12", CONNECTOR_JAR_DIRECTORY, "spark-4.1-spanner", ImmutableList.of());
+            "3.0-debian13", CONNECTOR_JAR_DIRECTORY, "spark-4.1-spanner", ImmutableList.of());
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
     DataprocAcceptanceTestBase.tearDown(context);
+  }
+
+  @Test
+  public void testJoin() throws Exception {
+    String testName = "test-join";
+    Job result =
+        createAndRunPythonJob(
+            testName,
+            "read_test_join_pushdown.py",
+            null,
+            Arrays.asList(context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID),
+            300);
+    assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).startsWith("PASS");
   }
 }

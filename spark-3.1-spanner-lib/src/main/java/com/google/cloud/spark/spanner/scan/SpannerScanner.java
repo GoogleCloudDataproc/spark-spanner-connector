@@ -22,6 +22,9 @@ import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
+import com.google.cloud.spark.spanner.planning.relation.Relation;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
 import java.util.stream.Collectors;
@@ -39,7 +42,6 @@ import org.slf4j.LoggerFactory;
  * SpannerScanner implements Scan.
  */
 public class SpannerScanner implements Batch, Scan {
-  private final SpannerTable spannerTable;
   private final CaseInsensitiveStringMap opts;
   private final TimestampBound readTimestamp;
   private final StructType readSchema;
@@ -47,11 +49,19 @@ public class SpannerScanner implements Batch, Scan {
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(LogicalQuery logicalQuery) {
-    this.spannerTable = logicalQuery.getSource();
-    this.opts = this.spannerTable.properties();
+    final Relation source = logicalQuery.getSource();
+    if (source instanceof TableRelation) {
+      this.opts = ((TableRelation) source).getTable().properties();
+    } else if (source instanceof JoinRelation) {
+      // This assumes that a join will be between two tables and not a child join.
+      this.opts = ((TableRelation) ((JoinRelation) source).getLeft()).getTable().properties();
+    } else {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + source.getClass());
+    }
     this.readTimestamp = getReadTimestamp(this.opts);
     this.readSchema =
-        SpannerUtils.pruneSchema(this.spannerTable.schema(), logicalQuery.getProjections());
+        SpannerUtils.pruneSchema(logicalQuery.schema(), logicalQuery.getProjections());
     this.logicalQuery = logicalQuery;
   }
 
@@ -81,8 +91,15 @@ public class SpannerScanner implements Batch, Scan {
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
+    boolean enablePredicateSql = false;
+    if (this.opts.containsKey("enablePredicateSql")) {
+      enablePredicateSql = this.opts.get("enablePredicateSql").equalsIgnoreCase("true");
+      logger.info("Enable Predicate Sql: {}", enablePredicateSql);
+    }
+
     SpannerQueryBuilder result =
-        SpannerQueryBuilder.newBuilder(this.logicalQuery, batchClient.databaseClient.getDialect());
+        SpannerQueryBuilder.newBuilder(
+            this.logicalQuery, batchClient.databaseClient.getDialect(), enablePredicateSql);
 
     boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {

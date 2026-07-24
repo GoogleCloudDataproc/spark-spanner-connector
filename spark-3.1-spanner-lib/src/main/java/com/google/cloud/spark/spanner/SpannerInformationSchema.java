@@ -78,6 +78,16 @@ public interface SpannerInformationSchema {
     return "DROP TABLE " + quoteIdentifier(tableName);
   }
 
+  static Statement getInterleaving() {
+    return Statement.of(
+        "SELECT\n"
+            + "    table_name,\n"
+            + "    parent_table_name,\n"
+            + "    interleave_type\n"
+            + "FROM information_schema.tables\n"
+            + "WHERE table_schema = ''");
+  }
+
   static SpannerInformationSchema create(Dialect dialect) {
     switch (dialect) {
       case POSTGRESQL:

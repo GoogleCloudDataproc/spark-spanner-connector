@@ -98,6 +98,8 @@ def main():
         .getOrCreate()
     )
 
+    print("spark.version: ", spark.version)
+
     output_path = sys.argv[1]
     project_id = sys.argv[2]
     instance_id = sys.argv[3]

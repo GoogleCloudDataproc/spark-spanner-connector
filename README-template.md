@@ -50,16 +50,17 @@ You can find the released jar file from the Releases tag on right of the github 
 Note 1: Spark compatibility to be tested.
 
 ### Connector to Dataproc Image Compatibility Matrix
-| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | 3.0     | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 | Serverless<br>Image 3.0 |
-|----------------------------|---------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
-| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.5-spanner          |         |         |         |         |         | &check; | Note 1  |                         | &check;                 |                         |                         | &check;                 | Note 1                  |
-| spark-4.0-spanner          |         |         |         |         |         |         | &check; |                         |                         |                         |                         |                         | &check;                 |
-| spark-4.1-spanner          |         |         |         |         |         |         | &check; |                         |                         |                         |                         |                         | &check;                 |
+| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | 3.0            | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 | Serverless<br>Image 3.0 |
+|----------------------------|---------|---------|---------|---------|---------|---------|----------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
+| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.5-spanner          |         |         |         |         |         | &check; | Note 1         |                         | &check;                 |                         |                         | &check;                 | Note 1                  |
+| spark-4.0-spanner          |         |         |         |         |         |         | &check;        |                         |                         |                         |                         |                         | &check;                 |
+| spark-4.1-spanner          |         |         |         |         |         |         | &check; Note 2 |                         |                         |                         |                         |                         | &check; Note 2          |
 
 Note 1: Dataproc compatibility to be tested.
+Note 2: SupportsPushDownJoin requires Managed Service for Apache Spark Dataproc image 3.0-debian13. Serverless image supports Spark 4.0.1 not Spark 4.1. SupportsPushDownJoin is not available in serverless.
 
 ### Connector to Java Compatibility
 
@@ -179,6 +180,7 @@ table|String|The Table of the Cloud Spanner database that you are reading from
 enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note1: the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing). Note2: this feature is not supported in Spanner Omni.
 readTimestamp|String|An RFC 3339 timestamp identifying the database snapshot to read. Multiple table reads using the same timestamp observe a consistent snapshot. By default, each table read uses the time when its scan is created.
 emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`) or a Spanner Omni instance (e.g. `localhost:15000`). When set, the connector connects to the emulator or Spanner Omni instead of Cloud Spanner. Useful for local development and testing.
+enablePredicateSql|Boolean|Enable SQL generation for Spark Predicates
 
 ### Writing to Spanner Tables
 
@@ -610,3 +612,29 @@ timestamptz/timestamp with time zone |TimestampType| Only microseconds will be c
 Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. For the jsonb column, `IN` filter is not pushdown to Cloud Spanner.
 
 Filters containing array column will not be pushed down.
+
+#### Join Pushdown
+
+Spanner requires that pushdown joins are on interleaved tables. Attempts to pushdown joins on other tables will result in Spark executing the join.
+Spark currently supports pushdown joins in the Managed Service for Apache Spark Dataproc image 3.0-debian13 or later. Debian12 does not support this.
+Spark requires that the Spark session is configured with `spark.sql.optimizer.datasourceV2JoinPushdown` set to `true` to enable the pushdown join feature.
+
+```
+    spark = SparkSession.builder.appName('MyApp').getOrCreate()
+    spark.conf.set(
+        "spark.sql.optimizer.datasourceV2JoinPushdown",
+        "true"
+    )
+```
+
+Further this connector requires that `enablePredicateSql` is also set to generate the join SQL for pushdown.
+
+```
+    spark.read.format("cloud-spanner")
+    .option("projectId", project_id)
+    .option("instanceId", instance_id)
+    .option("databaseId", database_id)
+    .option("table", table)
+    .option("enablePredicateSql", True)
+    .load()
+```

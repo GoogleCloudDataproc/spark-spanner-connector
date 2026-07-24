@@ -14,15 +14,25 @@
 
 package com.google.cloud.spark.spanner.planning.query;
 
-import com.google.cloud.spark.spanner.scan.SpannerTable;
-import java.util.Map;
-import java.util.Set;
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
+import com.google.cloud.spark.spanner.planning.relation.Relation;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
+import java.util.*;
+import java.util.stream.Stream;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 
 public final class LogicalQuery {
-  public SpannerTable getSource() {
-    return spannerTable;
+  private final Relation source;
+  private final Set<String> requiredColumns;
+  private final Filter[] pushedFilters;
+  private final Map<String, StructField> fields;
+
+  public Relation getSource() {
+    return source;
   }
 
   public Set<String> getProjections() {
@@ -37,24 +47,71 @@ public final class LogicalQuery {
     return fields;
   }
 
-  private final SpannerTable spannerTable;
-  private final Set<String> requiredColumns;
-  private final Filter[] pushedFilters;
-  private final Map<String, StructField> fields;
-
-  public LogicalQuery(
-      SpannerTable spannerTable,
-      Set<String> requiredColumns,
-      Filter[] pushedFilters,
-      Map<String, StructField> fields) {
-
-    if (spannerTable == null) {
-      throw new NullPointerException("spannerTable cannot be null");
-    }
-    this.spannerTable = spannerTable;
+  private LogicalQuery(Builder builder) {
+    this.source = builder.source;
     this.requiredColumns =
-        requiredColumns != null ? requiredColumns : java.util.Collections.emptySet();
-    this.pushedFilters = pushedFilters != null ? pushedFilters.clone() : new Filter[0];
-    this.fields = fields != null ? fields : java.util.Collections.emptyMap();
+        builder.requiredColumns != null
+            ? builder.requiredColumns
+            : java.util.Collections.emptySet();
+    this.pushedFilters =
+        builder.pushedFilters != null ? builder.pushedFilters.clone() : new Filter[0];
+    this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
+  }
+
+  public StructType schema() {
+    if (this.source instanceof TableRelation) {
+      return ((TableRelation) this.source).getTableSchema();
+    }
+    if (this.source instanceof JoinRelation) {
+      JoinRelation join = (JoinRelation) this.source;
+      // Assumes that join is between two tables.
+      return new StructType(
+          Stream.concat(
+                  Arrays.stream(((TableRelation) join.getLeft()).getTable().schema().fields()),
+                  Arrays.stream(((TableRelation) join.getRight()).getTable().schema().fields()))
+              .toArray(StructField[]::new));
+    }
+    throw new SpannerConnectorException(
+        SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + this.source.getClass());
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static final class Builder {
+
+    private Relation source;
+    private Set<String> requiredColumns = Collections.emptySet();
+    private Filter[] pushedFilters = new Filter[0];
+    private Map<String, StructField> fields = java.util.Collections.emptyMap();
+
+    private Builder() {}
+
+    public Builder source(Relation source) {
+      this.source = source;
+      return this;
+    }
+
+    public Builder requiredColumns(Set<String> requiredColumns) {
+      this.requiredColumns = requiredColumns;
+      return this;
+    }
+
+    public Builder pushedFilters(Filter[] pushedFilters) {
+      this.pushedFilters = pushedFilters;
+      return this;
+    }
+
+    public Builder fields(Map<String, StructField> fields) {
+      this.fields = fields;
+      return this;
+    }
+
+    public LogicalQuery build() {
+      Objects.requireNonNull(source, "source");
+
+      return new LogicalQuery(this);
+    }
   }
 }

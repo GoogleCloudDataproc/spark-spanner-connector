@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,18 +11,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package com.google.cloud.spark.spanner.rendering;
 
-package com.google.cloud.spark.spanner;
+import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
+import java.util.Map;
 
-import com.google.cloud.spark.spanner.scan.SpannerTable;
-import com.google.cloud.spark.spanner.scan.Spark41SpannerTable;
-import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+public final class RenderResult {
 
-public class Spark41SpannerTableProvider extends SparkSpannerTableProviderBase {
+  private final String sql;
+  private final Map<String, LiteralExpr> bindings;
 
-  @Override
-  public SpannerTable createSpannerTable(CaseInsensitiveStringMap options, StructType schema) {
-    return new Spark41SpannerTable(options, schema);
+  public RenderResult(String sql, Map<String, LiteralExpr> bindings) {
+    this.sql = sql;
+    this.bindings = bindings;
+  }
+
+  public String getSql() {
+    return sql;
+  }
+
+  public Map<String, LiteralExpr> getBindings() {
+    return bindings;
   }
 }

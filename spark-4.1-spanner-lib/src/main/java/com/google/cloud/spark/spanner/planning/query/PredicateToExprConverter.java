@@ -16,6 +16,7 @@ package com.google.cloud.spark.spanner.planning.query;
 import com.google.cloud.spark.spanner.planning.expression.*;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import org.apache.spark.sql.connector.expressions.Expression;
 import org.apache.spark.sql.connector.expressions.GeneralScalarExpression;
 import org.apache.spark.sql.connector.expressions.Literal;
@@ -48,6 +49,8 @@ public final class PredicateToExprConverter {
           Map.entry("CONTAINS", PredicateToExprConverter::contains));
 
   public static BoolExpr translatePredicate(Predicate predicate, StructType schema) {
+    logger.info("Converting predicate {} with {}", predicate, schema);
+    logger.info(expressionToString(predicate));
 
     var converter = CONVERTERS.get(predicate.name());
 
@@ -56,6 +59,30 @@ public final class PredicateToExprConverter {
     }
 
     return converter.apply(predicate, schema);
+  }
+
+  private static String expressionToString(Expression expr) {
+    if (expr instanceof NamedReference) {
+      NamedReference ref = (NamedReference) expr;
+      return String.join(".", ref.fieldNames());
+    }
+
+    if (expr instanceof Literal<?>) {
+      Literal<?> lit = (Literal<?>) expr;
+      return String.valueOf(lit.value());
+    }
+
+    if (expr instanceof Predicate) {
+      Predicate pred = (Predicate) expr;
+      return pred.name()
+          + "("
+          + Arrays.stream(pred.children())
+              .map(PredicateToExprConverter::expressionToString)
+              .collect(Collectors.joining(", "))
+          + ")";
+    }
+
+    return expr.getClass().getSimpleName();
   }
 
   private static BoolExpr equal(Predicate predicate, StructType schema) {

@@ -101,7 +101,7 @@ public class SpannerScanBuilder
 
   @Override
   public Filter[] pushFilters(Filter[] filters) {
-    logger.info("push filters");
+    logger.info("push filters: {}", filters);
     List<Filter> handledFilters = new ArrayList<>();
     List<Filter> unhandledFilters = new ArrayList<>();
     for (Filter filter : filters) {
@@ -126,7 +126,7 @@ public class SpannerScanBuilder
     // A user could invoke: SELECT a, b, d, a FROM TABLE;
     // and we should still be able to serve them back their
     // query without deduplication.
-    logger.info("pruning columns");
+    logger.info("pruning columns. requiredSchema: {}", requiredSchema);
     this.requiredColumns = ImmutableSet.copyOf(requiredSchema.fieldNames());
   }
 

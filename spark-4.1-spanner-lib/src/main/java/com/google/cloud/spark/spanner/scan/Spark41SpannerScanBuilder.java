@@ -72,14 +72,17 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
 
     // Combine the schema of the left and right required columns.
     // This is the schema of the ON clause.
+    logger.info("pushDownJoin: leftSideRequiredColumnsWithAliases");
     StructType joinSchema =
         calculateJoinOutputSchema(leftSideRequiredColumnsWithAliases, this.getSchema());
 
+    logger.info("pushDownJoin: rightSideRequiredColumnsWithAliases");
     joinSchema =
         joinSchema.merge(
             calculateJoinOutputSchema(rightSideRequiredColumnsWithAliases, right.getSchema()),
             false);
 
+    logger.info("pushDownJoin: joinSchema: {}", joinSchema);
     try {
       BoolExpr condition = PredicateToExprConverter.translatePredicate(predicate, joinSchema);
 
@@ -106,7 +109,7 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
     final InterleaveTableMetadata otherTableMetadata = other.getInterleavedTableMetadata();
     final String thisTableParent = thisTableMetadata.getParentTable();
     final String otherTableParent = otherTableMetadata.getParentTable();
-     return otherTableParent != null && thisTableMetadata.getTableName().equals(otherTableParent)
+    return otherTableParent != null && thisTableMetadata.getTableName().equals(otherTableParent)
         || thisTableParent != null && otherTableMetadata.getTableName().equals(thisTableParent);
   }
 
@@ -124,6 +127,7 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
     for (SupportsPushDownJoin.ColumnWithAlias columnWithAlias : columnsWithAliases) {
       String columnName = columnWithAlias.colName();
       String alias = columnWithAlias.alias();
+      logger.info("calculateJoinOutputSchema: columnName: {}, alias: {}", columnName, alias);
 
       StructField field = schema.apply(columnName);
 

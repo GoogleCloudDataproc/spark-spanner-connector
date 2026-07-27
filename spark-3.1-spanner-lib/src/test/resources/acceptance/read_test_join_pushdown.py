@@ -147,19 +147,6 @@ def run_join_value_tests(orders, lineitem, issues):
     if actual.L_PARTKEY != 155190:
         issues.append(f"Join value expected {155190} rows but found {actual.L_PARTKEY}")
 
-def run_simple_join_tests(orders, lineitem, issues):
-    print("\nrun_simple_join_tests")
-
-    joined = orders.join(
-        lineitem,
-        "O_ORDERKEY"
-    )
-
-    print("\nrun_simple_join_tests Execution plan:")
-    joined.explain(True)
-    actual = joined.count()
-    print(f"actual count: {actual}")
-
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
 

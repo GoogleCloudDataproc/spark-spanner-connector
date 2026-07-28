@@ -48,6 +48,7 @@ public class SpannerScanBuilder
   private SpannerTable spannerTable;
   private Map<String, StructField> fields;
   private JoinRelation join;
+  private StructType joinSchema;
 
   public SpannerScanBuilder(SpannerTable spannerTable) {
     logger.info(spannerTable.name());
@@ -63,7 +64,7 @@ public class SpannerScanBuilder
 
     if (this.join != null) {
       logger.info("building join");
-      builder.source(this.join);
+      builder.source(this.join).joinSchema(this.joinSchema);
       // Assume that in a join this will be between two tables. Combine schema of tables.
       for (StructField field : ((TableRelation) this.join.getLeft()).getTable().schema().fields()) {
         this.fields.put(field.name(), field);
@@ -90,6 +91,13 @@ public class SpannerScanBuilder
             .build();
 
     this.scanner = new SpannerScanner(logicalQuery);
+    logger.info("build() {}", this.scanner.readSchema().treeString());
+    logger.info("build() {}", logicalQuery.getSource());
+    logger.info("Required columns passed to LogicalQuery:");
+    if (this.requiredColumns != null) {
+      this.requiredColumns.forEach(c -> logger.info("  {}", c));
+    }
+
     return this.scanner;
   }
 
@@ -101,7 +109,7 @@ public class SpannerScanBuilder
 
   @Override
   public Filter[] pushFilters(Filter[] filters) {
-    logger.info("push filters: {}", filters);
+    logger.info("push filters");
     List<Filter> handledFilters = new ArrayList<>();
     List<Filter> unhandledFilters = new ArrayList<>();
     for (Filter filter : filters) {
@@ -130,9 +138,10 @@ public class SpannerScanBuilder
     this.requiredColumns = ImmutableSet.copyOf(requiredSchema.fieldNames());
   }
 
-  public void setJoin(JoinRelation join) {
+  public void setJoin(JoinRelation join, StructType joinSchema) {
     logger.info("setJoin: {}", join);
     this.join = join;
+    this.joinSchema = joinSchema;
   }
 
   public String getDatabaseId() {
@@ -146,6 +155,11 @@ public class SpannerScanBuilder
   public StructType getSchema() {
     logger.info("getSchema");
     return spannerTable.schema();
+  }
+
+  public String getTableName() {
+    logger.info("getTableName");
+    return spannerTable.name();
   }
 
   public TableRelation createTableRelation() {

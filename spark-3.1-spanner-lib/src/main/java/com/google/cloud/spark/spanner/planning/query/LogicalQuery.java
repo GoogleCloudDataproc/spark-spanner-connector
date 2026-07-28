@@ -20,7 +20,6 @@ import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import java.util.*;
-import java.util.stream.Stream;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -30,6 +29,7 @@ public final class LogicalQuery {
   private final Set<String> requiredColumns;
   private final Filter[] pushedFilters;
   private final Map<String, StructField> fields;
+  private final StructType joinSchema;
 
   public Relation getSource() {
     return source;
@@ -56,6 +56,7 @@ public final class LogicalQuery {
     this.pushedFilters =
         builder.pushedFilters != null ? builder.pushedFilters.clone() : new Filter[0];
     this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
+    this.joinSchema = builder.joinSchema != null ? builder.joinSchema : null;
   }
 
   public StructType schema() {
@@ -63,13 +64,7 @@ public final class LogicalQuery {
       return ((TableRelation) this.source).getTableSchema();
     }
     if (this.source instanceof JoinRelation) {
-      JoinRelation join = (JoinRelation) this.source;
-      // Assumes that join is between two tables.
-      return new StructType(
-          Stream.concat(
-                  Arrays.stream(((TableRelation) join.getLeft()).getTable().schema().fields()),
-                  Arrays.stream(((TableRelation) join.getRight()).getTable().schema().fields()))
-              .toArray(StructField[]::new));
+      return this.joinSchema;
     }
     throw new SpannerConnectorException(
         SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + this.source.getClass());
@@ -85,6 +80,7 @@ public final class LogicalQuery {
     private Set<String> requiredColumns = Collections.emptySet();
     private Filter[] pushedFilters = new Filter[0];
     private Map<String, StructField> fields = java.util.Collections.emptyMap();
+    private StructType joinSchema;
 
     private Builder() {}
 
@@ -105,6 +101,11 @@ public final class LogicalQuery {
 
     public Builder fields(Map<String, StructField> fields) {
       this.fields = fields;
+      return this;
+    }
+
+    public Builder joinSchema(StructType joinSchema) {
+      this.joinSchema = joinSchema;
       return this;
     }
 

@@ -14,31 +14,35 @@
 package com.google.cloud.spark.spanner.planning.query;
 
 import com.google.cloud.spark.spanner.planning.expression.*;
+import java.util.Map;
 import org.apache.spark.sql.sources.*;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ExprConverterUtils {
   private static final Logger logger = LoggerFactory.getLogger(ExprConverterUtils.class);
 
-  public static ColumnExpr toColumn(String name, StructType schema) {
-    logger.debug("Looking up column '{}' in schema {}", name, schema.treeString());
+  public static ColumnExpr toColumn(String name, Map<String, ColumnResolution> resolutionMap) {
+    logger.debug("Looking up column '{}' in resolutionMap {}", name, resolutionMap);
 
-    StructField field = schema.apply(name);
+    ColumnResolution columnResolution = resolutionMap.get(name);
 
-    return new ColumnExpr(name, field.dataType(), field.nullable());
+    return new ColumnExpr(
+        columnResolution.getTableAlias(),
+        columnResolution.getColumnName(),
+        columnResolution.getSparkType(),
+        columnResolution.isNullable());
   }
 
-  public static LiteralExpr toLiteral(Object value, StructType schema, String columnName) {
-    logger.debug("Looking up literal column '{}' in schema {}", columnName, schema.treeString());
+  public static LiteralExpr toLiteral(
+      Object value, Map<String, ColumnResolution> resolutionMap, String columnName) {
+    logger.debug("Looking up literal column '{}' in resolutionMap {}", columnName, resolutionMap);
     logger.info(
         "Literal value class={}, value={}",
         value == null ? null : value.getClass().getName(),
         value);
-    StructField field = schema.apply(columnName);
+    ColumnResolution columnResolution = resolutionMap.get(columnName);
 
-    return new LiteralExpr(value, field.dataType());
+    return new LiteralExpr(value, columnResolution.getSparkType());
   }
 }

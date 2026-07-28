@@ -31,15 +31,18 @@ public class SpannerExprTest {
     SpannerExpr predicate =
         new OrExpr(
             new AndExpr(
-                new EqExpr(new ColumnExpr("SingerId", DataTypes.LongType, false), aLongLiteral),
                 new EqExpr(
-                    new ColumnExpr("Active", DataTypes.BooleanType, false), aBooleanLiteral)),
+                    new ColumnExpr("ATable", "SingerId", DataTypes.LongType, false), aLongLiteral),
+                new EqExpr(
+                    new ColumnExpr("ATable", "Active", DataTypes.BooleanType, false),
+                    aBooleanLiteral)),
             new TrueExpr());
 
     SqlExprVisitor visitor = SqlExprVisitor.create(Dialect.GOOGLE_STANDARD_SQL);
 
     RenderResult result = predicate.accept(visitor);
-    assertThat(result.getSql()).isEqualTo("`SingerId` = @p1 AND `Active` = @p2 OR TRUE");
+    assertThat(result.getSql())
+        .isEqualTo("`ATable`.`SingerId` = @p1 AND `ATable`.`Active` = @p2 OR TRUE");
     assertThat(result.getBindings().get("p1")).isEqualTo(aLongLiteral);
     assertThat(result.getBindings().get("p2")).isEqualTo(aBooleanLiteral);
   }

@@ -33,6 +33,7 @@ import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
@@ -51,8 +52,10 @@ public class SpannerScanner implements Batch, Scan {
   public SpannerScanner(LogicalQuery logicalQuery) {
     final Relation source = logicalQuery.getSource();
     if (source instanceof TableRelation) {
+      logger.info("logicalQuery source: TableRelation");
       this.opts = ((TableRelation) source).getTable().properties();
     } else if (source instanceof JoinRelation) {
+      logger.info("logicalQuery source: JoinRelation");
       // This assumes that a join will be between two tables and not a child join.
       this.opts = ((TableRelation) ((JoinRelation) source).getLeft()).getTable().properties();
     } else {
@@ -60,18 +63,30 @@ public class SpannerScanner implements Batch, Scan {
           SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + source.getClass());
     }
     this.readTimestamp = getReadTimestamp(this.opts);
+    logger.info("Required columns: {}", logicalQuery.getProjections());
     this.readSchema =
         SpannerUtils.pruneSchema(logicalQuery.schema(), logicalQuery.getProjections());
+    if (this.readSchema == null || this.readSchema.isEmpty()) {
+      logger.info("Read Schema is null or empty");
+    } else {
+      logger.info("Read schema has {} fields", this.readSchema.fields().length);
+      for (StructField f : this.readSchema.fields()) {
+        logger.info("  {}", f.name());
+      }
+    }
+
     this.logicalQuery = logicalQuery;
   }
 
   @Override
   public StructType readSchema() {
-    return readSchema;
+    logger.info("Reading schema from Spanner");
+    return this.readSchema;
   }
 
   @Override
   public Batch toBatch() {
+    logger.info("Reading batch from Spanner");
     return this;
   }
 
@@ -88,6 +103,7 @@ public class SpannerScanner implements Batch, Scan {
 
   @Override
   public InputPartition[] planInputPartitions() {
+    logger.info("planInputPartitions", new RuntimeException("Who called me?"));
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 

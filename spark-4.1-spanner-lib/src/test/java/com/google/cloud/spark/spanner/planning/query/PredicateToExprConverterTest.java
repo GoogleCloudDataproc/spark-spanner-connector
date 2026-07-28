@@ -21,12 +21,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.spark.spanner.planning.expression.*;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.spark.sql.connector.expressions.Expression;
 import org.apache.spark.sql.connector.expressions.Literal;
 import org.apache.spark.sql.connector.expressions.NamedReference;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
 import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
 public class PredicateToExprConverterTest {
@@ -34,7 +35,8 @@ public class PredicateToExprConverterTest {
   @Test
   public void equalProducesEqExpr() {
 
-    StructType schema = new StructType().add("A", DataTypes.IntegerType);
+    Map<String, ColumnResolution> resolutionMap = new HashMap<>();
+    resolutionMap.put("A", new ColumnResolution("A", "A", "ATable", DataTypes.IntegerType, true));
     NamedReference ref = mock(NamedReference.class);
     when(ref.fieldNames()).thenReturn(new String[] {"A"});
 
@@ -45,7 +47,7 @@ public class PredicateToExprConverterTest {
     when(predicate.name()).thenReturn("=");
     when(predicate.children()).thenReturn(new Expression[] {ref, lit});
 
-    BoolExpr expr = PredicateToExprConverter.translatePredicate(predicate, schema);
+    BoolExpr expr = PredicateToExprConverter.translatePredicate(predicate, resolutionMap);
 
     assertThat(expr).isInstanceOf(EqExpr.class);
 
@@ -54,6 +56,7 @@ public class PredicateToExprConverterTest {
     ValueExpr leftExpr = eq.getLeft();
     assertTrue(leftExpr instanceof ColumnExpr);
     assertEquals("A", ((ColumnExpr) leftExpr).getColumnName());
+    assertEquals("ATable", ((ColumnExpr) leftExpr).getTableAlias());
 
     ValueExpr rightExpr = eq.getRight();
     assertTrue(rightExpr instanceof LiteralExpr);

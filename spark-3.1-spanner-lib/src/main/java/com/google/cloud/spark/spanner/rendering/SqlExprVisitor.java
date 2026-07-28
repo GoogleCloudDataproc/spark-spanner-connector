@@ -52,7 +52,11 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
   @Override
   public RenderResult visit(ColumnExpr expr) {
     return new RenderResult(
-        infoSchema.quoteIdentifier(expr.getColumnName()), Collections.emptyMap());
+        // TODO: Can table alias be optional?
+        infoSchema.quoteIdentifier(expr.getTableAlias())
+            + "."
+            + infoSchema.quoteIdentifier(expr.getColumnName()),
+        Collections.emptyMap());
   }
 
   @Override

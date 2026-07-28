@@ -15,8 +15,11 @@
 package com.google.cloud.spark.spanner.scan;
 
 import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
+import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.PredicateToExprConverter;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
 import org.apache.spark.sql.connector.join.JoinType;
 import org.apache.spark.sql.connector.read.SupportsPushDownJoin;
@@ -54,6 +57,10 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       ColumnWithAlias[] leftSideRequiredColumnsWithAliases,
       ColumnWithAlias[] rightSideRequiredColumnsWithAliases,
       Predicate predicate) {
+    logger.info("pushDownJoin called");
+    logger.info("this={}", System.identityHashCode(this));
+    logger.info("other={}", System.identityHashCode(other));
+
     if (!(other instanceof Spark41SpannerScanBuilder)) {
       logger.error("pushDownJoin: other is not a SpannerScanBuilder");
       return false;
@@ -83,8 +90,18 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
             false);
 
     logger.info("pushDownJoin: joinSchema: {}", joinSchema);
+
+    Map<String, ColumnResolution> resolutionMap =
+        createColumnResolutionMap(
+            this.getTableName(),
+            leftSideRequiredColumnsWithAliases,
+            this.getSchema(),
+            right.getTableName(),
+            rightSideRequiredColumnsWithAliases,
+            right.getSchema());
+
     try {
-      BoolExpr condition = PredicateToExprConverter.translatePredicate(predicate, joinSchema);
+      BoolExpr condition = PredicateToExprConverter.translatePredicate(predicate, resolutionMap);
 
       JoinRelation joinRelation =
           new JoinRelation(
@@ -93,7 +110,7 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
               sparkToConnector(joinType),
               condition);
 
-      setJoin(joinRelation);
+      setJoin(joinRelation, joinSchema);
     } catch (UnsupportedOperationException e) {
       // If predicate conversion fails, fall back to Spark-side execution.
       logger.error("pushDownJoin: predicate conversion fails");
@@ -139,6 +156,34 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
     }
 
     return newSchema;
+  }
+
+  private static Map<String, ColumnResolution> createColumnResolutionMap(
+      String leftTableAlias,
+      ColumnWithAlias[] leftColumns,
+      StructType leftSchema,
+      String rightTableAlias,
+      ColumnWithAlias[] rightColumns,
+      StructType rightSchema) {
+    Map<String, ColumnResolution> columnResolutionMap = new HashMap<>();
+    populateColumnResolutionMap(columnResolutionMap, leftColumns, leftTableAlias, leftSchema);
+    populateColumnResolutionMap(columnResolutionMap, rightColumns, rightTableAlias, rightSchema);
+    return columnResolutionMap;
+  }
+
+  private static void populateColumnResolutionMap(
+      Map<String, ColumnResolution> columnResolutionMap,
+      ColumnWithAlias[] columns,
+      String tableAlias,
+      StructType schema) {
+    for (SupportsPushDownJoin.ColumnWithAlias columnWithAlias : columns) {
+      final String columnName = columnWithAlias.colName();
+      final String alias = columnWithAlias.alias() == null ? columnName : columnWithAlias.alias();
+      final StructField field = schema.apply(columnName);
+      final ColumnResolution columnResolution =
+          new ColumnResolution(alias, columnName, tableAlias, field.dataType(), field.nullable());
+      columnResolutionMap.put(alias, columnResolution);
+    }
   }
 
   private com.google.cloud.spark.spanner.planning.relation.JoinType sparkToConnector(

@@ -44,7 +44,8 @@ public class RelationTableTest {
   @Test
   public void testJoinRelation() {
     final LiteralExpr aStringLiteral = new LiteralExpr("test", DataTypes.StringType);
-    BoolExpr expr = new EqExpr(new ColumnExpr("aCol", DataTypes.StringType, false), aStringLiteral);
+    BoolExpr expr =
+        new EqExpr(new ColumnExpr("a", "aCol", DataTypes.StringType, false), aStringLiteral);
     Relation tableA = new TableRelation("ATable", "a", spannerTable);
     Relation tableB = new TableRelation("BTable", "b", spannerTable);
     Relation relation = new JoinRelation(tableA, tableB, JoinType.INNER, expr);
@@ -54,7 +55,7 @@ public class RelationTableTest {
     RenderResult result = relation.accept(visitor);
 
     assertThat((String) result.getSql())
-        .isEqualTo("`ATable` AS `a` INNER JOIN `BTable` AS `b` ON `aCol` = @p1");
+        .isEqualTo("`ATable` AS `a` INNER JOIN `BTable` AS `b` ON `a.aCol` = @p1");
     assertThat(result.getBindings().get("p1")).isEqualTo(aStringLiteral);
   }
 }

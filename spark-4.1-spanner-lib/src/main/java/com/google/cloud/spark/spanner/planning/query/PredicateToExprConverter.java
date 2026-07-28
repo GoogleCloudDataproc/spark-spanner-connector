@@ -22,7 +22,6 @@ import org.apache.spark.sql.connector.expressions.GeneralScalarExpression;
 import org.apache.spark.sql.connector.expressions.Literal;
 import org.apache.spark.sql.connector.expressions.NamedReference;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
-import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,26 +29,28 @@ public final class PredicateToExprConverter {
 
   private static final Logger logger = LoggerFactory.getLogger(PredicateToExprConverter.class);
 
-  private static final Map<String, BiFunction<Predicate, StructType, BoolExpr>> CONVERTERS =
-      Map.ofEntries(
-          Map.entry("=", PredicateToExprConverter::equal),
-          Map.entry("<=>", PredicateToExprConverter::equalNullSafe),
-          Map.entry(">", PredicateToExprConverter::greaterThan),
-          Map.entry(">=", PredicateToExprConverter::greaterThanOrEqual),
-          Map.entry("<", PredicateToExprConverter::lessThan),
-          Map.entry("<=", PredicateToExprConverter::lessThanOrEqual),
-          Map.entry("AND", PredicateToExprConverter::and),
-          Map.entry("OR", PredicateToExprConverter::or),
-          Map.entry("NOT", PredicateToExprConverter::not),
-          Map.entry("IN", PredicateToExprConverter::in),
-          Map.entry("IS_NULL", PredicateToExprConverter::isNull),
-          Map.entry("IS_NOT_NULL", PredicateToExprConverter::isNotNull),
-          Map.entry("STARTS_WITH", PredicateToExprConverter::startsWith),
-          Map.entry("ENDS_WITH", PredicateToExprConverter::endsWith),
-          Map.entry("CONTAINS", PredicateToExprConverter::contains));
+  private static final Map<String, BiFunction<Predicate, Map<String, ColumnResolution>, BoolExpr>>
+      CONVERTERS =
+          Map.ofEntries(
+              Map.entry("=", PredicateToExprConverter::equal),
+              Map.entry("<=>", PredicateToExprConverter::equalNullSafe),
+              Map.entry(">", PredicateToExprConverter::greaterThan),
+              Map.entry(">=", PredicateToExprConverter::greaterThanOrEqual),
+              Map.entry("<", PredicateToExprConverter::lessThan),
+              Map.entry("<=", PredicateToExprConverter::lessThanOrEqual),
+              Map.entry("AND", PredicateToExprConverter::and),
+              Map.entry("OR", PredicateToExprConverter::or),
+              Map.entry("NOT", PredicateToExprConverter::not),
+              Map.entry("IN", PredicateToExprConverter::in),
+              Map.entry("IS_NULL", PredicateToExprConverter::isNull),
+              Map.entry("IS_NOT_NULL", PredicateToExprConverter::isNotNull),
+              Map.entry("STARTS_WITH", PredicateToExprConverter::startsWith),
+              Map.entry("ENDS_WITH", PredicateToExprConverter::endsWith),
+              Map.entry("CONTAINS", PredicateToExprConverter::contains));
 
-  public static BoolExpr translatePredicate(Predicate predicate, StructType schema) {
-    logger.info("Converting predicate {} with {}", predicate, schema);
+  public static BoolExpr translatePredicate(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    logger.info("Converting predicate {} with {}", predicate, resolutionMap);
     logger.info(expressionToString(predicate));
 
     var converter = CONVERTERS.get(predicate.name());
@@ -58,7 +59,7 @@ public final class PredicateToExprConverter {
       throw new UnsupportedOperationException(predicate.name());
     }
 
-    return converter.apply(predicate, schema);
+    return converter.apply(predicate, resolutionMap);
   }
 
   private static String expressionToString(Expression expr) {
@@ -85,75 +86,85 @@ public final class PredicateToExprConverter {
     return expr.getClass().getSimpleName();
   }
 
-  private static BoolExpr equal(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, EqExpr::new);
+  private static BoolExpr equal(Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, EqExpr::new);
   }
 
-  private static BoolExpr equalNullSafe(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, EqNullSafeExpr::new);
+  private static BoolExpr equalNullSafe(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, EqNullSafeExpr::new);
   }
 
-  private static BoolExpr greaterThan(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, GtExpr::new);
+  private static BoolExpr greaterThan(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, GtExpr::new);
   }
 
-  private static BoolExpr lessThan(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, LtExpr::new);
+  private static BoolExpr lessThan(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, LtExpr::new);
   }
 
-  private static BoolExpr greaterThanOrEqual(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, GteExpr::new);
+  private static BoolExpr greaterThanOrEqual(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, GteExpr::new);
   }
 
-  private static BoolExpr lessThanOrEqual(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, LteExpr::new);
+  private static BoolExpr lessThanOrEqual(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, LteExpr::new);
   }
 
-  private static BoolExpr and(Predicate predicate, StructType schema) {
+  private static BoolExpr and(Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
     return new AndExpr(
-        translatePredicate((Predicate) predicate.children()[0], schema),
-        translatePredicate((Predicate) predicate.children()[1], schema));
+        translatePredicate((Predicate) predicate.children()[0], resolutionMap),
+        translatePredicate((Predicate) predicate.children()[1], resolutionMap));
   }
 
-  private static BoolExpr or(Predicate predicate, StructType schema) {
+  private static BoolExpr or(Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
     return new OrExpr(
-        translatePredicate((Predicate) predicate.children()[0], schema),
-        translatePredicate((Predicate) predicate.children()[1], schema));
+        translatePredicate((Predicate) predicate.children()[0], resolutionMap),
+        translatePredicate((Predicate) predicate.children()[1], resolutionMap));
   }
 
-  private static BoolExpr not(Predicate predicate, StructType schema) {
-    return new NotExpr(translatePredicate((Predicate) predicate.children()[0], schema));
+  private static BoolExpr not(Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return new NotExpr(translatePredicate((Predicate) predicate.children()[0], resolutionMap));
   }
 
-  private static BoolExpr in(Predicate predicate, StructType schema) {
-    return translateIn(predicate, schema);
+  private static BoolExpr in(Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return translateIn(predicate, resolutionMap);
   }
 
-  private static BoolExpr isNull(Predicate predicate, StructType schema) {
-    return new IsNullExpr(translateExpression(predicate.children()[0], schema));
+  private static BoolExpr isNull(Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return new IsNullExpr(translateExpression(predicate.children()[0], resolutionMap));
   }
 
-  private static BoolExpr isNotNull(Predicate predicate, StructType schema) {
-    return new IsNotNullExpr(translateExpression(predicate.children()[0], schema));
+  private static BoolExpr isNotNull(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return new IsNotNullExpr(translateExpression(predicate.children()[0], resolutionMap));
   }
 
-  private static BoolExpr startsWith(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, StartsWithExpr::new);
+  private static BoolExpr startsWith(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, StartsWithExpr::new);
   }
 
-  private static BoolExpr endsWith(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, EndsWithExpr::new);
+  private static BoolExpr endsWith(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, EndsWithExpr::new);
   }
 
-  private static BoolExpr contains(Predicate predicate, StructType schema) {
-    return binary(predicate, schema, ContainsExpr::new);
+  private static BoolExpr contains(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    return binary(predicate, resolutionMap, ContainsExpr::new);
   }
 
-  private static BoolExpr translateIn(Predicate predicate, StructType schema) {
+  private static BoolExpr translateIn(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
     if (predicate.children().length == 0) {
       throw new IllegalArgumentException("IN predicate must have at least 1 child");
     }
-    ValueExpr left = translateExpression(predicate.children()[0], schema);
+    ValueExpr left = translateExpression(predicate.children()[0], resolutionMap);
     if (!(left instanceof ColumnExpr)) {
       throw new UnsupportedOperationException(
           "Left side of IN predicate must be a column reference");
@@ -162,20 +173,21 @@ public final class PredicateToExprConverter {
     List<ValueExpr> values = new ArrayList<>();
 
     for (int i = 1; i < predicate.children().length; i++) {
-      values.add(translateExpression(predicate.children()[i], schema));
+      values.add(translateExpression(predicate.children()[i], resolutionMap));
     }
 
     return new InExpr(left, values);
   }
 
-  private static ValueExpr translateExpression(Expression expression, StructType schema) {
+  private static ValueExpr translateExpression(
+      Expression expression, Map<String, ColumnResolution> resolutionMap) {
 
     if (expression instanceof NamedReference) {
-      return translateExpression((NamedReference) expression, schema);
+      return translateExpression((NamedReference) expression, resolutionMap);
     }
 
     if (expression instanceof GeneralScalarExpression) {
-      return translateExpression((GeneralScalarExpression) expression, schema);
+      return translateExpression((GeneralScalarExpression) expression, resolutionMap);
     }
 
     if (expression instanceof Literal<?>) {
@@ -186,30 +198,31 @@ public final class PredicateToExprConverter {
         "Unsupported expression: " + expression.getClass().getName());
   }
 
-  private static ColumnExpr translateExpression(NamedReference reference, StructType schema) {
+  private static ColumnExpr translateExpression(
+      NamedReference reference, Map<String, ColumnResolution> resolutionMap) {
 
-    return ExprConverterUtils.toColumn(reference.fieldNames()[0], schema);
+    return ExprConverterUtils.toColumn(reference.fieldNames()[0], resolutionMap);
   }
 
   private static LiteralExpr translateExpression(
-      Literal<?> literal, NamedReference reference, StructType schema) {
+      Literal<?> literal, NamedReference reference, Map<String, ColumnResolution> resolutionMap) {
 
-    return ExprConverterUtils.toLiteral(literal.value(), schema, reference.fieldNames()[0]);
+    return ExprConverterUtils.toLiteral(literal.value(), resolutionMap, reference.fieldNames()[0]);
   }
 
   private static ValueExpr translateExpression(
-      GeneralScalarExpression expression, StructType schema) {
+      GeneralScalarExpression expression, Map<String, ColumnResolution> resolutionMap) {
 
     Expression[] children = expression.children();
 
     if (children.length == 2) {
       return new ArithmeticExpr(
-          translateExpression(children[0], schema),
+          translateExpression(children[0], resolutionMap),
           toArithmeticOperator(expression.name()),
-          translateExpression(children[1], schema));
+          translateExpression(children[1], resolutionMap));
     } else if (children.length == 1) {
       return new UnaryExpr(
-          toUnaryOperator(expression.name()), translateExpression(children[0], schema));
+          toUnaryOperator(expression.name()), translateExpression(children[0], resolutionMap));
     }
     throw new UnsupportedOperationException(
         "Expression does not have 1 or 2 arguments. Actual: " + children.length);
@@ -246,7 +259,9 @@ public final class PredicateToExprConverter {
   }
 
   private static BoolExpr binary(
-      Predicate predicate, StructType schema, BiFunction<ValueExpr, ValueExpr, BoolExpr> factory) {
+      Predicate predicate,
+      Map<String, ColumnResolution> resolutionMap,
+      BiFunction<ValueExpr, ValueExpr, BoolExpr> factory) {
 
     if (predicate.children().length != 2) {
       throw new IllegalArgumentException("Binary predicate must have exactly 2 children");
@@ -255,7 +270,7 @@ public final class PredicateToExprConverter {
     Expression leftExpression = predicate.children()[0];
     Expression rightExpression = predicate.children()[1];
 
-    ValueExpr left = translateExpression(leftExpression, schema);
+    ValueExpr left = translateExpression(leftExpression, resolutionMap);
 
     ValueExpr right;
 
@@ -263,9 +278,9 @@ public final class PredicateToExprConverter {
       // Literal types need to be inferred from the column they are compared with
       Literal<?> literal = (Literal<?>) rightExpression;
       NamedReference reference = (NamedReference) leftExpression;
-      right = translateExpression(literal, reference, schema);
+      right = translateExpression(literal, reference, resolutionMap);
     } else {
-      right = translateExpression(rightExpression, schema);
+      right = translateExpression(rightExpression, resolutionMap);
     }
 
     return factory.apply(left, right);

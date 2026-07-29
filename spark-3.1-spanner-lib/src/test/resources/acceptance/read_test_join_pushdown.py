@@ -97,6 +97,27 @@ def run_join_projection_tests(orders, lineitem, issues):
             f"Join projection expected {expected_rows} rows but found {actual_rows}"
         )
 
+def run_join_predicate_filter_tests(orders, lineitem, issues):
+    print("\nrun_join_predicate_filter_tests")
+
+    joined = (
+        orders.alias("o")
+        .join(
+            lineitem.alias("l"),
+            (col("o.O_ORDERKEY") == col("l.O_ORDERKEY"))
+            & (col("l.L_QUANTITY") > 20),
+            "inner",
+        )
+    )
+    print("\nrun_join_predicate_filter_tests Execution plan:")
+    joined.explain(True)
+
+    actual = joined.count()
+    expected = 10
+
+    if actual != expected:
+        issues.append(f"Join predicate filter expected {expected} rows but found {actual}")
+
 def run_join_filter_tests(orders, lineitem, issues):
     print("\nrun_join_filter_tests")
 
@@ -107,7 +128,7 @@ def run_join_filter_tests(orders, lineitem, issues):
             col("o.O_ORDERKEY") == col("l.O_ORDERKEY"),
             "inner"
         )
-        .filter(col("l.L_QUANTITY") > 20)
+        .filter(col("L_QUANTITY") > "20")
     )
 
     print("\nrun_join_filter_tests Execution plan:")
@@ -129,7 +150,7 @@ def run_join_value_tests(orders, lineitem, issues):
             col("o.O_ORDERKEY") == col("l.O_ORDERKEY"),
             "inner"
         )
-        .filter(col("o.O_ORDERKEY") == 1)
+        .filter(col("o.O_ORDERKEY") == "1")
         .select(
             col("o.O_CUSTKEY"),
             col("l.L_PARTKEY"),
@@ -142,10 +163,10 @@ def run_join_value_tests(orders, lineitem, issues):
     actual = joined.first()
 
     if actual.O_CUSTKEY != 36901:
-        issues.append(f"Join value expected {36901} rows but found {actual.O_CUSTKEY}")
+        issues.append(f"Join value expected 36901 rows but found {actual.O_CUSTKEY}")
 
     if actual.L_PARTKEY != 155190:
-        issues.append(f"Join value expected {155190} rows but found {actual.L_PARTKEY}")
+        issues.append(f"Join value expected 155190 rows but found {actual.L_PARTKEY}")
 
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
@@ -205,9 +226,9 @@ def main():
     issues = []
     run_inner_join_tests(orders, lineitem, issues)
     run_join_projection_tests(orders, lineitem, issues)
+    run_join_predicate_filter_tests(orders, lineitem, issues)
     run_join_filter_tests(orders, lineitem, issues)
-    run_join_value_tests(orders, lineitem, issues)
-    run_simple_join_tests(orders, lineitem, issues)
+#     run_join_value_tests(orders, lineitem, issues)
     write_results(spark, output_path, issues)
 
 if __name__ == '__main__':

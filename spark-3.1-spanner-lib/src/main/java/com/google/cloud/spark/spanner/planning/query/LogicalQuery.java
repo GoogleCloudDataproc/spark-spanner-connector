@@ -32,19 +32,19 @@ public final class LogicalQuery {
   private final StructType joinSchema;
 
   public Relation getSource() {
-    return source;
+    return this.source;
   }
 
   public Set<String> getProjections() {
-    return requiredColumns;
+    return this.requiredColumns;
   }
 
   public Filter[] getFilter() {
-    return pushedFilters != null ? pushedFilters.clone() : new Filter[0];
+    return this.pushedFilters != null ? this.pushedFilters.clone() : new Filter[0];
   }
 
   public Map<String, StructField> getFields() {
-    return fields;
+    return this.fields;
   }
 
   private LogicalQuery(Builder builder) {

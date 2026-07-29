@@ -21,11 +21,7 @@ import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.common.collect.ImmutableSet;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.connector.read.SupportsPushDownFilters;
@@ -49,9 +45,10 @@ public class SpannerScanBuilder
   private Map<String, StructField> fields;
   private JoinRelation join;
   private StructType joinSchema;
+  protected SpannerScanBuilder right = null;
 
   public SpannerScanBuilder(SpannerTable spannerTable) {
-    logger.info(spannerTable.name());
+    logger.info("this={} {}", System.identityHashCode(this), spannerTable.name());
     this.pushedFilters = new ArrayList<Filter>();
     this.spannerTable = spannerTable;
     this.fields = new LinkedHashMap<>();
@@ -59,6 +56,7 @@ public class SpannerScanBuilder
 
   @Override
   public Scan build() {
+    logger.info("this={}", System.identityHashCode(this));
     // Build the LogicalQuery
     LogicalQuery.Builder builder = LogicalQuery.builder();
 
@@ -83,12 +81,22 @@ public class SpannerScanBuilder
       throw new SpannerConnectorException(SpannerErrorCode.UNSUPPORTED, "Source type missing");
     }
 
-    final LogicalQuery logicalQuery =
-        builder
-            .requiredColumns(this.requiredColumns)
-            .pushedFilters(pushedFilters())
-            .fields(this.fields)
-            .build();
+    logger.info("building logicalQuery with filters this={}", System.identityHashCode(this));
+    builder.requiredColumns(this.requiredColumns).fields(this.fields);
+
+    if (this.right != null) {
+      Filter[] merged = mergeFilters(this.pushedFilters(), right.pushedFilters());
+      builder.pushedFilters(merged);
+    } else {
+      builder.pushedFilters(this.pushedFilters());
+    }
+
+    final LogicalQuery logicalQuery = builder.build();
+
+    logger.info(
+        "this={}, logicalQuery={}",
+        System.identityHashCode(this),
+        System.identityHashCode(logicalQuery));
 
     this.scanner = new SpannerScanner(logicalQuery);
     logger.info("build() {}", this.scanner.readSchema().treeString());
@@ -101,15 +109,36 @@ public class SpannerScanBuilder
     return this.scanner;
   }
 
+  private static Filter[] mergeFilters(Filter[] left, Filter[] right) {
+    if (left == null || left.length == 0) {
+      return right == null ? new Filter[0] : right;
+    }
+    if (right == null || right.length == 0) {
+      return left;
+    }
+
+    Filter[] merged = new Filter[left.length + right.length];
+    System.arraycopy(left, 0, merged, 0, left.length);
+    System.arraycopy(right, 0, merged, left.length, right.length);
+    return merged;
+  }
+
   @Override
   public Filter[] pushedFilters() {
-    logger.info("pushed filters");
-    return this.pushedFilters.toArray(new Filter[0]);
+    Filter[] filters = this.pushedFilters.toArray(new Filter[0]);
+    logger.info(
+        "pushed filters: this={}, {}",
+        System.identityHashCode(this),
+        SparkFilterUtils.filtersToString(filters));
+    return filters;
   }
 
   @Override
   public Filter[] pushFilters(Filter[] filters) {
-    logger.info("push filters");
+    logger.info(
+        "push filters: this={}, {}",
+        System.identityHashCode(this),
+        SparkFilterUtils.filtersToString(filters));
     List<Filter> handledFilters = new ArrayList<>();
     List<Filter> unhandledFilters = new ArrayList<>();
     for (Filter filter : filters) {

@@ -14,5 +14,85 @@
 
 package com.google.cloud.spark.spanner.integration;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import com.google.cloud.spark.spanner.scan.SpannerTable;
+import com.google.cloud.spark.spanner.scan.Spark41SpannerScanBuilder;
+import com.google.cloud.spark.spanner.scan.Spark41SpannerTable;
+import java.util.Map;
+import org.apache.spark.sql.connector.expressions.Expression;
+import org.apache.spark.sql.connector.expressions.FieldReference;
+import org.apache.spark.sql.connector.expressions.NamedReference;
+import org.apache.spark.sql.connector.expressions.filter.Predicate;
+import org.apache.spark.sql.connector.join.JoinType;
+import org.apache.spark.sql.connector.read.SupportsPushDownJoin.ColumnWithAlias;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Spark41SpannerScanBuilderIntegrationTest
-    extends SpannerScanBuilderIntegrationTestBase {}
+    extends SpannerScanBuilderIntegrationTestBase {
+  private static final Logger logger =
+      LoggerFactory.getLogger(Spark41SpannerScanBuilderIntegrationTest.class);
+
+  private SpannerTable getSpannerTable(boolean usePostgreSql) {
+    Map<String, String> connectionProperties = connectionProperties(usePostgreSql);
+    return new Spark41SpannerTable(connectionProperties);
+  }
+
+  private SpannerTable getSpannerTable(String tableName, boolean usePostgreSql) {
+    Map<String, String> connectionProperties = connectionProperties(usePostgreSql);
+    connectionProperties.put("table", tableName);
+    return new Spark41SpannerTable(connectionProperties);
+  }
+
+  @Override
+  public Spark41SpannerScanBuilder createSpannerScanBuilder(boolean usePostgreSql) {
+    logger.info("Creating Spark41SpannerScanBuilder");
+    return new Spark41SpannerScanBuilder(getSpannerTable(usePostgreSql));
+  }
+
+  @Override
+  public Spark41SpannerScanBuilder createSpannerScanBuilder(
+      String tableName, boolean usePostgreSql) {
+    logger.info("Creating Spark41SpannerScanBuilder");
+    return new Spark41SpannerScanBuilder(getSpannerTable(tableName, usePostgreSql));
+  }
+
+  @Test
+  public void isOtherSideCompatibleForJoinTest() throws Exception {
+    Spark41SpannerScanBuilder ordersSpannerScanBuilder = createSpannerScanBuilder("ORDERS", false);
+    Spark41SpannerScanBuilder lineitemSpannerScanBuilder =
+        createSpannerScanBuilder("LINEITEM", false);
+    Spark41SpannerScanBuilder aTableSpannerScanBuilder = createSpannerScanBuilder("ATable", false);
+
+    assertTrue(ordersSpannerScanBuilder.isOtherSideCompatibleForJoin(lineitemSpannerScanBuilder));
+    assertTrue(lineitemSpannerScanBuilder.isOtherSideCompatibleForJoin(ordersSpannerScanBuilder));
+    assertFalse(lineitemSpannerScanBuilder.isOtherSideCompatibleForJoin(aTableSpannerScanBuilder));
+  }
+
+  @Test
+  public void pushDownJoinTest() throws Exception {
+    Spark41SpannerScanBuilder leftSpannerScanBuilder = createSpannerScanBuilder("ORDERS", false);
+    Spark41SpannerScanBuilder rightSpannerScanBuilder = createSpannerScanBuilder("LINEITEM", false);
+
+    assertTrue(leftSpannerScanBuilder.isOtherSideCompatibleForJoin(rightSpannerScanBuilder));
+    assertTrue(rightSpannerScanBuilder.isOtherSideCompatibleForJoin(leftSpannerScanBuilder));
+
+    ColumnWithAlias[] leftColumns = new ColumnWithAlias[] {new ColumnWithAlias("O_ORDERKEY", null)};
+    ColumnWithAlias[] rightColumns =
+        new ColumnWithAlias[] {
+          new ColumnWithAlias("O_ORDERKEY", null), new ColumnWithAlias("L_LINENUMBER", null)
+        };
+    NamedReference left = FieldReference.column("ORDERS.O_ORDERKEY");
+
+    NamedReference right = FieldReference.column("LINEITEM.O_ORDERKEY");
+
+    Predicate predicate = new Predicate("=", new Expression[] {left, right});
+
+    assertTrue(
+        leftSpannerScanBuilder.pushDownJoin(
+            rightSpannerScanBuilder, JoinType.INNER_JOIN, leftColumns, rightColumns, predicate));
+  }
+}

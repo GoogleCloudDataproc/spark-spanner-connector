@@ -30,6 +30,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.spark.sql.sources.*;
+import org.apache.spark.sql.sources.And;
+import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.sources.Not;
+import org.apache.spark.sql.sources.Or;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
@@ -414,5 +418,49 @@ public class SparkFilterUtils {
         && field.metadata() != null
         && field.metadata().contains(SpannerUtils.COLUMN_TYPE)
         && fieldLikeMetadataType.equals(field.metadata().getString(SpannerUtils.COLUMN_TYPE));
+  }
+
+  public static String filtersToString(Filter[] filters) {
+    if (filters == null) {
+      return "null";
+    }
+
+    if (filters.length == 0) {
+      return "[]";
+    }
+
+    StringBuilder sb = new StringBuilder("[");
+    for (int i = 0; i < filters.length; i++) {
+      if (i > 0) {
+        sb.append(", ");
+      }
+      sb.append(filterToString(filters[i]));
+    }
+    sb.append("]");
+    return sb.toString();
+  }
+
+  private static String filterToString(Filter filter) {
+    if (filter == null) {
+      return "null";
+    }
+
+    if (filter instanceof And) {
+      And and = (And) filter;
+      return "(" + filterToString(and.left()) + " AND " + filterToString(and.right()) + ")";
+    }
+
+    if (filter instanceof Or) {
+      Or or = (Or) filter;
+      return "(" + filterToString(or.left()) + " OR " + filterToString(or.right()) + ")";
+    }
+
+    if (filter instanceof Not) {
+      Not not = (Not) filter;
+      return "(NOT " + filterToString(not.child()) + ")";
+    }
+
+    // EqualTo, GreaterThan, In, IsNull, etc.
+    return filter.toString();
   }
 }

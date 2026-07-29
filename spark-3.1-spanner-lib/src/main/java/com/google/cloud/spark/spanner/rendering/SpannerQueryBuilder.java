@@ -50,6 +50,7 @@ public class SpannerQueryBuilder {
   }
 
   private RenderResult buildSql() {
+    logger.info("buildSql");
     final boolean isPostgreSql = this.dialect.equals(Dialect.POSTGRESQL);
     Relation relation = logicalQuery.getSource();
     String alias = null;
@@ -131,10 +132,6 @@ public class SpannerQueryBuilder {
         .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
         .map(quotedCol -> quotedTableName + "." + quotedCol)
         .collect(Collectors.joining(", "));
-  }
-
-  private String parenthesize(String in) {
-    return "(" + in + ")";
   }
 
   private Statement buildLegacySql() {

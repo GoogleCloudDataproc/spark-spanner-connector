@@ -103,7 +103,7 @@ public class SpannerScanner implements Batch, Scan {
 
   @Override
   public InputPartition[] planInputPartitions() {
-    logger.info("planInputPartitions", new RuntimeException("Who called me?"));
+    logger.info("planInputPartitions");
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 

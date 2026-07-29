@@ -14,10 +14,13 @@
 
 package com.google.cloud.spark.spanner.scan;
 
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
 import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.PredicateToExprConverter;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
+import com.google.cloud.spark.spanner.rendering.RenderResult;
+import com.google.cloud.spark.spanner.rendering.SqlExprVisitor;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
@@ -25,20 +28,31 @@ import org.apache.spark.sql.connector.join.JoinType;
 import org.apache.spark.sql.connector.read.SupportsPushDownJoin;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements SupportsPushDownJoin {
   private static final Logger logger = LoggerFactory.getLogger(Spark41SpannerScanBuilder.class);
+  private boolean enablePredicateSql = false;
 
   public Spark41SpannerScanBuilder(SpannerTable spannerTable) {
     super(spannerTable);
     logger.info("Spark41SpannerScanBuilder created");
+
+    final CaseInsensitiveStringMap opts = spannerTable.properties();
+    if (opts.containsKey("enablePredicateSql")) {
+      enablePredicateSql = opts.get("enablePredicateSql").equalsIgnoreCase("true");
+      logger.info("Enable Predicate Sql: {}", enablePredicateSql);
+    }
   }
 
   public boolean isOtherSideCompatibleForJoin(SupportsPushDownJoin other) {
     logger.info("isOtherSideCompatibleForJoin: {}", other);
     if (!(other instanceof Spark41SpannerScanBuilder)) {
+      return false;
+    }
+    if (!enablePredicateSql) {
       return false;
     }
 
@@ -66,6 +80,9 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       return false;
     }
     Spark41SpannerScanBuilder right = (Spark41SpannerScanBuilder) other;
+    // For joins, join condition and filter condition are not sent to the same SpannerScanBuiler.
+    // Keep both tables in the join so complete SQL rendering can be done in a single object.
+    this.right = right;
 
     if (!isJoinTypeAllowed(joinType)) {
       logger.error("pushDownJoin: join type is not allowed");
@@ -101,7 +118,16 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
             right.getSchema());
 
     try {
+      logger.info("predicate class = {}", predicate.getClass());
+      logger.info("predicate = {}", predicate);
+
       BoolExpr condition = PredicateToExprConverter.translatePredicate(predicate, resolutionMap);
+
+      // Logging
+      SqlExprVisitor sqlExprVisitor = SqlExprVisitor.create(Dialect.POSTGRESQL);
+      RenderResult result = condition.accept(sqlExprVisitor);
+      logger.info("******  condition SQL = {}", result.getSql());
+      // Logging
 
       JoinRelation joinRelation =
           new JoinRelation(

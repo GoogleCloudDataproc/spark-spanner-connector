@@ -97,8 +97,8 @@ def run_join_projection_tests(orders, lineitem, issues):
             f"Join projection expected {expected_rows} rows but found {actual_rows}"
         )
 
-def run_join_predicate_filter_tests(orders, lineitem, issues):
-    print("\nrun_join_predicate_filter_tests")
+def run_join_predicate_filter_on_child_tests(orders, lineitem, issues):
+    print("\nrun_join_predicate_filter_on_child_tests")
 
     joined = (
         orders.alias("o")
@@ -109,14 +109,99 @@ def run_join_predicate_filter_tests(orders, lineitem, issues):
             "inner",
         )
     )
-    print("\nrun_join_predicate_filter_tests Execution plan:")
+    print("\nrun_join_predicate_filter_on_child_tests Execution plan:")
     joined.explain(True)
 
     actual = joined.count()
     expected = 10
 
     if actual != expected:
-        issues.append(f"Join predicate filter expected {expected} rows but found {actual}")
+        issues.append(f"Join predicate filter on child expected {expected} rows but found {actual}")
+
+def run_join_predicate_filter_on_parent_tests(orders, lineitem, issues):
+    print("\nrun_join_predicate_filter_on_parent_tests")
+
+    joined = (
+        orders.alias("o")
+        .join(
+            lineitem.alias("l"),
+            (col("o.O_ORDERKEY") == col("l.O_ORDERKEY"))
+            & (col("o.O_ORDERPRIORITY") == "5-LOW"),
+            "inner",
+        )
+    )
+    print("\nrun_join_predicate_filter_on_parent_tests Execution plan:")
+    joined.explain(True)
+
+    actual = joined.count()
+    expected = 12
+
+    if actual != expected:
+        issues.append(f"Join predicate filter on parent expected {expected} rows but found {actual}")
+
+def run_join_predicate_filter_on_child_and_parent_tests(orders, lineitem, issues):
+    print("\nrun_join_predicate_filter_on_child_and_parent_tests")
+
+    joined = (
+        orders.alias("o")
+        .join(
+            lineitem.alias("l"),
+            (col("o.O_ORDERKEY") == col("l.O_ORDERKEY"))
+            & (col("o.O_ORDERPRIORITY") == "5-LOW")
+            & (col("l.L_QUANTITY") > 20),
+           "inner",
+        )
+    )
+    print("\nrun_join_predicate_filter_on_child_and_parent_tests Execution plan:")
+    joined.explain(True)
+
+    actual = joined.count()
+    expected = 10
+
+    if actual != expected:
+        issues.append(f"Join predicate filter on parent and child expected {expected} rows but found {actual}")
+
+def run_join_predicate_filter_on_parent_ambiguous_key_tests(orders, lineitem, issues):
+    print("\nrun_join_predicate_filter_on_parent_ambiguous_key_tests")
+
+    joined = (
+        orders.alias("o")
+        .join(
+            lineitem.alias("l"),
+            (col("o.O_ORDERKEY") == col("l.O_ORDERKEY"))
+            & (col("o.O_ORDERKEY") == 1),
+            "inner",
+        )
+    )
+    print("\nrun_join_predicate_filter_on_parent_ambiguous_key_tests Execution plan:")
+    joined.explain(True)
+
+    actual = joined.count()
+    expected = 6
+
+    if actual != expected:
+        issues.append(f"Join predicate filter on parent ambiguous key expected {expected} rows but found {actual}")
+
+def run_join_predicate_filter_on_child_ambiguous_key_tests(orders, lineitem, issues):
+    print("\nrun_join_predicate_filter_on_child_ambiguous_key_tests")
+
+    joined = (
+        orders.alias("o")
+        .join(
+            lineitem.alias("l"),
+            (col("o.O_ORDERKEY") == col("l.O_ORDERKEY"))
+            & (col("l.O_ORDERKEY") == 1),
+            "inner",
+        )
+    )
+    print("\nrun_join_predicate_filter_on_child_ambiguous_key_tests Execution plan:")
+    joined.explain(True)
+
+    actual = joined.count()
+    expected = 6
+
+    if actual != expected:
+        issues.append(f"Join predicate filter on child ambiguous key expected {expected} rows but found {actual}")
 
 def run_join_filter_tests(orders, lineitem, issues):
     print("\nrun_join_filter_tests")
@@ -160,13 +245,19 @@ def run_join_value_tests(orders, lineitem, issues):
 
     print("\nrun_join_value_tests Execution plan:")
     joined.explain(True)
-    actual = joined.first()
+    first = joined.first()
 
-    if actual.O_CUSTKEY != 36901:
-        issues.append(f"Join value expected 36901 rows but found {actual.O_CUSTKEY}")
+    actual = joined.count()
+    expected = 6
 
-    if actual.L_PARTKEY != 155190:
-        issues.append(f"Join value expected 155190 rows but found {actual.L_PARTKEY}")
+    if actual != expected:
+        issues.append(f"Join expected {expected} rows but found {actual}")
+
+    if first.O_CUSTKEY != 36901:
+        issues.append(f"Join value expected 36901 rows but found {first.O_CUSTKEY}")
+
+    if first.L_PARTKEY != 155190:
+        issues.append(f"Join value expected 155190 rows but found {first.L_PARTKEY}")
 
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
@@ -226,9 +317,14 @@ def main():
     issues = []
     run_inner_join_tests(orders, lineitem, issues)
     run_join_projection_tests(orders, lineitem, issues)
-    run_join_predicate_filter_tests(orders, lineitem, issues)
-    run_join_filter_tests(orders, lineitem, issues)
-#     run_join_value_tests(orders, lineitem, issues)
+    run_join_predicate_filter_on_child_tests(orders, lineitem, issues)
+    run_join_predicate_filter_on_parent_tests(orders, lineitem, issues)
+    run_join_predicate_filter_on_child_and_parent_tests(orders, lineitem, issues)
+# failing tests with ambiguous columns
+#     run_join_predicate_filter_on_parent_ambiguous_key_tests(orders, lineitem, issues)
+#     run_join_predicate_filter_on_child_ambiguous_key_tests(orders, lineitem, issues)
+#     run_join_filter_tests(orders, lineitem, issues)
+    run_join_value_tests(orders, lineitem, issues)
     write_results(spark, output_path, issues)
 
 if __name__ == '__main__':

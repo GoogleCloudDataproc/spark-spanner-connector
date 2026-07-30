@@ -22,11 +22,13 @@ import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.binding.SpannerTypeBinder;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,9 +56,18 @@ public class SpannerQueryBuilder {
     final boolean isPostgreSql = this.dialect.equals(Dialect.POSTGRESQL);
     Relation relation = logicalQuery.getSource();
     String alias = null;
+    String aliasOther = null;
     if (relation instanceof TableRelation) {
       TableRelation tableRelation = (TableRelation) relation;
       alias = tableRelation.getAlias();
+      logger.info("TableRelation found alias: {}", alias);
+    } else if (relation instanceof JoinRelation) {
+      JoinRelation joinRelation = (JoinRelation) relation;
+      TableRelation tableRelation = (TableRelation) joinRelation.getLeft();
+      alias = tableRelation.getAlias();
+      TableRelation tableRelationOther = (TableRelation) joinRelation.getRight();
+      aliasOther = tableRelationOther.getAlias();
+      logger.info("JoinRelation found alias: {}, aliasOther: {}", alias, aliasOther);
     }
 
     // 1. Use * if no requiredColumns were requested else select them.
@@ -81,15 +92,39 @@ public class SpannerQueryBuilder {
     Map<String, LiteralExpr> bindings = new HashMap<>();
     bindings.putAll(result.getBindings());
 
-    if (this.logicalQuery.getFilter().length > 0) {
-      query +=
-          " WHERE "
-              + SparkFilterUtils.getCompiledFilter(
-                  true,
-                  Optional.empty(),
-                  isPostgreSql,
-                  this.logicalQuery.getFields(),
-                  this.logicalQuery.getFilter());
+    if (this.logicalQuery.getFilter().length > 0 || this.logicalQuery.getFilterOther().length > 0) {
+      logger.info("buildSql: at least one filter found");
+      String leftFilter = null;
+      String otherFilter = null;
+      if (this.logicalQuery.getFilter().length > 0) {
+        leftFilter =
+            SparkFilterUtils.getCompiledFilter(
+                true,
+                Optional.empty(),
+                isPostgreSql,
+                this.logicalQuery.getFields(),
+                alias,
+                this.logicalQuery.getFilter());
+        logger.info("buildSql: alias: {}, left filter: {}", alias, leftFilter);
+      }
+      if (this.logicalQuery.getFilterOther().length > 0) {
+        otherFilter =
+            SparkFilterUtils.getCompiledFilter(
+                true,
+                Optional.empty(),
+                isPostgreSql,
+                this.logicalQuery.getFields(),
+                aliasOther,
+                this.logicalQuery.getFilterOther());
+        logger.info("buildSql: aliasOther: {}, other filter: {}", aliasOther, otherFilter);
+      }
+      String filterStr =
+          Stream.of(leftFilter, otherFilter)
+              .filter(Objects::nonNull)
+              .filter(s -> !s.isEmpty()) // Optional: removes empty strings too
+              .collect(Collectors.joining(" AND "));
+      query += " WHERE " + filterStr;
+      logger.info("buildSql: query: {}", query);
     }
 
     logger.debug("query: {}", query);

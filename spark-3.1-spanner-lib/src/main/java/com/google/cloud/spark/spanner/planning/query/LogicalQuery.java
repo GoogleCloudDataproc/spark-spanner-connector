@@ -28,8 +28,24 @@ public final class LogicalQuery {
   private final Relation source;
   private final Set<String> requiredColumns;
   private final Filter[] pushedFilters;
+  // Filters are kept separate on joins so they can be qualified with a table prefix.
+  private final Filter[] pushedFiltersOther;
   private final Map<String, StructField> fields;
   private final StructType joinSchema;
+
+  private LogicalQuery(Builder builder) {
+    this.source = builder.source;
+    this.requiredColumns =
+        builder.requiredColumns != null
+            ? builder.requiredColumns
+            : java.util.Collections.emptySet();
+    this.pushedFilters =
+        builder.pushedFilters != null ? builder.pushedFilters.clone() : new Filter[0];
+    this.pushedFiltersOther =
+        builder.pushedFiltersOther != null ? builder.pushedFiltersOther.clone() : new Filter[0];
+    this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
+    this.joinSchema = builder.joinSchema != null ? builder.joinSchema : null;
+  }
 
   public Relation getSource() {
     return this.source;
@@ -43,20 +59,12 @@ public final class LogicalQuery {
     return this.pushedFilters != null ? this.pushedFilters.clone() : new Filter[0];
   }
 
-  public Map<String, StructField> getFields() {
-    return this.fields;
+  public Filter[] getFilterOther() {
+    return this.pushedFiltersOther != null ? this.pushedFiltersOther.clone() : new Filter[0];
   }
 
-  private LogicalQuery(Builder builder) {
-    this.source = builder.source;
-    this.requiredColumns =
-        builder.requiredColumns != null
-            ? builder.requiredColumns
-            : java.util.Collections.emptySet();
-    this.pushedFilters =
-        builder.pushedFilters != null ? builder.pushedFilters.clone() : new Filter[0];
-    this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
-    this.joinSchema = builder.joinSchema != null ? builder.joinSchema : null;
+  public Map<String, StructField> getFields() {
+    return this.fields;
   }
 
   public StructType schema() {
@@ -79,6 +87,8 @@ public final class LogicalQuery {
     private Relation source;
     private Set<String> requiredColumns = Collections.emptySet();
     private Filter[] pushedFilters = new Filter[0];
+    // Filters are kept separate on joins so they can be qualified with a table prefix.
+    private Filter[] pushedFiltersOther = new Filter[0];
     private Map<String, StructField> fields = java.util.Collections.emptyMap();
     private StructType joinSchema;
 
@@ -96,6 +106,11 @@ public final class LogicalQuery {
 
     public Builder pushedFilters(Filter[] pushedFilters) {
       this.pushedFilters = pushedFilters;
+      return this;
+    }
+
+    public Builder pushedFiltersOther(Filter[] pushedFilters) {
+      this.pushedFiltersOther = pushedFilters;
       return this;
     }
 

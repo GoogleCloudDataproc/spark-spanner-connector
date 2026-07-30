@@ -320,10 +320,10 @@ def main():
     run_join_predicate_filter_on_child_tests(orders, lineitem, issues)
     run_join_predicate_filter_on_parent_tests(orders, lineitem, issues)
     run_join_predicate_filter_on_child_and_parent_tests(orders, lineitem, issues)
-# failing tests with ambiguous columns
-#     run_join_predicate_filter_on_parent_ambiguous_key_tests(orders, lineitem, issues)
-#     run_join_predicate_filter_on_child_ambiguous_key_tests(orders, lineitem, issues)
-#     run_join_filter_tests(orders, lineitem, issues)
+    // failing tests with ambiguous columns
+    run_join_predicate_filter_on_parent_ambiguous_key_tests(orders, lineitem, issues)
+    run_join_predicate_filter_on_child_ambiguous_key_tests(orders, lineitem, issues)
+    run_join_filter_tests(orders, lineitem, issues)
     run_join_value_tests(orders, lineitem, issues)
     write_results(spark, output_path, issues)
 

@@ -85,11 +85,9 @@ public class SpannerScanBuilder
     builder.requiredColumns(this.requiredColumns).fields(this.fields);
 
     if (this.right != null) {
-      Filter[] merged = mergeFilters(this.pushedFilters(), right.pushedFilters());
-      builder.pushedFilters(merged);
-    } else {
-      builder.pushedFilters(this.pushedFilters());
+      builder.pushedFiltersOther(right.pushedFilters());
     }
+    builder.pushedFilters(this.pushedFilters());
 
     final LogicalQuery logicalQuery = builder.build();
 

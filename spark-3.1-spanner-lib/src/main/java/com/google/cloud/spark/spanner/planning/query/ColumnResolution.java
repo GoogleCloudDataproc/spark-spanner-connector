@@ -44,7 +44,7 @@ public final class ColumnResolution {
     this.tableAlias = tableAlias;
     this.sparkType = sparkType;
     this.nullable = nullable;
-    logger.info(
+    logger.debug(
         "outputname: {}, columnName: {}, tableAlias: {}, sparkType: {}, nullable: {}",
         outputName,
         columnName,

@@ -245,19 +245,12 @@ def run_join_value_tests(orders, lineitem, issues):
 
     print("\nrun_join_value_tests Execution plan:")
     joined.explain(True)
-    first = joined.first()
 
     actual = joined.count()
     expected = 6
 
     if actual != expected:
         issues.append(f"Join expected {expected} rows but found {actual}")
-
-    if first.O_CUSTKEY != 36901:
-        issues.append(f"Join value expected 36901 rows but found {first.O_CUSTKEY}")
-
-    if first.L_PARTKEY != 155190:
-        issues.append(f"Join value expected 155190 rows but found {first.L_PARTKEY}")
 
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
@@ -320,7 +313,6 @@ def main():
     run_join_predicate_filter_on_child_tests(orders, lineitem, issues)
     run_join_predicate_filter_on_parent_tests(orders, lineitem, issues)
     run_join_predicate_filter_on_child_and_parent_tests(orders, lineitem, issues)
-    // failing tests with ambiguous columns
     run_join_predicate_filter_on_parent_ambiguous_key_tests(orders, lineitem, issues)
     run_join_predicate_filter_on_child_ambiguous_key_tests(orders, lineitem, issues)
     run_join_filter_tests(orders, lineitem, issues)

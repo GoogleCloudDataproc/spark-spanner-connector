@@ -97,11 +97,11 @@ public class SpannerScanBuilder
         System.identityHashCode(logicalQuery));
 
     this.scanner = new SpannerScanner(logicalQuery);
-    logger.info("build() {}", this.scanner.readSchema().treeString());
+    logger.debug("build() {}", this.scanner.readSchema().treeString());
     logger.info("build() {}", logicalQuery.getSource());
-    logger.info("Required columns passed to LogicalQuery:");
+    logger.debug("Required columns passed to LogicalQuery:");
     if (this.requiredColumns != null) {
-      this.requiredColumns.forEach(c -> logger.info("  {}", c));
+      this.requiredColumns.forEach(c -> logger.debug("  {}", c));
     }
 
     return this.scanner;

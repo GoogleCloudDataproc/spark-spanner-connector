@@ -118,16 +118,10 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
             right.getSchema());
 
     try {
-      logger.info("predicate class = {}", predicate.getClass());
-      logger.info("predicate = {}", predicate);
+      logger.debug("predicate class = {}", predicate.getClass());
+      logger.debug("predicate = {}", predicate);
 
       BoolExpr condition = PredicateToExprConverter.translatePredicate(predicate, resolutionMap);
-
-      // Logging
-      SqlExprVisitor sqlExprVisitor = SqlExprVisitor.create(Dialect.POSTGRESQL);
-      RenderResult result = condition.accept(sqlExprVisitor);
-      logger.info("******  condition SQL = {}", result.getSql());
-      // Logging
 
       JoinRelation joinRelation =
           new JoinRelation(

@@ -14,13 +14,10 @@
 
 package com.google.cloud.spark.spanner.scan;
 
-import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
 import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.PredicateToExprConverter;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
-import com.google.cloud.spark.spanner.rendering.RenderResult;
-import com.google.cloud.spark.spanner.rendering.SqlExprVisitor;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;

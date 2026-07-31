@@ -33,7 +33,6 @@ import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.slf4j.Logger;
@@ -70,9 +69,7 @@ public class SpannerScanner implements Batch, Scan {
       logger.info("Read Schema is null or empty");
     } else {
       logger.info("Read schema has {} fields", this.readSchema.fields().length);
-      for (StructField f : this.readSchema.fields()) {
-        logger.info("  {}", f.name());
-      }
+      logger.info(this.readSchema.treeString());
     }
 
     this.logicalQuery = logicalQuery;

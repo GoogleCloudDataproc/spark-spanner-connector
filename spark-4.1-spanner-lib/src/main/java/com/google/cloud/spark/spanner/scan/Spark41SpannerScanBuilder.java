@@ -193,12 +193,20 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       ColumnWithAlias[] columns,
       String tableAlias,
       StructType schema) {
+    logger.info("populateColumnResolutionMap: tableAlias: {}", tableAlias);
     for (SupportsPushDownJoin.ColumnWithAlias columnWithAlias : columns) {
       final String columnName = columnWithAlias.colName();
       final String alias = columnWithAlias.alias() == null ? columnName : columnWithAlias.alias();
       final StructField field = schema.apply(columnName);
       final ColumnResolution columnResolution =
           new ColumnResolution(alias, columnName, tableAlias, field.dataType(), field.nullable());
+      logger.debug(
+          "populateColumnResolutionMap: alias: {}, columnName: {}, tableAlias: {}, dataType(): {}, field.dataType(): {}, field.nullable(): {}",
+          alias,
+          columnName,
+          tableAlias,
+          field.dataType(),
+          field.nullable());
       columnResolutionMap.put(alias, columnResolution);
     }
   }

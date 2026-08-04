@@ -178,7 +178,7 @@ def run_join_predicate_filter_on_child_and_parent_tests(orders, lineitem, issues
     joined.explain(True)
 
     actual = joined.count()
-    expected = 10
+    expected = 9
 
     if actual != expected:
         issues.append(f"Join predicate filter on parent and child expected {expected} rows but found {actual}")

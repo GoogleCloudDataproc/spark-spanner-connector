@@ -17,6 +17,7 @@ package com.google.cloud.spark.spanner.scan;
 import com.google.cloud.spark.spanner.SpannerConnectorException;
 import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.SparkFilterUtils;
+import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
@@ -45,7 +46,8 @@ public class SpannerScanBuilder
   private Map<String, StructField> fields;
   private JoinRelation join;
   private StructType joinSchema;
-  protected SpannerScanBuilder right = null;
+  private Map<String, ColumnResolution> resolutionMap;
+  private SpannerScanBuilder right = null;
 
   public SpannerScanBuilder(SpannerTable spannerTable) {
     logger.info("this={} {}", System.identityHashCode(this), spannerTable.name());
@@ -62,7 +64,7 @@ public class SpannerScanBuilder
 
     if (this.join != null) {
       logger.info("building join");
-      builder.source(this.join).joinSchema(this.joinSchema);
+      builder.source(this.join).joinSchema(this.joinSchema).resolutionMap(this.resolutionMap);
       // Assume that in a join this will be between two tables. Combine schema of tables.
       for (StructField field : ((TableRelation) this.join.getLeft()).getTable().schema().fields()) {
         this.fields.put(field.name(), field);
@@ -81,9 +83,9 @@ public class SpannerScanBuilder
       throw new SpannerConnectorException(SpannerErrorCode.UNSUPPORTED, "Source type missing");
     }
 
-    logger.info("building logicalQuery with filters this={}", System.identityHashCode(this));
     builder.requiredColumns(this.requiredColumns).fields(this.fields);
 
+    logger.info("building logicalQuery with filters this={}", System.identityHashCode(this));
     if (this.right != null) {
       builder.pushedFiltersOther(right.pushedFilters());
     }
@@ -165,10 +167,16 @@ public class SpannerScanBuilder
     this.requiredColumns = ImmutableSet.copyOf(requiredSchema.fieldNames());
   }
 
-  public void setJoin(JoinRelation join, StructType joinSchema) {
+  public void setJoin(
+      JoinRelation join,
+      StructType joinSchema,
+      Map<String, ColumnResolution> resolutionMap,
+      SpannerScanBuilder right) {
     logger.info("setJoin: {}", join);
     this.join = join;
     this.joinSchema = joinSchema;
+    this.resolutionMap = resolutionMap;
+    this.right = right;
   }
 
   public String getDatabaseId() {

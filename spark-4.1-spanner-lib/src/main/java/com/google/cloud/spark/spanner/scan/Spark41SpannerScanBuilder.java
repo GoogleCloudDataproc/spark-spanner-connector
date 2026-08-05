@@ -77,9 +77,6 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       return false;
     }
     Spark41SpannerScanBuilder right = (Spark41SpannerScanBuilder) other;
-    // For joins, join condition and filter condition are not sent to the same SpannerScanBuiler.
-    // Keep both tables in the join so complete SQL rendering can be done in a single object.
-    this.right = right;
 
     if (!isJoinTypeAllowed(joinType)) {
       logger.error("pushDownJoin: join type is not allowed");
@@ -105,7 +102,7 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
 
     logger.info("pushDownJoin: joinSchema: {}", joinSchema);
 
-    Map<String, ColumnResolution> resolutionMap =
+    final Map<String, ColumnResolution> resolutionMap =
         createColumnResolutionMap(
             this.getTableName(),
             leftSideRequiredColumnsWithAliases,
@@ -127,7 +124,10 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
               sparkToConnector(joinType),
               condition);
 
-      setJoin(joinRelation, joinSchema);
+      // For joins, join condition and filter condition are not sent to the same SpannerScanBuiler
+      // by Spark.
+      // Keep both tables in the join so complete SQL rendering can be done in a single object.
+      setJoin(joinRelation, joinSchema, resolutionMap, right);
     } catch (UnsupportedOperationException e) {
       // If predicate conversion fails, fall back to Spark-side execution.
       logger.error("pushDownJoin: predicate conversion fails");

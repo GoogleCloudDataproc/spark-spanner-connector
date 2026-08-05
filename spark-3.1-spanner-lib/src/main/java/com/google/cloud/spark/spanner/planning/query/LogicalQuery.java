@@ -32,6 +32,7 @@ public final class LogicalQuery {
   private final Filter[] pushedFiltersOther;
   private final Map<String, StructField> fields;
   private final StructType joinSchema;
+  private final Map<String, ColumnResolution> resolutionMap;
 
   private LogicalQuery(Builder builder) {
     this.source = builder.source;
@@ -45,14 +46,148 @@ public final class LogicalQuery {
         builder.pushedFiltersOther != null ? builder.pushedFiltersOther.clone() : new Filter[0];
     this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
     this.joinSchema = builder.joinSchema != null ? builder.joinSchema : null;
+    this.resolutionMap = builder.resolutionMap;
   }
 
   public Relation getSource() {
     return this.source;
   }
 
-  public Set<String> getProjections() {
-    return this.requiredColumns;
+  public boolean sourceIsTable() {
+    return this.source instanceof TableRelation;
+  }
+
+  public boolean sourceIsJoin() {
+    return this.source instanceof JoinRelation;
+  }
+
+  public String getTableAlias() {
+    if (this.sourceIsTable()) {
+      return ((TableRelation) this.source).getAlias();
+    } else if (this.sourceIsJoin()) {
+      return ((TableRelation) ((JoinRelation) this.source).getLeft()).getAlias();
+    }
+    throw new SpannerConnectorException(
+        SpannerErrorCode.INVALID_ARGUMENT, "LogicalQuery is not a table relation");
+  }
+
+  public String getOtherTableAlias() {
+    if (this.sourceIsJoin()) {
+      return ((TableRelation) ((JoinRelation) this.source).getRight()).getAlias();
+    }
+    throw new SpannerConnectorException(
+        SpannerErrorCode.INVALID_ARGUMENT, "LogicalQuery is not a join relation");
+  }
+
+  /**
+   * Required columns, ie SELECT ..., are passed to the connector via pruneColumns() for a table
+   * select or pushDownJoin(leftSideRequiredColumnsWithAliases, rightSideRequiredColumnsWithAliases)
+   * for a join select. requiredColumns contains table select columns. resolutionMap contains
+   * columns for join select.
+   *
+   * @return true if Spark has indicated that the SELECT has specified specific columns.
+   */
+  public boolean hasRequiredColumns() {
+    if (this.requiredColumns != null && !this.requiredColumns.isEmpty()) {
+      return true;
+    } else if (this.sourceIsJoin()) {
+      for (ColumnResolution resolution : this.resolutionMap.values()) {
+        if (resolution
+            .getTableAlias()
+            .equals(((TableRelation) ((JoinRelation) this.source).getLeft()).getTableName())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  public boolean hasOtherRequiredColumns() {
+    if (this.sourceIsJoin()) {
+      for (ColumnResolution resolution : this.resolutionMap.values()) {
+        if (resolution
+            .getTableAlias()
+            .equals(((TableRelation) ((JoinRelation) this.source).getRight()).getTableName())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The columns in the SELECT using the alias provided by Spark, otherwise the actual column name.
+   *
+   * @return the aliases of the set of column names
+   */
+  public Set<String> getRequiredColumnsForSchema() {
+    return getRequiredColumns(true);
+  }
+
+  /**
+   * The columns in the SELECT using the actual column name.
+   *
+   * @return the set of column names
+   */
+  public Set<String> getRequiredColumnsForSelect() {
+    return getRequiredColumns(false);
+  }
+
+  private Set<String> getRequiredColumns(boolean asAlias) {
+    if (this.sourceIsTable()) {
+      return this.requiredColumns;
+    } else if (this.sourceIsJoin()) {
+      Set<String> joinRequiredColumns = new LinkedHashSet<>();
+      this.resolutionMap.forEach(
+          (key, resolution) -> {
+            if (resolution
+                .getTableAlias()
+                .equals(((TableRelation) ((JoinRelation) this.source).getLeft()).getTableName())) {
+              joinRequiredColumns.add(
+                  asAlias ? resolution.getOutputName() : resolution.getColumnName());
+            }
+          });
+      return joinRequiredColumns;
+    }
+    throw new SpannerConnectorException(
+        SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + this.source.getClass());
+  }
+
+  /**
+   * The columns for the second table in the SELECT using the alias provided by Spark, otherwise the
+   * actual column name.
+   *
+   * @return the aliases of the set of column names
+   */
+  public Set<String> getOtherRequiredColumnsForSchema() {
+    return getOtherRequiredColumns(true);
+  }
+
+  /**
+   * The columns for the second table in the SELECT using the actual column name.
+   *
+   * @return the set of column names
+   */
+  public Set<String> getOtherRequiredColumnsForSelect() {
+    return getOtherRequiredColumns(false);
+  }
+
+  private Set<String> getOtherRequiredColumns(boolean asAlias) {
+    if (this.sourceIsJoin()) {
+      Set<String> joinRequiredColumns = new LinkedHashSet<>();
+      this.resolutionMap.forEach(
+          (key, resolution) -> {
+            if (resolution
+                .getTableAlias()
+                .equals(((TableRelation) ((JoinRelation) this.source).getRight()).getTableName())) {
+              joinRequiredColumns.add(
+                  asAlias ? resolution.getOutputName() : resolution.getColumnName());
+            }
+          });
+      return joinRequiredColumns;
+    }
+    throw new SpannerConnectorException(
+        SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + this.source.getClass());
   }
 
   public Filter[] getFilter() {
@@ -68,10 +203,10 @@ public final class LogicalQuery {
   }
 
   public StructType schema() {
-    if (this.source instanceof TableRelation) {
+    if (sourceIsTable()) {
       return ((TableRelation) this.source).getTableSchema();
     }
-    if (this.source instanceof JoinRelation) {
+    if (sourceIsJoin()) {
       return this.joinSchema;
     }
     throw new SpannerConnectorException(
@@ -91,6 +226,7 @@ public final class LogicalQuery {
     private Filter[] pushedFiltersOther = new Filter[0];
     private Map<String, StructField> fields = java.util.Collections.emptyMap();
     private StructType joinSchema;
+    private Map<String, ColumnResolution> resolutionMap;
 
     private Builder() {}
 
@@ -121,6 +257,11 @@ public final class LogicalQuery {
 
     public Builder joinSchema(StructType joinSchema) {
       this.joinSchema = joinSchema;
+      return this;
+    }
+
+    public Builder resolutionMap(Map<String, ColumnResolution> resolutionMap) {
+      this.resolutionMap = resolutionMap;
       return this;
     }
 

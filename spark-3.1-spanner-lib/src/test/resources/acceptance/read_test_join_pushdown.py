@@ -83,13 +83,11 @@ def run_join_projection_tests(orders, lineitem, issues):
             "inner"
         )
         .select(
-#             col("o.O_ORDERKEY"),
-#             col("o.O_CUSTKEY"),
-#             col("l.L_PARTKEY"),
-#             col("l.L_QUANTITY")
+            col("o.O_ORDERKEY"),
+            col("l.O_ORDERKEY"),
             col("o.O_CUSTKEY"),
             col("l.L_PARTKEY"),
-            col("l.L_LINENUMBER")
+            col("l.L_QUANTITY")
         )
     )
 
@@ -97,13 +95,11 @@ def run_join_projection_tests(orders, lineitem, issues):
     joined.explain(True)
 
     expected_columns = [
-#         "O_ORDERKEY",
-#         "O_CUSTKEY",
-#         "L_PARTKEY",
-#         "L_QUANTITY",
+        "O_ORDERKEY",
+        "O_ORDERKEY",
         "O_CUSTKEY",
         "L_PARTKEY",
-        "L_LINENUMBER"
+        "L_QUANTITY"
     ]
 
     if joined.columns != expected_columns:
@@ -118,6 +114,20 @@ def run_join_projection_tests(orders, lineitem, issues):
         issues.append(
             f"Join projection expected {expected_rows} rows but found {actual_rows}"
         )
+
+    first = joined.first()
+
+    if first.O_CUSTKEY != 36901:
+        issues.append(f"Join value expected 36901 rows but found {first.O_CUSTKEY}")
+        print(f"Join value expected 36901 rows but found {first.O_CUSTKEY}")
+
+    if first.L_PARTKEY != 155190:
+        issues.append(f"Join value expected 155190 rows but found {first.L_PARTKEY}")
+        print(f"Join value expected 155190 rows but found {first.L_PARTKEY}")
+
+    status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
+
+    print(status)
 
 def run_join_predicate_filter_on_child_tests(orders, lineitem, issues):
     print("\nrun_join_predicate_filter_on_child_tests")
@@ -274,6 +284,64 @@ def run_join_value_tests(orders, lineitem, issues):
     if actual != expected:
         issues.append(f"Join expected {expected} rows but found {actual}")
 
+    first = joined.first()
+
+    if first.O_CUSTKEY != 36901:
+        issues.append(f"Join value expected 36901 rows but found {first.O_CUSTKEY}")
+        print(f"Join value expected 36901 rows but found {first.O_CUSTKEY}")
+
+    if first.L_PARTKEY != 155190:
+        issues.append(f"Join value expected 155190 rows but found {first.L_PARTKEY}")
+        print(f"Join value expected 155190 rows but found {first.L_PARTKEY}")
+
+def run_left_join_tests(orders, lineitem, issues):
+    print("\nrun_left_join_tests")
+
+    joined = (
+        orders.alias("o")
+        .join(
+            lineitem.alias("l"),
+            col("o.O_ORDERKEY") == col("l.O_ORDERKEY"),
+            "left"
+        )
+    )
+
+    print("\nrun_left_join_tests Execution plan:")
+    joined.explain(True)
+
+    actual = joined.count()
+    expected = 13
+
+    if actual != expected:
+        issues.append(
+            f"Left join expected {expected} rows but found {actual}"
+        )
+        print(f"Left join expected {expected} rows but found {actual}")
+
+def run_right_join_tests(orders, lineitem, issues):
+    print("\nrun_right_join_tests")
+
+    joined = (
+        orders.alias("o")
+        .join(
+            lineitem.alias("l"),
+            col("o.O_ORDERKEY") == col("l.O_ORDERKEY"),
+            "right"
+        )
+    )
+
+    print("\nrun_right_join_tests Execution plan:")
+    joined.explain(True)
+
+    actual = joined.count()
+    expected = 13
+
+    if actual != expected:
+        issues.append(
+            f"Right join expected {expected} rows but found {actual}"
+        )
+        print(f"Right join expected {expected} rows but found {actual}")
+
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
 
@@ -339,6 +407,8 @@ def main():
     run_join_predicate_filter_on_child_ambiguous_key_tests(orders, lineitem, issues)
     run_join_filter_tests(orders, lineitem, issues)
     run_join_value_tests(orders, lineitem, issues)
+    run_left_join_tests(orders, lineitem, issues)
+    run_right_join_tests(orders, lineitem, issues)
     write_results(spark, output_path, issues)
 
 if __name__ == '__main__':

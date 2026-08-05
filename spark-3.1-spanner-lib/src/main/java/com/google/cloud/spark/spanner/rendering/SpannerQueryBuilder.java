@@ -22,7 +22,6 @@ import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.binding.SpannerTypeBinder;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
-import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
@@ -54,35 +53,55 @@ public class SpannerQueryBuilder {
   private RenderResult buildSql() {
     logger.info("buildSql");
     final boolean isPostgreSql = this.dialect.equals(Dialect.POSTGRESQL);
-    Relation relation = logicalQuery.getSource();
     String alias = null;
     String aliasOther = null;
-    if (relation instanceof TableRelation) {
-      TableRelation tableRelation = (TableRelation) relation;
-      alias = tableRelation.getAlias();
+    if (logicalQuery.sourceIsTable()) {
+      alias = logicalQuery.getTableAlias();
       logger.info("TableRelation found alias: {}", alias);
-    } else if (relation instanceof JoinRelation) {
-      JoinRelation joinRelation = (JoinRelation) relation;
-      TableRelation tableRelation = (TableRelation) joinRelation.getLeft();
-      alias = tableRelation.getAlias();
-      TableRelation tableRelationOther = (TableRelation) joinRelation.getRight();
-      aliasOther = tableRelationOther.getAlias();
+    } else if (logicalQuery.sourceIsJoin()) {
+      alias = logicalQuery.getTableAlias();
+      aliasOther = logicalQuery.getOtherTableAlias();
       logger.info("JoinRelation found alias: {}, aliasOther: {}", alias, aliasOther);
     }
 
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
-    if (this.logicalQuery.getProjections() != null
-        && !this.logicalQuery.getProjections().isEmpty()) {
+    String columnsWithTablePrefix = null;
+    String otherColumnsWithTablePrefix = null;
+    if (this.logicalQuery.hasRequiredColumns()) {
+      logger.info("hasRequiredColumns()");
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
-      String columnsWithTablePrefix =
+      columnsWithTablePrefix =
           buildColumnsWithTablePrefix(
               alias,
-              new LinkedHashSet<>(this.logicalQuery.getProjections()),
-              dialect.equals(Dialect.POSTGRESQL));
+              new LinkedHashSet<>(this.logicalQuery.getRequiredColumnsForSelect()),
+              isPostgreSql);
       selectPrefix = "SELECT " + columnsWithTablePrefix;
+      logger.info("hasRequiredColumns() selectPrefix: {}", selectPrefix);
     }
+
+    if (this.logicalQuery.hasOtherRequiredColumns()) {
+      logger.info("hasOtherRequiredColumns()");
+      otherColumnsWithTablePrefix =
+          buildColumnsWithTablePrefix(
+              aliasOther,
+              new LinkedHashSet<>(this.logicalQuery.getOtherRequiredColumnsForSelect()),
+              isPostgreSql);
+      logger.info(
+          "hasOtherRequiredColumns() otherColumnsWithTablePrefix: {}", otherColumnsWithTablePrefix);
+    }
+    final String columns =
+        Stream.of(columnsWithTablePrefix, otherColumnsWithTablePrefix)
+            .filter(Objects::nonNull)
+            .filter(s -> !s.isEmpty()) // Optional: removes empty strings too
+            .collect(Collectors.joining(","));
+
+    if (!columns.isEmpty()) {
+      selectPrefix = "SELECT " + columns;
+      logger.info("hasOtherRequiredColumns() selectPrefix: {}", selectPrefix);
+    }
+    logger.info("!columns.isEmpty(): {}", selectPrefix);
 
     SqlRelationVisitor relationVisitor = new SqlRelationVisitor(this.dialect);
     String query = selectPrefix + " FROM ";
@@ -181,13 +200,13 @@ public class SpannerQueryBuilder {
 
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
-    if (this.logicalQuery.getProjections() != null
-        && !this.logicalQuery.getProjections().isEmpty()) {
+    if (this.logicalQuery.getRequiredColumnsForSelect() != null
+        && !this.logicalQuery.getRequiredColumnsForSelect().isEmpty()) {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
       String columnsWithTablePrefix =
           buildColumnsWithTablePrefix(
-              spannerTable.name(), this.logicalQuery.getProjections(), isPostgreSql);
+              spannerTable.name(), this.logicalQuery.getRequiredColumnsForSelect(), isPostgreSql);
       selectPrefix = "SELECT " + columnsWithTablePrefix;
     }
 

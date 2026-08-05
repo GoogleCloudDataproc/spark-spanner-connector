@@ -27,6 +27,8 @@ import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.Batch;
@@ -50,21 +52,26 @@ public class SpannerScanner implements Batch, Scan {
 
   public SpannerScanner(LogicalQuery logicalQuery) {
     final Relation source = logicalQuery.getSource();
-    if (source instanceof TableRelation) {
+    if (logicalQuery.sourceIsTable()) {
       logger.info("logicalQuery source: TableRelation");
       this.opts = ((TableRelation) source).getTable().properties();
-    } else if (source instanceof JoinRelation) {
+      logger.info("Required columns: {}", logicalQuery.getRequiredColumnsForSchema());
+      this.readSchema =
+          SpannerUtils.pruneSchema(
+              logicalQuery.schema(), logicalQuery.getRequiredColumnsForSchema());
+    } else if (logicalQuery.sourceIsJoin()) {
       logger.info("logicalQuery source: JoinRelation");
       // This assumes that a join will be between two tables and not a child join.
       this.opts = ((TableRelation) ((JoinRelation) source).getLeft()).getTable().properties();
+      Set<String> combinedRequiredColumns =
+          new HashSet<>(logicalQuery.getRequiredColumnsForSchema());
+      combinedRequiredColumns.addAll(logicalQuery.getOtherRequiredColumnsForSchema());
+      this.readSchema = SpannerUtils.pruneSchema(logicalQuery.schema(), combinedRequiredColumns);
     } else {
       throw new SpannerConnectorException(
           SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + source.getClass());
     }
     this.readTimestamp = getReadTimestamp(this.opts);
-    logger.info("Required columns: {}", logicalQuery.getProjections());
-    this.readSchema =
-        SpannerUtils.pruneSchema(logicalQuery.schema(), logicalQuery.getProjections());
     if (this.readSchema == null || this.readSchema.isEmpty()) {
       logger.info("Read Schema is null or empty");
     } else {

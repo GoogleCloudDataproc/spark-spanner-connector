@@ -25,9 +25,9 @@ public final class ColumnResolution {
 
   Logger logger = LoggerFactory.getLogger(ColumnResolution.class);
 
+  // column name provided by Spark which will be an alias if multiple columns share the same name.
   private final String
-      outputName; // column name provided by Spark which will be an alias if multiple columns share
-  // the same name.
+      outputName; // this is the column alias name if exists otherwise the physical column name.
   private final String columnName; // physical table column name
   private final String tableAlias;
   private final DataType sparkType;

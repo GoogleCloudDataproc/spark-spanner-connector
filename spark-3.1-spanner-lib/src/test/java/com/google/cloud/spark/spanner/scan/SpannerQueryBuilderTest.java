@@ -93,7 +93,7 @@ public class SpannerQueryBuilderTest {
     when(mockSpannerTable.name()).thenReturn("mockSpannerTable");
     when(mockSpannerTable.properties()).thenReturn(mockProperties);
     when(mockProperties.containsKey("indexHint")).thenReturn(Boolean.TRUE);
-    when(mockProperties.get("indexHint")).thenReturn("colA");
+    when(mockProperties.get("indexHint")).thenReturn("IndexByA");
     LogicalQuery logicalQuery =
         new LogicalQuery(
             mockSpannerTable, Collections.emptySet(), new Filter[] {}, new HashMap<>());
@@ -101,7 +101,7 @@ public class SpannerQueryBuilderTest {
         SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.GOOGLE_STANDARD_SQL);
     Statement statement = spannerQueryBuilder.buildStatement();
     String stmt = statement.toString();
-    assertThat(stmt).contains("@{FORCE_INDEX=colA}");
+    assertThat(stmt).contains("@{FORCE_INDEX=IndexByA}");
   }
 
   @Test
@@ -111,7 +111,7 @@ public class SpannerQueryBuilderTest {
     when(mockSpannerTable.name()).thenReturn("mockSpannerTable");
     when(mockSpannerTable.properties()).thenReturn(mockProperties);
     when(mockProperties.containsKey("indexHint")).thenReturn(Boolean.TRUE);
-    when(mockProperties.get("indexHint")).thenReturn("colA");
+    when(mockProperties.get("indexHint")).thenReturn("IndexByA");
     LogicalQuery logicalQuery =
         new LogicalQuery(
             mockSpannerTable, Collections.emptySet(), new Filter[] {}, new HashMap<>());
@@ -119,6 +119,6 @@ public class SpannerQueryBuilderTest {
         SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.POSTGRESQL);
     Statement statement = spannerQueryBuilder.buildStatement();
     String stmt = statement.toString();
-    assertThat(stmt).contains("/*@ FORCE_INDEX = colA */");
+    assertThat(stmt).contains("/*@ FORCE_INDEX = IndexByA */");
   }
 }

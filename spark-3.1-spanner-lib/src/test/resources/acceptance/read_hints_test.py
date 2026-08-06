@@ -33,16 +33,16 @@ def load_table(spark, project_id, instance_id, database_id, table, hint):
         .load()
     )
 
-def run_sum_tests(df, issues):
-    print("\nrun_sum_tests")
+def run_index_hint_tests(df, issues):
+    print("\nrun_index_hint_tests")
 
     df = df.select("A", "B", "D", "E")
-    actual_count = df.groupBy().sum('A').first()[0]
-    expected_count = 131
+    actual_count = df.filter(col("B") == "20").count()
+    expected_count = 1
 
     if actual_count != expected_count:
         issue = (
-            f"Sum test: expected count {expected_count}, "
+            f"Index hint test: expected count {expected_count}, "
             f"but found {actual_count}"
         )
         issues.append(issue)
@@ -60,7 +60,7 @@ def write_results(spark, output_path, issues):
     )
 
 def main():
-    spark = SparkSession.builder.appName('Read Acceptance Test on Spark - table load').getOrCreate()
+    spark = SparkSession.builder.appName('Read Acceptance Test on Spark - index hints').getOrCreate()
 
     output_path = sys.argv[1]
     project_id = sys.argv[2]
@@ -73,14 +73,14 @@ def main():
         instance_id,
         database_id,
         "ATable",
-        "B"
+        "ATableByB"
     )
 
     print('The resulting schema is')
     df.printSchema()
 
     issues = []
-    run_sum_tests(df, issues)
+    run_index_hint_tests(df, issues)
     write_results(spark, output_path, issues)
 
 if __name__ == '__main__':

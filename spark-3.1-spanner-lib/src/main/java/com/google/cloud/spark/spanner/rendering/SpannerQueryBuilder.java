@@ -81,7 +81,12 @@ public class SpannerQueryBuilder {
 
     if (this.spannerTable.properties().containsKey("indexHint")) {
       final String indexHint = this.spannerTable.properties().get("indexHint");
-      if (indexHint != null) {
+      if (indexHint != null && !indexHint.trim().isEmpty()) {
+        if (!indexHint.matches("^[a-zA-Z0-9_]+$")) {
+          throw new SpannerConnectorException(
+              SpannerErrorCode.INVALID_ARGUMENT,
+              "Invalid indexHint (must be alphanumeric and underscores only): " + indexHint);
+        }
         final String hint =
             isPostgreSql
                 ? "/*@ FORCE_INDEX = " + indexHint + " */"

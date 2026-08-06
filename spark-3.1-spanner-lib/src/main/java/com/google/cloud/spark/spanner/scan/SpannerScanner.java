@@ -27,8 +27,7 @@ import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.Batch;
@@ -63,9 +62,9 @@ public class SpannerScanner implements Batch, Scan {
       logger.info("logicalQuery source: JoinRelation");
       // This assumes that a join will be between two tables and not a child join.
       this.opts = ((TableRelation) ((JoinRelation) source).getLeft()).getTable().properties();
-      Set<String> combinedRequiredColumns =
-          new HashSet<>(logicalQuery.getRequiredColumnsForSchema());
+      List<String> combinedRequiredColumns = logicalQuery.getRequiredColumnsForSchema();
       combinedRequiredColumns.addAll(logicalQuery.getOtherRequiredColumnsForSchema());
+      logger.info("Combined required columns: {}", combinedRequiredColumns);
       this.readSchema = SpannerUtils.pruneSchema(logicalQuery.schema(), combinedRequiredColumns);
     } else {
       throw new SpannerConnectorException(

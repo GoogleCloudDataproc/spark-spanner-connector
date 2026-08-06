@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class ColumnResolution {
 
-  Logger logger = LoggerFactory.getLogger(ColumnResolution.class);
+  private static final Logger logger = LoggerFactory.getLogger(ColumnResolution.class);
 
   // column name provided by Spark which will be an alias if multiple columns share the same name.
   private final String

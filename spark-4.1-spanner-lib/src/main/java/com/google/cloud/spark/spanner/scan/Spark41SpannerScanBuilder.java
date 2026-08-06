@@ -18,7 +18,7 @@ import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
 import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.PredicateToExprConverter;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
 import org.apache.spark.sql.connector.join.JoinType;
@@ -182,7 +182,9 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       String rightTableAlias,
       ColumnWithAlias[] rightColumns,
       StructType rightSchema) {
-    Map<String, ColumnResolution> columnResolutionMap = new HashMap<>();
+    // Use LinkedHashMap to preserve insertion order.
+    // This is important to ensure required columns matches schema order.
+    Map<String, ColumnResolution> columnResolutionMap = new LinkedHashMap<>();
     populateColumnResolutionMap(columnResolutionMap, leftColumns, leftTableAlias, leftSchema);
     populateColumnResolutionMap(columnResolutionMap, rightColumns, rightTableAlias, rightSchema);
     return columnResolutionMap;

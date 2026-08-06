@@ -1,8 +1,8 @@
 package com.google.cloud.spark.spanner.graph;
 
 import com.google.cloud.spark.spanner.SpannerUtils;
-import com.google.common.collect.ImmutableSet;
-import java.util.Set;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
@@ -13,7 +13,7 @@ import org.apache.spark.sql.types.StructType;
 public class SpannerGraphScanBuilder implements ScanBuilder, SupportsPushDownRequiredColumns {
 
   private final SpannerGraph spannerGraph;
-  private @Nullable Set<String> requiredColumns;
+  private @Nullable List<String> requiredColumns;
 
   public SpannerGraphScanBuilder(SpannerGraph spannerGraph) {
     this.spannerGraph = spannerGraph;
@@ -34,6 +34,6 @@ public class SpannerGraphScanBuilder implements ScanBuilder, SupportsPushDownReq
 
   @Override
   public void pruneColumns(StructType requiredSchema) {
-    this.requiredColumns = ImmutableSet.copyOf(requiredSchema.fieldNames());
+    this.requiredColumns = ImmutableList.copyOf(requiredSchema.fieldNames());
   }
 }

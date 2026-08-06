@@ -21,7 +21,7 @@ import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import java.util.*;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class SpannerScanBuilder
     implements ScanBuilder, SupportsPushDownFilters, SupportsPushDownRequiredColumns {
   private List<Filter> pushedFilters;
-  private Set<String> requiredColumns;
+  private ImmutableList<String> requiredColumns;
   private SpannerScanner scanner;
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanBuilder.class);
   private SpannerTable spannerTable;
@@ -164,7 +164,7 @@ public class SpannerScanBuilder
     // and we should still be able to serve them back their
     // query without deduplication.
     logger.info("pruning columns. requiredSchema: {}", requiredSchema);
-    this.requiredColumns = ImmutableSet.copyOf(requiredSchema.fieldNames());
+    this.requiredColumns = ImmutableList.copyOf(requiredSchema.fieldNames());
   }
 
   public void setJoin(

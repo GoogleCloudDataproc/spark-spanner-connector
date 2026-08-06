@@ -74,9 +74,7 @@ public class SpannerQueryBuilder {
       // matches table name
       columnsWithTablePrefix =
           buildColumnsWithTablePrefix(
-              alias,
-              new LinkedHashSet<>(this.logicalQuery.getRequiredColumnsForSelect()),
-              isPostgreSql);
+              alias, this.logicalQuery.getRequiredColumnsForSelect(), isPostgreSql);
       selectPrefix = "SELECT " + columnsWithTablePrefix;
       logger.info("hasRequiredColumns() selectPrefix: {}", selectPrefix);
     }
@@ -85,9 +83,7 @@ public class SpannerQueryBuilder {
       logger.info("hasOtherRequiredColumns()");
       otherColumnsWithTablePrefix =
           buildColumnsWithTablePrefix(
-              aliasOther,
-              new LinkedHashSet<>(this.logicalQuery.getOtherRequiredColumnsForSelect()),
-              isPostgreSql);
+              aliasOther, this.logicalQuery.getOtherRequiredColumnsForSelect(), isPostgreSql);
       logger.info(
           "hasOtherRequiredColumns() otherColumnsWithTablePrefix: {}", otherColumnsWithTablePrefix);
     }
@@ -180,7 +176,7 @@ public class SpannerQueryBuilder {
   }
 
   public static String buildColumnsWithTablePrefix(
-      String tableName, Set<String> columns, boolean isPostgreSql) {
+      String tableName, List<String> columns, boolean isPostgreSql) {
     String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
     return columns.stream()
         .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
@@ -200,8 +196,7 @@ public class SpannerQueryBuilder {
 
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
-    if (this.logicalQuery.getRequiredColumnsForSelect() != null
-        && !this.logicalQuery.getRequiredColumnsForSelect().isEmpty()) {
+    if (this.logicalQuery.hasRequiredColumns()) {
       // Prefix each column with the table name to avoid ambiguity when column name
       // matches table name
       String columnsWithTablePrefix =

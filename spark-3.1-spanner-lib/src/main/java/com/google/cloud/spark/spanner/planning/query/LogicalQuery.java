@@ -19,14 +19,22 @@ import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
-import java.util.*;
+import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class LogicalQuery {
+  private static final Logger logger = LoggerFactory.getLogger(LogicalQuery.class);
   private final Relation source;
-  private final Set<String> requiredColumns;
+  private final ImmutableList<String> requiredColumns;
   private final Filter[] pushedFilters;
   // Filters are kept separate on joins so they can be qualified with a table prefix.
   private final Filter[] pushedFiltersOther;
@@ -37,14 +45,13 @@ public final class LogicalQuery {
   private LogicalQuery(Builder builder) {
     this.source = builder.source;
     this.requiredColumns =
-        builder.requiredColumns != null
-            ? builder.requiredColumns
-            : java.util.Collections.emptySet();
+        ImmutableList.copyOf(
+            builder.requiredColumns != null ? builder.requiredColumns : Collections.emptyList());
     this.pushedFilters =
         builder.pushedFilters != null ? builder.pushedFilters.clone() : new Filter[0];
     this.pushedFiltersOther =
         builder.pushedFiltersOther != null ? builder.pushedFiltersOther.clone() : new Filter[0];
-    this.fields = builder.fields != null ? builder.fields : java.util.Collections.emptyMap();
+    this.fields = builder.fields != null ? builder.fields : Collections.emptyMap();
     this.joinSchema = builder.joinSchema != null ? builder.joinSchema : null;
     this.resolutionMap = builder.resolutionMap;
   }
@@ -118,31 +125,35 @@ public final class LogicalQuery {
   /**
    * The columns in the SELECT using the alias provided by Spark, otherwise the actual column name.
    *
-   * @return the aliases of the set of column names
+   * @return the aliases of the list of column names
    */
-  public Set<String> getRequiredColumnsForSchema() {
+  public List<String> getRequiredColumnsForSchema() {
     return getRequiredColumns(true);
   }
 
   /**
    * The columns in the SELECT using the actual column name.
    *
-   * @return the set of column names
+   * @return the list of column names
    */
-  public Set<String> getRequiredColumnsForSelect() {
+  public List<String> getRequiredColumnsForSelect() {
     return getRequiredColumns(false);
   }
 
-  private Set<String> getRequiredColumns(boolean asAlias) {
+  private List<String> getRequiredColumns(boolean asAlias) {
     if (this.sourceIsTable()) {
       return this.requiredColumns;
     } else if (this.sourceIsJoin()) {
-      Set<String> joinRequiredColumns = new LinkedHashSet<>();
+      List<String> joinRequiredColumns = new ArrayList<>();
       this.resolutionMap.forEach(
           (key, resolution) -> {
             if (resolution
                 .getTableAlias()
                 .equals(((TableRelation) ((JoinRelation) this.source).getLeft()).getTableName())) {
+              logger.info(
+                  "getRequiredColumns. columnName: {}, asAlias: {}",
+                  resolution.getColumnName(),
+                  asAlias);
               joinRequiredColumns.add(
                   asAlias ? resolution.getOutputName() : resolution.getColumnName());
             }
@@ -157,29 +168,33 @@ public final class LogicalQuery {
    * The columns for the second table in the SELECT using the alias provided by Spark, otherwise the
    * actual column name.
    *
-   * @return the aliases of the set of column names
+   * @return the aliases of the list of column names
    */
-  public Set<String> getOtherRequiredColumnsForSchema() {
+  public List<String> getOtherRequiredColumnsForSchema() {
     return getOtherRequiredColumns(true);
   }
 
   /**
    * The columns for the second table in the SELECT using the actual column name.
    *
-   * @return the set of column names
+   * @return the list of column names
    */
-  public Set<String> getOtherRequiredColumnsForSelect() {
+  public List<String> getOtherRequiredColumnsForSelect() {
     return getOtherRequiredColumns(false);
   }
 
-  private Set<String> getOtherRequiredColumns(boolean asAlias) {
+  private List<String> getOtherRequiredColumns(boolean asAlias) {
     if (this.sourceIsJoin()) {
-      Set<String> joinRequiredColumns = new LinkedHashSet<>();
+      List<String> joinRequiredColumns = new ArrayList<>();
       this.resolutionMap.forEach(
           (key, resolution) -> {
             if (resolution
                 .getTableAlias()
                 .equals(((TableRelation) ((JoinRelation) this.source).getRight()).getTableName())) {
+              logger.info(
+                  "getOtherRequiredColumns. columnName: {}, asAlias: {}",
+                  resolution.getColumnName(),
+                  asAlias);
               joinRequiredColumns.add(
                   asAlias ? resolution.getOutputName() : resolution.getColumnName());
             }
@@ -220,7 +235,7 @@ public final class LogicalQuery {
   public static final class Builder {
 
     private Relation source;
-    private Set<String> requiredColumns = Collections.emptySet();
+    private List<String> requiredColumns = new ArrayList<>();
     private Filter[] pushedFilters = new Filter[0];
     // Filters are kept separate on joins so they can be qualified with a table prefix.
     private Filter[] pushedFiltersOther = new Filter[0];
@@ -235,7 +250,7 @@ public final class LogicalQuery {
       return this;
     }
 
-    public Builder requiredColumns(Set<String> requiredColumns) {
+    public Builder requiredColumns(List<String> requiredColumns) {
       this.requiredColumns = requiredColumns;
       return this;
     }

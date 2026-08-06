@@ -166,3 +166,34 @@ CREATE TABLE schema_test_table (
   name STRING(MAX),
   value FLOAT64
 ) PRIMARY KEY(id);
+
+CREATE TABLE ORDERS  ( O_ORDERKEY       INT64 NOT NULL,
+                       O_CUSTKEY        INT64 NOT NULL,
+                       O_ORDERSTATUS    STRING(1) NOT NULL,
+                       O_TOTALPRICE     NUMERIC NOT NULL,
+                       O_ORDERDATE      DATE NOT NULL,
+                       O_ORDERPRIORITY  STRING(15) NOT NULL,
+                       O_CLERK          STRING(15) NOT NULL,
+                       O_SHIPPRIORITY   INT64 NOT NULL,
+                       O_COMMENT        STRING(79) NOT NULL
+) PRIMARY KEY (O_ORDERKEY);
+
+-- Child Table: LINEITEM (Interleaved in ORDERS)
+CREATE TABLE LINEITEM ( O_ORDERKEY      INT64   NOT NULL,
+                        L_PARTKEY       INT64   NOT NULL,
+                        L_SUPPKEY       INT64   NOT NULL,
+                        L_LINENUMBER    INT64   NOT NULL,
+                        L_QUANTITY      NUMERIC NOT NULL,
+                        L_EXTENDEDPRICE NUMERIC NOT NULL,
+                        L_DISCOUNT      NUMERIC NOT NULL,
+                        L_TAX           NUMERIC NOT NULL,
+                        L_RETURNFLAG    STRING(1) NOT NULL,
+                        L_LINESTATUS    STRING(1) NOT NULL,
+                        L_SHIPDATE      DATE    NOT NULL,
+                        L_COMMITDATE    DATE    NOT NULL,
+                        L_RECEIPTDATE   DATE    NOT NULL,
+                        L_SHIPINSTRUCT  STRING(25) NOT NULL,
+                        L_SHIPMODE      STRING(10) NOT NULL,
+                        L_COMMENT       STRING(44) NOT NULL
+) PRIMARY KEY (O_ORDERKEY, L_LINENUMBER),
+                      INTERLEAVE IN PARENT ORDERS ON DELETE CASCADE;

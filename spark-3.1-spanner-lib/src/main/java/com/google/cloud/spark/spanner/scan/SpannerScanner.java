@@ -22,8 +22,12 @@ import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
+import com.google.cloud.spark.spanner.planning.relation.Relation;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.Batch;
@@ -39,7 +43,6 @@ import org.slf4j.LoggerFactory;
  * SpannerScanner implements Scan.
  */
 public class SpannerScanner implements Batch, Scan {
-  private final SpannerTable spannerTable;
   private final CaseInsensitiveStringMap opts;
   private final TimestampBound readTimestamp;
   private final StructType readSchema;
@@ -47,21 +50,46 @@ public class SpannerScanner implements Batch, Scan {
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(LogicalQuery logicalQuery) {
-    this.spannerTable = logicalQuery.getSource();
-    this.opts = this.spannerTable.properties();
+    final Relation source = logicalQuery.getSource();
+    if (logicalQuery.sourceIsTable()) {
+      logger.info("logicalQuery source: TableRelation");
+      this.opts = ((TableRelation) source).getTable().properties();
+      logger.info("Required columns: {}", logicalQuery.getRequiredColumnsForSchema());
+      this.readSchema =
+          SpannerUtils.pruneSchema(
+              logicalQuery.schema(), logicalQuery.getRequiredColumnsForSchema());
+    } else if (logicalQuery.sourceIsJoin()) {
+      logger.info("logicalQuery source: JoinRelation");
+      // This assumes that a join will be between two tables and not a child join.
+      this.opts = ((TableRelation) ((JoinRelation) source).getLeft()).getTable().properties();
+      List<String> combinedRequiredColumns = logicalQuery.getRequiredColumnsForSchema();
+      combinedRequiredColumns.addAll(logicalQuery.getOtherRequiredColumnsForSchema());
+      logger.info("Combined required columns: {}", combinedRequiredColumns);
+      this.readSchema = SpannerUtils.pruneSchema(logicalQuery.schema(), combinedRequiredColumns);
+    } else {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + source.getClass());
+    }
     this.readTimestamp = getReadTimestamp(this.opts);
-    this.readSchema =
-        SpannerUtils.pruneSchema(this.spannerTable.schema(), logicalQuery.getProjections());
+    if (this.readSchema == null || this.readSchema.isEmpty()) {
+      logger.info("Read Schema is null or empty");
+    } else {
+      logger.info("Read schema has {} fields", this.readSchema.fields().length);
+      logger.info(this.readSchema.treeString());
+    }
+
     this.logicalQuery = logicalQuery;
   }
 
   @Override
   public StructType readSchema() {
-    return readSchema;
+    logger.info("Reading schema from Spanner");
+    return this.readSchema;
   }
 
   @Override
   public Batch toBatch() {
+    logger.info("Reading batch from Spanner");
     return this;
   }
 
@@ -78,11 +106,19 @@ public class SpannerScanner implements Batch, Scan {
 
   @Override
   public InputPartition[] planInputPartitions() {
+    logger.info("planInputPartitions");
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
+    boolean enablePredicateSql = false;
+    if (this.opts.containsKey("enablePredicateSql")) {
+      enablePredicateSql = this.opts.get("enablePredicateSql").equalsIgnoreCase("true");
+      logger.info("Enable Predicate Sql: {}", enablePredicateSql);
+    }
+
     SpannerQueryBuilder result =
-        SpannerQueryBuilder.newBuilder(this.logicalQuery, batchClient.databaseClient.getDialect());
+        SpannerQueryBuilder.newBuilder(
+            this.logicalQuery, batchClient.databaseClient.getDialect(), enablePredicateSql);
 
     boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {

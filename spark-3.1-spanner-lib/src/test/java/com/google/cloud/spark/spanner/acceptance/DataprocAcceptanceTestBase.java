@@ -53,13 +53,13 @@ public class DataprocAcceptanceTestBase {
       Preconditions.checkNotNull(
           System.getenv("GOOGLE_CLOUD_PROJECT"),
           "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
-  private static final String DATABASE_ID =
+  protected static final String DATABASE_ID =
       Preconditions.checkNotNull(
               System.getenv("SPANNER_DATABASE_ID"),
               "Please set the 'SPANNER_DATABASE_ID' environment variable")
           + "-"
           + System.nanoTime();
-  private static final String INSTANCE_ID =
+  protected static final String INSTANCE_ID =
       Preconditions.checkNotNull(
           System.getenv("SPANNER_INSTANCE_ID"),
           "Please set the 'SPANNER_INSTANCE_ID' environment variable");
@@ -119,7 +119,7 @@ public class DataprocAcceptanceTestBase {
     assertThat(output.trim()).startsWith("PASS");
   }
 
-  private Job createAndRunPythonJob(
+  protected Job createAndRunPythonJob(
       String testName, String pythonFile, String pythonZipUri, List<String> args, long duration)
       throws Exception {
     AcceptanceTestUtils.uploadToGcs(

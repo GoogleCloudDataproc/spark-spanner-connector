@@ -15,14 +15,21 @@
 package com.google.cloud.spark.spanner.scan;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.when;
 
+import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.Statement;
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /** Unit tests for SpannerQueryBuilder.buildColumnsWithTablePrefix() */
 @RunWith(JUnit4.class)
@@ -79,5 +86,61 @@ public class SpannerQueryBuilderTest {
     Set<String> columns = new HashSet<>();
     String result = SpannerQueryBuilder.buildColumnsWithTablePrefix("users", columns, false);
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  public void testBuildStatement_indexHint_googleSql() {
+    CaseInsensitiveStringMap mockProperties = Mockito.mock(CaseInsensitiveStringMap.class);
+    SpannerTable mockSpannerTable = Mockito.mock(SpannerTable.class);
+    when(mockSpannerTable.name()).thenReturn("mockSpannerTable");
+    when(mockSpannerTable.properties()).thenReturn(mockProperties);
+    when(mockProperties.containsKey("indexHint")).thenReturn(Boolean.TRUE);
+    when(mockProperties.get("indexHint")).thenReturn(" IndexByA ");
+    LogicalQuery logicalQuery =
+        new LogicalQuery(
+            mockSpannerTable, Collections.emptySet(), new Filter[] {}, new HashMap<>());
+    SpannerQueryBuilder spannerQueryBuilder =
+        SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.GOOGLE_STANDARD_SQL);
+    Statement statement = spannerQueryBuilder.buildStatement();
+    String stmt = statement.toString();
+    assertThat(stmt).contains("@{FORCE_INDEX=IndexByA}");
+  }
+
+  @Test
+  public void testBuildStatement_indexHintEmpty() {
+    CaseInsensitiveStringMap mockProperties = Mockito.mock(CaseInsensitiveStringMap.class);
+    SpannerTable mockSpannerTable = Mockito.mock(SpannerTable.class);
+    when(mockSpannerTable.name()).thenReturn("mockSpannerTable");
+    when(mockSpannerTable.properties()).thenReturn(mockProperties);
+    when(mockProperties.containsKey("indexHint")).thenReturn(Boolean.TRUE);
+    when(mockProperties.get("indexHint")).thenReturn(" ");
+    LogicalQuery logicalQuery =
+        new LogicalQuery(
+            mockSpannerTable, Collections.emptySet(), new Filter[] {}, new HashMap<>());
+    SpannerQueryBuilder spannerQueryBuilder =
+        SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.GOOGLE_STANDARD_SQL);
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            spannerQueryBuilder::buildStatement);
+    assertThat(e.getMessage()).contains("Missing indexHint");
+  }
+
+  @Test
+  public void testBuildStatement_indexHint_postgresql() {
+    CaseInsensitiveStringMap mockProperties = Mockito.mock(CaseInsensitiveStringMap.class);
+    SpannerTable mockSpannerTable = Mockito.mock(SpannerTable.class);
+    when(mockSpannerTable.name()).thenReturn("mockSpannerTable");
+    when(mockSpannerTable.properties()).thenReturn(mockProperties);
+    when(mockProperties.containsKey("indexHint")).thenReturn(Boolean.TRUE);
+    when(mockProperties.get("indexHint")).thenReturn("IndexByA");
+    LogicalQuery logicalQuery =
+        new LogicalQuery(
+            mockSpannerTable, Collections.emptySet(), new Filter[] {}, new HashMap<>());
+    SpannerQueryBuilder spannerQueryBuilder =
+        SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.POSTGRESQL);
+    Statement statement = spannerQueryBuilder.buildStatement();
+    String stmt = statement.toString();
+    assertThat(stmt).contains("/*@ FORCE_INDEX=IndexByA */");
   }
 }

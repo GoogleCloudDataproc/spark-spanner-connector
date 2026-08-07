@@ -16,6 +16,8 @@ package com.google.cloud.spark.spanner.rendering;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
@@ -76,6 +78,20 @@ public class SpannerQueryBuilder {
     String quotedTableName =
         isPostgreSql ? "\"" + spannerTable.name() + "\"" : "`" + spannerTable.name() + "`";
     String sqlStmt = selectPrefix + " FROM " + quotedTableName;
+
+    final String indexHint = this.spannerTable.properties().get("indexHint");
+    if (indexHint != null) {
+      String cleanHint = indexHint.trim();
+      if (cleanHint.isEmpty()) {
+        throw new SpannerConnectorException(SpannerErrorCode.INVALID_ARGUMENT, "Missing indexHint");
+      }
+      final String hint =
+          isPostgreSql
+              ? "/*@ FORCE_INDEX=" + cleanHint + " */"
+              : "@{FORCE_INDEX=" + cleanHint + "}";
+      sqlStmt += " " + hint; // Add safe whitespace
+    }
+
     if (this.filters.length > 0) {
       sqlStmt +=
           " WHERE "

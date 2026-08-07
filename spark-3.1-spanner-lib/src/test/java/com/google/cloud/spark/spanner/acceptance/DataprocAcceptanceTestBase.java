@@ -119,6 +119,22 @@ public class DataprocAcceptanceTestBase {
     assertThat(output.trim()).startsWith("PASS");
   }
 
+  @Test
+  public void testHint() throws Exception {
+    logger.info("testHint started");
+    String testName = "test-hint";
+    Job result =
+        createAndRunPythonJob(
+            testName,
+            "read_hints_test.py",
+            null,
+            Arrays.asList(context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID),
+            300);
+    assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).startsWith("PASS");
+  }
+
   protected Job createAndRunPythonJob(
       String testName, String pythonFile, String pythonZipUri, List<String> args, long duration)
       throws Exception {

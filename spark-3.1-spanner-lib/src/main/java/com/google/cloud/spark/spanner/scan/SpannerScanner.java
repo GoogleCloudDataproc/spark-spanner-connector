@@ -19,12 +19,14 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.PartitionOptions;
+import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import com.google.common.collect.Streams;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
@@ -39,20 +41,29 @@ import org.slf4j.LoggerFactory;
  * SpannerScanner implements Scan.
  */
 public class SpannerScanner implements Batch, Scan {
-  private final SpannerTable spannerTable;
   private final CaseInsensitiveStringMap opts;
   private final TimestampBound readTimestamp;
   private final StructType readSchema;
-  private final LogicalQuery logicalQuery;
+  private final @Nullable LogicalQuery logicalQuery;
+  private final @Nullable Statement statement;
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
   public SpannerScanner(LogicalQuery logicalQuery) {
-    this.spannerTable = logicalQuery.getSource();
-    this.opts = this.spannerTable.properties();
+    SpannerTable spannerTable = logicalQuery.getSource();
+    this.opts = spannerTable.properties();
     this.readTimestamp = getReadTimestamp(this.opts);
     this.readSchema =
-        SpannerUtils.pruneSchema(this.spannerTable.schema(), logicalQuery.getProjections());
+        SpannerUtils.pruneSchema(spannerTable.schema(), logicalQuery.getProjections());
     this.logicalQuery = logicalQuery;
+    this.statement = null;
+  }
+
+  public SpannerScanner(CaseInsensitiveStringMap options, StructType schema, Statement statement) {
+    this.opts = options;
+    this.readTimestamp = getReadTimestamp(options);
+    this.readSchema = schema;
+    this.logicalQuery = null;
+    this.statement = statement;
   }
 
   @Override
@@ -81,8 +92,11 @@ public class SpannerScanner implements Batch, Scan {
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
-    SpannerQueryBuilder result =
-        SpannerQueryBuilder.newBuilder(this.logicalQuery, batchClient.databaseClient.getDialect());
+    Statement query =
+        statement != null
+            ? statement
+            : SpannerQueryBuilder.newBuilder(logicalQuery, batchClient.databaseClient.getDialect())
+                .buildStatement();
 
     boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {
@@ -95,7 +109,7 @@ public class SpannerScanner implements Batch, Scan {
       java.util.List<com.google.cloud.spanner.Partition> rawPartitions =
           txn.partitionQuery(
               PartitionOptions.getDefaultInstance(),
-              result.buildStatement(),
+              query,
               Options.dataBoostEnabled(enableDataboost));
 
       java.util.List<Partition> parts =

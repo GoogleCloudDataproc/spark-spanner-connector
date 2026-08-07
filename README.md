@@ -166,10 +166,28 @@ Variable|Validation|Comments
 projectId|String|The projectID containing the Cloud Spanner database
 instanceId|String|The instanceID of the Cloud Spanner database
 databaseId|String|The databaseID of the Cloud Spanner database
-table|String|The Table of the Cloud Spanner database that you are reading from
+table|String|The Table of the Cloud Spanner database that you are reading from. Mutually exclusive with `query`.
+query|String|A root-partitionable, read-only SQL query whose results should be loaded as a Spark DataFrame. Mutually exclusive with `table`.
 enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing).
 readTimestamp|String|An RFC 3339 timestamp identifying the database snapshot to read. Multiple table reads using the same timestamp observe a consistent snapshot. By default, each table read uses the time when its scan is created.
 emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
+
+#### Reading a SQL Query
+
+Provide `query` instead of `table` to load the results of a root-partitionable
+Spanner SQL query. The connector infers the DataFrame schema from the query
+result, partitions the query across Spark tasks, and supports the same
+`readTimestamp`, `enableDataBoost`, and `emulatorHost` options as table reads.
+Every output column must have a unique name, so computed expressions need aliases.
+
+```python
+df = spark.read.format('cloud-spanner') \
+   .option("projectId", "$YourProjectId") \
+   .option("instanceId", "$YourInstanceId") \
+   .option("databaseId", "$YourDatabaseId") \
+   .option("query", "SELECT UserId AS id, Name FROM Users WHERE Active") \
+   .load()
+```
 
 ### Writing to Spanner Tables
 

@@ -55,7 +55,7 @@ public class RelationTableTest {
     RenderResult result = relation.accept(visitor);
 
     assertThat((String) result.getSql())
-        .isEqualTo("`ATable` AS `a` INNER JOIN `BTable` AS `b` ON `a.aCol` = @p1");
+        .isEqualTo("`ATable` AS `a` INNER JOIN `BTable` AS `b` ON `a`.`aCol` = @p1");
     assertThat(result.getBindings().get("p1")).isEqualTo(aStringLiteral);
   }
 }

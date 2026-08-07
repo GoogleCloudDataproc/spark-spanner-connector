@@ -120,9 +120,7 @@ public class SpannerQueryBuilderTest {
     SpannerQueryBuilder spannerQueryBuilder =
         SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.GOOGLE_STANDARD_SQL);
     SpannerConnectorException e =
-        assertThrows(
-            SpannerConnectorException.class,
-            spannerQueryBuilder::buildStatement);
+        assertThrows(SpannerConnectorException.class, spannerQueryBuilder::buildStatement);
     assertThat(e.getMessage()).contains("Missing indexHint");
   }
 

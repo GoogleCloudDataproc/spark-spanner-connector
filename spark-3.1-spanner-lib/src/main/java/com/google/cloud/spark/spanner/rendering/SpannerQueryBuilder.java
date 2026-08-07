@@ -79,22 +79,17 @@ public class SpannerQueryBuilder {
         isPostgreSql ? "\"" + spannerTable.name() + "\"" : "`" + spannerTable.name() + "`";
     String sqlStmt = selectPrefix + " FROM " + quotedTableName;
 
-    if (this.spannerTable.properties().containsKey("indexHint")) {
-      final String indexHint = this.spannerTable.properties().get("indexHint");
-      if (indexHint != null && !indexHint.trim().isEmpty()) {
-        if (!indexHint.matches("^[a-zA-Z0-9_]+$")) {
-          throw new SpannerConnectorException(
-              SpannerErrorCode.INVALID_ARGUMENT,
-              "Invalid indexHint (must be alphanumeric and underscores only): " + indexHint);
-        }
-        final String hint =
-            isPostgreSql
-                ? "/*@ FORCE_INDEX = " + indexHint + " */"
-                : "@{FORCE_INDEX=" + indexHint + "}";
-        sqlStmt += hint;
-      } else {
+    final String indexHint = this.spannerTable.properties().get("indexHint");
+    if (indexHint != null) {
+      String cleanHint = indexHint.trim();
+      if (cleanHint.isEmpty()) {
         throw new SpannerConnectorException(SpannerErrorCode.INVALID_ARGUMENT, "Missing indexHint");
       }
+      final String hint =
+          isPostgreSql
+              ? "/*@ FORCE_INDEX=" + cleanHint + " */"
+              : "@{FORCE_INDEX=" + cleanHint + "}";
+      sqlStmt += " " + hint; // Add safe whitespace
     }
 
     if (this.filters.length > 0) {

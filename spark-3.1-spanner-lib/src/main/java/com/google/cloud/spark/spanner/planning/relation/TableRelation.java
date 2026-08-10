@@ -14,6 +14,8 @@
 
 package com.google.cloud.spark.spanner.planning.relation;
 
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.util.Objects;
 import org.apache.spark.sql.types.StructType;
@@ -43,6 +45,18 @@ public final class TableRelation implements Relation {
 
   public StructType getTableSchema() {
     return table.schema();
+  }
+
+  public String getIndexHint() {
+    final String indexHint = table.properties().get("indexHint");
+    if (indexHint == null) {
+      return null;
+    }
+    String cleanHint = indexHint.trim();
+    if (cleanHint.isEmpty()) {
+      throw new SpannerConnectorException(SpannerErrorCode.INVALID_ARGUMENT, "Missing indexHint");
+    }
+    return cleanHint;
   }
 
   @Override

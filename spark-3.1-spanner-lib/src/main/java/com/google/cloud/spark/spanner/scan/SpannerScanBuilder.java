@@ -51,7 +51,7 @@ public class SpannerScanBuilder
 
   public SpannerScanBuilder(SpannerTable spannerTable) {
     logger.info("this={} {}", System.identityHashCode(this), spannerTable.name());
-    this.pushedFilters = new ArrayList<Filter>();
+    this.pushedFilters = new ArrayList<>();
     this.spannerTable = spannerTable;
     this.fields = new LinkedHashMap<>();
   }

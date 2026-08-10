@@ -24,11 +24,9 @@ import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.Relation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
-import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.apache.spark.sql.sources.Filter;
-import org.apache.spark.sql.types.StructField;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,10 +63,12 @@ public class SpannerQueryBuilder {
       logger.info("JoinRelation found alias: {}, aliasOther: {}", alias, aliasOther);
     }
 
-    // 1. Use * if no requiredColumns were requested else select them.
+    // SELECT
+    // Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
     String columnsWithTablePrefix = null;
     String otherColumnsWithTablePrefix = null;
+
     if (this.logicalQuery.hasRequiredColumns()) {
       logger.info("hasRequiredColumns()");
       // Prefix each column with the table name to avoid ambiguity when column name
@@ -100,14 +100,16 @@ public class SpannerQueryBuilder {
     }
     logger.info("!columns.isEmpty(): {}", selectPrefix);
 
-    SqlRelationVisitor relationVisitor = new SqlRelationVisitor(this.dialect);
+    // FROM
     String query = selectPrefix + " FROM ";
+    SqlRelationVisitor relationVisitor = new SqlRelationVisitor(this.dialect);
     RenderResult result = logicalQuery.getSource().accept(relationVisitor);
     query += result.getSql();
 
     Map<String, LiteralExpr> bindings = new HashMap<>();
     bindings.putAll(result.getBindings());
 
+    // WHERE
     if (this.logicalQuery.getFilter().length > 0 || this.logicalQuery.getFilterOther().length > 0) {
       logger.info("buildSql: at least one filter found");
       String leftFilter = null;
@@ -193,7 +195,7 @@ public class SpannerQueryBuilder {
           SpannerErrorCode.INVALID_ARGUMENT,
           "Spanner Table not defined for legacy SQL generation.");
     }
-    SpannerTable spannerTable = ((TableRelation) relation).getTable();
+    final TableRelation tableRelation = (TableRelation) relation;
 
     // 1. Use * if no requiredColumns were requested else select them.
     String selectPrefix = "SELECT *";
@@ -202,24 +204,24 @@ public class SpannerQueryBuilder {
       // matches table name
       String columnsWithTablePrefix =
           buildColumnsWithTablePrefix(
-              spannerTable.name(), this.logicalQuery.getRequiredColumnsForSelect(), isPostgreSql);
+              tableRelation.getTableName(),
+              this.logicalQuery.getRequiredColumnsForSelect(),
+              isPostgreSql);
       selectPrefix = "SELECT " + columnsWithTablePrefix;
     }
 
     String quotedTableName =
-        isPostgreSql ? "\"" + spannerTable.name() + "\"" : "`" + spannerTable.name() + "`";
+        isPostgreSql
+            ? "\"" + tableRelation.getTableName() + "\""
+            : "`" + tableRelation.getTableName() + "`";
     String sqlStmt = selectPrefix + " FROM " + quotedTableName;
 
-    final String indexHint = this.spannerTable.properties().get("indexHint");
+    final String indexHint = tableRelation.getIndexHint();
     if (indexHint != null) {
-      String cleanHint = indexHint.trim();
-      if (cleanHint.isEmpty()) {
-        throw new SpannerConnectorException(SpannerErrorCode.INVALID_ARGUMENT, "Missing indexHint");
-      }
       final String hint =
           isPostgreSql
-              ? "/*@ FORCE_INDEX=" + cleanHint + " */"
-              : "@{FORCE_INDEX=" + cleanHint + "}";
+              ? "/*@ FORCE_INDEX=" + indexHint + " */"
+              : "@{FORCE_INDEX=" + indexHint + "}";
       sqlStmt += " " + hint; // Add safe whitespace
     }
 

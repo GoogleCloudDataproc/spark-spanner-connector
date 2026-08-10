@@ -22,16 +22,21 @@ from decimal import Decimal
 from datetime import date, datetime
 
 
-def load_table(spark, project_id, instance_id, database_id, table):
-    return (
+def load_table(spark, project_id, instance_id, database_id, table, **extra_options):
+    reader = (
         spark.read.format("cloud-spanner")
         .option("projectId", project_id)
         .option("instanceId", instance_id)
         .option("databaseId", database_id)
         .option("table", table)
         .option("enablePredicateSql", True)
-        .load()
     )
+
+    # Apply any extra options dynamically before loading
+    if extra_options:
+        reader = reader.options(**extra_options)
+
+    return reader.load()
 
 def run_inner_join_tests(orders, lineitem, issues):
     print("\nrun_inner_join_tests")

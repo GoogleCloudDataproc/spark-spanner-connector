@@ -25,18 +25,31 @@ public class SqlRelationVisitor implements RelationVisitor<RenderResult> {
 
   private SqlExprVisitor sqlExprVisitor;
   SpannerInformationSchema infoSchema;
+  boolean isPostgreSql;
 
   public SqlRelationVisitor(Dialect dialect) {
     this.infoSchema = SpannerInformationSchema.create(dialect);
     this.sqlExprVisitor = SqlExprVisitor.create(dialect);
+    this.isPostgreSql = (dialect == Dialect.POSTGRESQL);
   }
 
   @Override
   public RenderResult visit(TableRelation relation) {
     StringBuilder sb = new StringBuilder(infoSchema.quoteIdentifier(relation.getTableName()));
+
+    final String indexHint = relation.getIndexHint();
+    if (indexHint != null) {
+      final String hint =
+          isPostgreSql
+              ? "/*@ FORCE_INDEX=" + indexHint + " */"
+              : "@{FORCE_INDEX=" + indexHint + "}";
+      sb.append(" " + hint); // Add safe whitespace
+    }
+
     if (relation.getAlias() != null) {
       sb.append(" AS " + infoSchema.quoteIdentifier(relation.getAlias()));
     }
+
     return new RenderResult(sb.toString(), Collections.emptyMap());
   }
 

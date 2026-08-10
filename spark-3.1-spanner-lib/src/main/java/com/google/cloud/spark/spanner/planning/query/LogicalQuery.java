@@ -282,6 +282,9 @@ public final class LogicalQuery {
 
     public LogicalQuery build() {
       Objects.requireNonNull(source, "source");
+      if (this.source instanceof JoinRelation) {
+        Objects.requireNonNull(this.resolutionMap, "resolutionMap");
+      }
 
       return new LogicalQuery(this);
     }

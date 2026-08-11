@@ -347,6 +347,45 @@ def run_right_join_tests(orders, lineitem, issues):
         )
         print(f"Right join expected {expected} rows but found {actual}")
 
+def run_simple_join_projection_tests(orders, lineitem, issues):
+    print("\nrun_simple_join_projection_tests")
+
+    joined = (
+        orders.alias("o")
+        .join(
+            lineitem.alias("l"),
+            col("o.O_ORDERKEY") == col("l.O_ORDERKEY"),
+            "inner"
+        )
+        .select(
+            col("o.O_ORDERKEY")
+        )
+    )
+
+    print("\nrun_simple_join_projection_tests Execution plan:")
+    joined.explain(True)
+
+    expected_columns = [
+        "O_ORDERKEY"
+    ]
+
+    if joined.columns != expected_columns:
+        issues.append(
+            f"Simple join projection expected columns {expected_columns} but found {joined.columns}"
+        )
+
+    expected_rows = 13
+    actual_rows = joined.count()
+
+    if actual_rows != expected_rows:
+        issues.append(
+            f"Simple join projection expected {expected_rows} rows but found {actual_rows}"
+        )
+
+    status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
+
+    print(status)
+
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
 
@@ -393,7 +432,16 @@ def main():
         project_id,
         instance_id,
         database_id,
+        "LINEITEM"
+    )
+
+    lineitem_indexed = load_table(
+        spark,
+        project_id,
+        instance_id,
+        database_id,
         "LINEITEM",
+        indexHint="LineitemJoinTestIndex"
     )
 
     print('The resulting schema are')
@@ -414,6 +462,8 @@ def main():
     run_join_value_tests(orders, lineitem, issues)
     run_left_join_tests(orders, lineitem, issues)
     run_right_join_tests(orders, lineitem, issues)
+    run_simple_join_projection_tests(orders, lineitem_indexed, issues)
+
     write_results(spark, output_path, issues)
 
 if __name__ == '__main__':

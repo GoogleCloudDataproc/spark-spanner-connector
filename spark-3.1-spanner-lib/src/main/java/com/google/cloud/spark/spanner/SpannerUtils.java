@@ -421,7 +421,6 @@ public class SpannerUtils {
     }
 
     Type type = spannerRow.getColumnType(spannerRowIndex);
-    logger.info("convertRowAt: column #{}, type: {}", spannerRowIndex, type.getCode());
 
     switch (type.getCode()) {
       case BOOL:

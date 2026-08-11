@@ -31,7 +31,6 @@ public class SpannerPartitionReader<T> implements PartitionReader<T> {
 
   @Override
   public boolean next() throws IOException {
-    logger.info("Reading input partition next");
     return this.context.next();
   }
 

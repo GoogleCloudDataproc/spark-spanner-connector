@@ -639,3 +639,38 @@ Further this connector requires that `enablePredicateSql` is also set to generat
     .option("enablePredicateSql", True)
     .load()
 ```
+
+#### Index Hints and Partitioned Reads
+
+The Spark Spanner connector uses Cloud Spanner's `PartitionQuery` API to execute reads in parallel across Spark partitions. As a result, queries pushed down to Spanner must satisfy the requirements for a **root-partitionable query**.
+
+You can specify a Cloud Spanner index hint using the `FORCE_INDEX` query hint, by adding an indexHint table connector option. 
+
+Index hints are supported for both table scans and joins, but an index hint can affect the execution plan chosen by Spanner. Consequently, adding an index hint can cause a query that was previously root partitionable to become non-partitionable.
+
+For example, a query without an index hint may be accepted by `PartitionQuery`, while the same query with `FORCE_INDEX` may be rejected by Spanner because its resulting execution plan does not have a `DistributedUnion` at the root.
+
+Index hints can also be used successfully with partitionable joins. Whether a particular hinted join is root partitionable depends on the query, indexes, schema, and execution plan selected by Spanner.
+
+##### Recommendations
+
+When using index hints with the Spark Spanner connector:
+
+- Ensure that the complete SQL query is **root partitionable** according to Cloud Spanner's `PartitionQuery` requirements.
+- Test the query with the index hint enabled. Do not assume that a query remains partitionable after adding `FORCE_INDEX`.
+- Pay particular attention to joins. An index hint on one side of a join can change the execution plan and may make the complete query non-partitionable.
+- Prefer indexes that provide an appropriate access path for the query while still allowing Spanner to produce a distributed execution plan.
+- Do not assume that an index hint merely changes performance characteristics. `FORCE_INDEX` can change whether the query is eligible for partitioned execution.
+- If Spanner reports that a query is not root partitionable, changing the index hint or query shape may be necessary.
+
+The connector does not independently determine whether an arbitrary SQL query will be root partitionable. Partitionability is ultimately determined by Cloud Spanner's query execution plan.
+
+For more information, see the Cloud Spanner documentation on [reading data in parallel](https://cloud.google.com/spanner/docs/reads#read_data_in_parallel).
+
+##### Important: Valid Spanner SQL Is Not Necessarily Partitionable
+
+A query may be valid Cloud Spanner SQL and execute successfully through a normal Spanner query execution path while still being unsuitable for the Spark Spanner connector's partitioned-read execution.
+
+The Spark Spanner connector requires queries to be executable through `PartitionQuery`. Therefore, an index hint or other query construct that is valid in Cloud Spanner may nevertheless prevent the query from being used by the connector if the resulting query is not root partitionable.
+
+In particular, index hints should be considered part of the query's execution characteristics, not simply an instruction to prefer one index over another.

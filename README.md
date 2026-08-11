@@ -168,6 +168,7 @@ instanceId|String|The instanceID of the Cloud Spanner database
 databaseId|String|The databaseID of the Cloud Spanner database
 table|String|The Table of the Cloud Spanner database that you are reading from
 enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing).
+grpcCompression|String|Compression for gRPC requests and responses. Use `gzip` to enable compression or `identity` to disable it. By default, the Spanner client uses its normal compression settings.
 readTimestamp|String|An RFC 3339 timestamp identifying the database snapshot to read. Multiple table reads using the same timestamp observe a consistent snapshot. By default, each table read uses the time when its scan is created.
 emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
 
@@ -226,6 +227,7 @@ maxPendingTransactions| Integer    |The maximum number of concurrent batches tha
 mutationType| String     |The row write mode used. Valid values are: insert, insert_or_update, replace, update. Default: insert_or_update
 overwriteMode| String     |Controls behavior when using `mode("overwrite")`. `truncate` (default) deletes all rows but keeps the table schema. `recreate` drops and recreates the table from the DataFrame schema.
 enablePartialRowUpdates| Boolean    |When `true`, the connector uses the DataFrame schema instead of the Spanner table schema, allowing writes with a subset of columns. Requires `mutationType` set to `update` or `insert_or_update`. Default: `false`
+grpcCompression| String     |Compression for gRPC requests and responses. Use `gzip` to enable compression or `identity` to disable it. By default, the Spanner client uses its normal compression settings.
 emulatorHost| String     |The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
 
 `mutationsPerTransaction` and `bytesPerTransaction` are both used when building a transaction to send to spanner.

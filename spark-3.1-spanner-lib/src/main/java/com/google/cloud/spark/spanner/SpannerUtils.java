@@ -281,6 +281,10 @@ public class SpannerUtils {
             .setSessionPoolOption(sessionPoolOptions)
             .setProjectId(properties.get("projectId"))
             .setHeaderProvider(FixedHeaderProvider.create("user-agent", USER_AGENT));
+    String grpcCompression = properties.get("grpcCompression");
+    if (grpcCompression != null) {
+      builder.setCompressorName(grpcCompression);
+    }
     builder
         .getSpannerStubSettingsBuilder()
         .executeStreamingSqlSettings()

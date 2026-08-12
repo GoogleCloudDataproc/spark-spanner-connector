@@ -9,6 +9,7 @@ import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spark.spanner.SpannerConnectorException;
 import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.SpannerUtils;
+import com.google.cloud.spark.spanner.planning.query.DirectSqlQueryPlan;
 import com.google.common.collect.ImmutableSet;
 import com.google.spanner.v1.ResultSetMetadata;
 import com.google.spanner.v1.Type;
@@ -130,7 +131,7 @@ public class SpannerQueryTable implements Table, SupportsRead {
 
   @Override
   public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {
-    return () -> new SpannerScanner(properties, schema, statement);
+    return () -> new SpannerScanner(new DirectSqlQueryPlan(properties, schema, statement));
   }
 
   @Override

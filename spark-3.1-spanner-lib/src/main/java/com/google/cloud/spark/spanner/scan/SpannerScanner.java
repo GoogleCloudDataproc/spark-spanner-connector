@@ -22,11 +22,9 @@ import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
-import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
-import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
+import com.google.cloud.spark.spanner.planning.query.ExecutableQuery;
 import com.google.common.collect.Streams;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
@@ -44,26 +42,14 @@ public class SpannerScanner implements Batch, Scan {
   private final CaseInsensitiveStringMap opts;
   private final TimestampBound readTimestamp;
   private final StructType readSchema;
-  private final @Nullable LogicalQuery logicalQuery;
-  private final @Nullable Statement statement;
+  private final ExecutableQuery executableQuery;
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
-  public SpannerScanner(LogicalQuery logicalQuery) {
-    SpannerTable spannerTable = logicalQuery.getSource();
-    this.opts = spannerTable.properties();
+  public SpannerScanner(ExecutableQuery executableQuery) {
+    this.opts = executableQuery.getOptions();
     this.readTimestamp = getReadTimestamp(this.opts);
-    this.readSchema =
-        SpannerUtils.pruneSchema(spannerTable.schema(), logicalQuery.getProjections());
-    this.logicalQuery = logicalQuery;
-    this.statement = null;
-  }
-
-  public SpannerScanner(CaseInsensitiveStringMap options, StructType schema, Statement statement) {
-    this.opts = options;
-    this.readTimestamp = getReadTimestamp(options);
-    this.readSchema = schema;
-    this.logicalQuery = null;
-    this.statement = statement;
+    this.readSchema = executableQuery.getReadSchema();
+    this.executableQuery = executableQuery;
   }
 
   @Override
@@ -92,11 +78,7 @@ public class SpannerScanner implements Batch, Scan {
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
-    Statement query =
-        statement != null
-            ? statement
-            : SpannerQueryBuilder.newBuilder(logicalQuery, batchClient.databaseClient.getDialect())
-                .buildStatement();
+    Statement query = executableQuery.buildStatement(batchClient.databaseClient.getDialect());
 
     boolean enableDataboost = false;
     if (this.opts.containsKey("enableDataBoost")) {

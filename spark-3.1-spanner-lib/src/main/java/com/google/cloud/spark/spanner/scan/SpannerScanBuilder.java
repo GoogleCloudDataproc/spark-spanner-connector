@@ -16,6 +16,7 @@ package com.google.cloud.spark.spanner.scan;
 
 import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.query.LogicalQueryPlan;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -60,7 +61,7 @@ public class SpannerScanBuilder
     LogicalQuery logicalQuery =
         new LogicalQuery(this.spannerTable, this.requiredColumns, pushedFilters(), this.fields);
 
-    this.scanner = new SpannerScanner(logicalQuery);
+    this.scanner = new SpannerScanner(new LogicalQueryPlan(logicalQuery));
     return this.scanner;
   }
 

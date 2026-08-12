@@ -14,6 +14,17 @@ import org.junit.Test;
 public class Spark31QueryReadIntegrationTest extends SparkSpannerIntegrationTestBase {
 
   @Test
+  public void readsPartitionableQueryWithWildcardProjection() {
+    Dataset<Row> dataframe = readQuery("SELECT * FROM ATable");
+
+    assertThat(dataframe.columns())
+        .asList()
+        .containsExactly("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")
+        .inOrder();
+    assertThat(dataframe.count()).isEqualTo(5);
+  }
+
+  @Test
   public void readsPartitionableQueryWithAliasesAndFilters() {
     Dataset<Row> dataframe = readQuery("SELECT A AS amount, B FROM ATable WHERE A >= 10");
 

@@ -189,6 +189,10 @@ result, partitions the query across Spark tasks, and supports the same
 `readTimestamp`, `enableDataBoost`, and `emulatorHost` options as table reads.
 Every output column must have a unique name, so computed expressions need aliases.
 
+Spark filters and column projections applied to the resulting DataFrame are not
+pushed into a user-provided query. Include filters and select only the needed
+columns in the SQL query itself to have Spanner perform that work.
+
 ```python
 df = spark.read.format('cloud-spanner') \
    .option("projectId", "$YourProjectId") \
@@ -590,7 +594,9 @@ df.select("word")
 
 filters to the column `word`  and pushed down the predicate filter `word = 'hamlet' or word = 'Claudius'`. Note filters containing ArrayType column is not pushed down.
 
-Filter pushdown is currently not supported when exporting graphs.
+Filter pushdown is not supported for user-provided SQL queries or when exporting
+graphs. Column projection pushdown is also not supported for user-provided SQL
+queries.
 
 ### Monitoring
 

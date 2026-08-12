@@ -644,7 +644,7 @@ Further this connector requires that `enablePredicateSql` is also set to generat
 
 The Spark Spanner connector uses Cloud Spanner's `PartitionQuery` API to execute reads in parallel across Spark partitions. As a result, queries pushed down to Spanner must satisfy the requirements for a **root-partitionable query**.
 
-You can specify a Cloud Spanner index hint using the `FORCE_INDEX` query hint, by adding an indexHint table connector option. 
+You can specify a Cloud Spanner index hint using the `FORCE_INDEX` query hint, by adding an indexHint table connector option.
 
 Index hints are supported for both table scans and joins, but an index hint can affect the execution plan chosen by Spanner. Consequently, adding an index hint can cause a query that was previously root partitionable to become non-partitionable.
 

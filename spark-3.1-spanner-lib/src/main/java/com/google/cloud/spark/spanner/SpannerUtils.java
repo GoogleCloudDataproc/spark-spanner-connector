@@ -560,6 +560,10 @@ public class SpannerUtils {
           sparkRow.update(sparkRowIndex, null);
         }
         break;
+      case UUID:
+        sparkRow.update(
+            sparkRowIndex, UTF8String.fromString(spannerRow.getUuid(spannerRowIndex).toString().toLowerCase()));
+        break;
 
       default:
         throw new SpannerConnectorException(

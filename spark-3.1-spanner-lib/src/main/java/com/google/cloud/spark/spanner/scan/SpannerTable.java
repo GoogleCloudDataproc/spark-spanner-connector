@@ -365,6 +365,10 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     return instanceId;
   }
 
+  public String getProjectId() {
+    return projectId;
+  }
+
   public InterleaveTableMetadata getInterleavedTableMetadata() {
     log.info("getInterleavedTableMetadata retrieving tableName={}", this.tableName);
     InterleaveTableMetadata metadata = interleavedTables.get(this.tableName);

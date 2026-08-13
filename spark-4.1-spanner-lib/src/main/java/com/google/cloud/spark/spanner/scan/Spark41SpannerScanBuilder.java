@@ -56,7 +56,8 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
     Spark41SpannerScanBuilder otherScan = (Spark41SpannerScanBuilder) other;
 
     boolean isCompatible =
-        this.getDatabaseId().equals(otherScan.getDatabaseId())
+        this.getProjectId().equals(otherScan.getProjectId())
+            && this.getDatabaseId().equals(otherScan.getDatabaseId())
             && this.getInstanceId().equals(otherScan.getInstanceId());
     logger.info("isCompatible: {}", isCompatible);
     return isCompatible;

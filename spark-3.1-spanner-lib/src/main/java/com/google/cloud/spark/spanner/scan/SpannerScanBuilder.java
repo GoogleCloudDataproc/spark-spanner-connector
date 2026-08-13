@@ -61,7 +61,7 @@ public class SpannerScanBuilder
 
   @Override
   public Scan build() {
-    logger.info("this={}", System.identityHashCode(this));
+    logger.info("build() this={}", System.identityHashCode(this));
     // Build the LogicalQuery
     LogicalQuery.Builder builder = LogicalQuery.builder();
 
@@ -91,7 +91,7 @@ public class SpannerScanBuilder
     final LogicalQuery logicalQuery = builder.build();
 
     logger.info(
-        "this={}, logicalQuery={}",
+        "build() this={}, logicalQuery={}",
         System.identityHashCode(this),
         System.identityHashCode(logicalQuery));
 
@@ -168,6 +168,10 @@ public class SpannerScanBuilder
 
   public String getInstanceId() {
     return spannerTable.getInstanceId();
+  }
+
+  public String getProjectId() {
+    return spannerTable.getProjectId();
   }
 
   public StructType getSchema() {

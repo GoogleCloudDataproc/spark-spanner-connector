@@ -557,7 +557,6 @@ public class SpannerUtils {
   }
 
   public static InternalRow spannerStructToInternalRow(Struct spannerRow) {
-    logger.info("spannerStructToInternalRow called");
     int columnCount = spannerRow.getColumnCount();
     GenericInternalRow sparkRow = new GenericInternalRow(columnCount);
 

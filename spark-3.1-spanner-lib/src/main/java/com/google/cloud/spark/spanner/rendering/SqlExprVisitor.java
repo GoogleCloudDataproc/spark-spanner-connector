@@ -76,7 +76,15 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
     RenderResult right = expr.getRight().accept(this);
 
     return new RenderResult(
-        left.getSql() + " IS NOT DISTINCT FROM " + right.getSql(),
+        "("
+            + left.getSql()
+            + " IS NULL AND "
+            + right.getSql()
+            + " IS NULL) OR ("
+            + left.getSql()
+            + " = "
+            + right.getSql()
+            + ")",
         merge(left.getBindings(), right.getBindings()));
   }
 

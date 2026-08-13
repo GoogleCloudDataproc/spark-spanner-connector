@@ -245,6 +245,10 @@ public final class PredicateToExprConverter {
   private static ValueExpr translateExpression(
       GeneralScalarExpression expression, Map<String, ColumnResolution> resolutionMap) {
 
+    if (isFunction(expression.name())) {
+      return translateFunction(expression, resolutionMap);
+    }
+
     Expression[] children = expression.children();
 
     if (children.length == 2) {
@@ -252,12 +256,38 @@ public final class PredicateToExprConverter {
           translateExpression(children[0], resolutionMap),
           toArithmeticOperator(expression.name()),
           translateExpression(children[1], resolutionMap));
-    } else if (children.length == 1) {
+    }
+
+    if (children.length == 1) {
       return new UnaryExpr(
           toUnaryOperator(expression.name()), translateExpression(children[0], resolutionMap));
     }
+
     throw new UnsupportedOperationException(
         "Expression does not have 1 or 2 arguments. Actual: " + children.length);
+  }
+
+  private static boolean isFunction(String name) {
+    try {
+      FunctionExpr.Function.valueOf(name.toUpperCase(Locale.ROOT));
+      return true;
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
+  private static ValueExpr translateFunction(
+      GeneralScalarExpression expression, Map<String, ColumnResolution> resolutionMap) {
+
+    FunctionExpr.Function function =
+        FunctionExpr.Function.valueOf(expression.name().toUpperCase(Locale.ROOT));
+
+    List<ValueExpr> arguments =
+        Arrays.stream(expression.children())
+            .map(child -> translateExpression(child, resolutionMap))
+            .collect(Collectors.toList());
+
+    return new FunctionExpr(function, arguments);
   }
 
   // Translates Spark predicate operator representation to this connector's internal representation.

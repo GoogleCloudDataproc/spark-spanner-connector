@@ -17,11 +17,8 @@ package com.google.cloud.spark.spanner.scan;
 import com.google.cloud.spark.spanner.InputPartitionReaderContext;
 import java.io.IOException;
 import org.apache.spark.sql.connector.read.PartitionReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SpannerPartitionReader<T> implements PartitionReader<T> {
-  Logger logger = LoggerFactory.getLogger(SpannerPartitionReader.class);
 
   private InputPartitionReaderContext<T> context;
 

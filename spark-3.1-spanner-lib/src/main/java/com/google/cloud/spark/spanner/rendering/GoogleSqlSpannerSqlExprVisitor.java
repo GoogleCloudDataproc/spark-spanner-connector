@@ -48,6 +48,6 @@ public class GoogleSqlSpannerSqlExprVisitor extends SqlExprVisitor {
 
   @Override
   public String renderContains(String left, String right) {
-    return "CONTAINS(" + left + ", " + right + ")";
+    return "CONTAINS_SUBSTR(" + left + ", " + right + ")";
   }
 }

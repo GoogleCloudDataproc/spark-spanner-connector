@@ -14,6 +14,7 @@
 package com.google.cloud.spark.spanner.planning.query;
 
 import com.google.cloud.spark.spanner.planning.expression.*;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -22,6 +23,10 @@ import org.apache.spark.sql.connector.expressions.GeneralScalarExpression;
 import org.apache.spark.sql.connector.expressions.Literal;
 import org.apache.spark.sql.connector.expressions.NamedReference;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.DecimalType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -191,16 +196,43 @@ public final class PredicateToExprConverter {
     }
 
     if (expression instanceof Literal<?>) {
-      throw new UnsupportedOperationException("Literal translation requires column context");
+      Literal<?> literal = (Literal<?>) expression;
+      return translateLiteral(literal);
     }
 
     throw new UnsupportedOperationException(
         "Unsupported expression: " + expression.getClass().getName());
   }
 
+  private static LiteralExpr translateLiteral(Literal<?> literal) {
+    Object value = normalizeLiteralValue(literal.value(), literal.dataType());
+
+    return new LiteralExpr(value, literal.dataType());
+  }
+
+  private static Object normalizeLiteralValue(Object value, DataType dataType) {
+    if (value == null) {
+      return null;
+    }
+
+    if (dataType.sameType(DataTypes.StringType)) {
+      return value.toString();
+    }
+
+    if (dataType.sameType(DataTypes.DateType)) {
+      return java.sql.Date.valueOf(LocalDate.ofEpochDay(((Number) value).longValue()));
+    }
+
+    if (dataType instanceof DecimalType) {
+      return ((Decimal) value).toJavaBigDecimal();
+    }
+
+    return value;
+  }
+
   private static ColumnExpr translateExpression(
       NamedReference reference, Map<String, ColumnResolution> resolutionMap) {
-
+    logger.info("translateExpression field names: {}", Arrays.toString(reference.fieldNames()));
     return ExprConverterUtils.toColumn(reference.fieldNames()[0], resolutionMap);
   }
 
@@ -270,19 +302,24 @@ public final class PredicateToExprConverter {
     Expression leftExpression = predicate.children()[0];
     Expression rightExpression = predicate.children()[1];
 
-    ValueExpr left = translateExpression(leftExpression, resolutionMap);
+    ValueExpr left = translateBinaryOperand(leftExpression, rightExpression, resolutionMap);
 
-    ValueExpr right;
-
-    if (rightExpression instanceof Literal<?> && leftExpression instanceof NamedReference) {
-      // Literal types need to be inferred from the column they are compared with
-      Literal<?> literal = (Literal<?>) rightExpression;
-      NamedReference reference = (NamedReference) leftExpression;
-      right = translateExpression(literal, reference, resolutionMap);
-    } else {
-      right = translateExpression(rightExpression, resolutionMap);
-    }
+    ValueExpr right = translateBinaryOperand(rightExpression, leftExpression, resolutionMap);
 
     return factory.apply(left, right);
+  }
+
+  private static ValueExpr translateBinaryOperand(
+      Expression expression,
+      Expression otherExpression,
+      Map<String, ColumnResolution> resolutionMap) {
+
+    if (expression instanceof Literal<?> && otherExpression instanceof NamedReference) {
+      Literal<?> literal = (Literal<?>) expression;
+      NamedReference reference = (NamedReference) otherExpression;
+      return translateExpression(literal, reference, resolutionMap);
+    }
+
+    return translateExpression(expression, resolutionMap);
   }
 }

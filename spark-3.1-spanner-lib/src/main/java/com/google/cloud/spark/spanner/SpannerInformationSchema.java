@@ -78,7 +78,17 @@ public interface SpannerInformationSchema {
     return "DROP TABLE " + quoteIdentifier(tableName);
   }
 
-  static Statement getInterleaving() {
+  static Statement getInterleaving(boolean isPostgreSql) {
+    if (isPostgreSql) {
+      return Statement.of(
+          "SELECT\n"
+              + "    table_name,\n"
+              + "    parent_table_name,\n"
+              + "    interleave_type\n"
+              + "FROM information_schema.tables\n"
+              + "WHERE table_schema = 'public'");
+    }
+
     return Statement.of(
         "SELECT\n"
             + "    table_name,\n"

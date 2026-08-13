@@ -14,8 +14,13 @@
 package com.google.cloud.spark.spanner.planning.query;
 
 import com.google.cloud.spark.spanner.planning.expression.*;
+import java.time.LocalDate;
 import java.util.Map;
 import org.apache.spark.sql.sources.*;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.DecimalType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +48,28 @@ public class ExprConverterUtils {
         value);
     ColumnResolution columnResolution = resolutionMap.get(columnName);
 
-    return new LiteralExpr(value, columnResolution.getSparkType());
+    Object normalizedValue = normalizeLiteral(value, columnResolution.getSparkType());
+
+    return new LiteralExpr(normalizedValue, columnResolution.getSparkType());
+  }
+
+  private static Object normalizeLiteral(Object value, DataType type) {
+    if (value == null) {
+      return null;
+    }
+
+    if (type.sameType(DataTypes.StringType)) {
+      return value.toString();
+    }
+
+    if (type.sameType(DataTypes.DateType)) {
+      return LocalDate.ofEpochDay((Integer) value);
+    }
+
+    if (type instanceof DecimalType) {
+      return ((Decimal) value).toJavaBigDecimal();
+    }
+
+    return value;
   }
 }

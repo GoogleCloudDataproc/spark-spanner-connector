@@ -31,7 +31,7 @@ public final class SpannerTypeBinder {
     DataType type = literal.getSparkType();
 
     if (value == null) {
-      builder.bind(parameter).to(mapToSpannerType(type), (com.google.cloud.spanner.Struct) null);
+      bindNull(builder, parameter, type);
       return;
     }
 
@@ -44,7 +44,7 @@ public final class SpannerTypeBinder {
         throw new IllegalArgumentException("Decimal out of Spanner NUMERIC range");
       }
     } else if (type.sameType(DataTypes.StringType)) {
-      builder.bind(parameter).to((String) value);
+      builder.bind(parameter).to(value.toString());
     } else if (type.sameType(DataTypes.LongType)) {
       builder.bind(parameter).to((Long) value);
     } else if (type.sameType(DataTypes.BooleanType)) {
@@ -122,6 +122,49 @@ public final class SpannerTypeBinder {
     } else {
       throw new UnsupportedOperationException(
           "Unsupported Spark type for Spanner null mapping: " + type);
+    }
+  }
+
+  private static void bindNull(Statement.Builder builder, String parameter, DataType sparkType) {
+
+    Type spannerType = mapToSpannerType(sparkType);
+
+    switch (spannerType.getCode()) {
+      case STRING:
+        builder.bind(parameter).to((String) null);
+        break;
+
+      case INT64:
+        builder.bind(parameter).to((Long) null);
+        break;
+
+      case BOOL:
+        builder.bind(parameter).to((Boolean) null);
+        break;
+
+      case FLOAT64:
+        builder.bind(parameter).to((Double) null);
+        break;
+
+      case NUMERIC:
+        builder.bind(parameter).to((BigDecimal) null);
+        break;
+
+      case TIMESTAMP:
+        builder.bind(parameter).to((com.google.cloud.Timestamp) null);
+        break;
+
+      case DATE:
+        builder.bind(parameter).to((com.google.cloud.Date) null);
+        break;
+
+      case BYTES:
+        builder.bind(parameter).to((ByteArray) null);
+        break;
+
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported Spanner type for null binding: " + spannerType);
     }
   }
 }

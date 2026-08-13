@@ -127,7 +127,8 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
     RenderResult right = expr.getRight().accept(this);
 
     return new RenderResult(
-        left.getSql() + " AND " + right.getSql(), merge(left.getBindings(), right.getBindings()));
+        "(" + left.getSql() + " AND " + right.getSql() + ")",
+        merge(left.getBindings(), right.getBindings()));
   }
 
   @Override
@@ -137,7 +138,8 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
     RenderResult right = expr.getRight().accept(this);
 
     return new RenderResult(
-        left.getSql() + " OR " + right.getSql(), merge(left.getBindings(), right.getBindings()));
+        "(" + left.getSql() + " OR " + right.getSql() + ")",
+        merge(left.getBindings(), right.getBindings()));
   }
 
   @Override
@@ -249,19 +251,23 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
     switch (expr.getOperator()) {
       case ADD:
         return new RenderResult(
-            left.getSql() + "+" + right.getSql(), merge(left.getBindings(), right.getBindings()));
+            "(" + left.getSql() + "+" + right.getSql() + ")",
+            merge(left.getBindings(), right.getBindings()));
 
       case SUBTRACT:
         return new RenderResult(
-            left.getSql() + "-" + right.getSql(), merge(left.getBindings(), right.getBindings()));
+            "(" + left.getSql() + "-" + right.getSql() + ")",
+            merge(left.getBindings(), right.getBindings()));
 
       case MULTIPLY:
         return new RenderResult(
-            left.getSql() + "*" + right.getSql(), merge(left.getBindings(), right.getBindings()));
+            "(" + left.getSql() + "*" + right.getSql() + ")",
+            merge(left.getBindings(), right.getBindings()));
 
       case DIVIDE:
         return new RenderResult(
-            left.getSql() + "/" + right.getSql(), merge(left.getBindings(), right.getBindings()));
+            "(" + left.getSql() + "/" + right.getSql() + ")",
+            merge(left.getBindings(), right.getBindings()));
 
       case MOD:
         return new RenderResult(

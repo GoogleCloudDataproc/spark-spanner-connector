@@ -337,7 +337,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   }
 
   private Map<String, InterleaveTableMetadata> getInterleaving(Connection connection) {
-    Statement statement = SpannerInformationSchema.getInterleaving();
+    Statement statement = SpannerInformationSchema.getInterleaving(checkIsPostgreSql(connection));
     try (ResultSet resultSet = connection.executeQuery(statement)) {
       Map<String, InterleaveTableMetadata> tables = new HashMap<>();
       while (resultSet.next()) {
@@ -368,7 +368,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   public InterleaveTableMetadata getInterleavedTableMetadata() {
     log.info("getInterleavedTableMetadata retrieving tableName={}", this.tableName);
     InterleaveTableMetadata metadata = interleavedTables.get(this.tableName);
-    log.info(metadata.toString());
+    log.info(metadata == null ? "metadata is null" : metadata.toString());
     return metadata;
   }
 }

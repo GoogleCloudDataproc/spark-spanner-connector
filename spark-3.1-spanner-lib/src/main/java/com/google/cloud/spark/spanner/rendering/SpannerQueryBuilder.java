@@ -180,10 +180,14 @@ public class SpannerQueryBuilder {
 
   public static String buildColumnsWithTablePrefix(
       String tableName, List<String> columns, boolean isPostgreSql) {
-    String quotedTableName = isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`";
+    String tablePrefix =
+        tableName == null
+            ? ""
+            : (isPostgreSql ? "\"" + tableName + "\"" : "`" + tableName + "`") + ".";
+
     return columns.stream()
         .map(col -> isPostgreSql ? "\"" + col + "\"" : "`" + col + "`")
-        .map(quotedCol -> quotedTableName + "." + quotedCol)
+        .map(quotedCol -> tablePrefix + quotedCol)
         .collect(Collectors.joining(", "));
   }
 

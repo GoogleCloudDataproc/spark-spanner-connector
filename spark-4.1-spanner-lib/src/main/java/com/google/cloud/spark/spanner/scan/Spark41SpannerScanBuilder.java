@@ -141,6 +141,10 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
   private boolean isInterleavedJoin(SpannerScanBuilder other) {
     final InterleaveTableMetadata thisTableMetadata = this.getInterleavedTableMetadata();
     final InterleaveTableMetadata otherTableMetadata = other.getInterleavedTableMetadata();
+    if (thisTableMetadata == null && otherTableMetadata == null) {
+      return false;
+    }
+
     final String thisTableParent = thisTableMetadata.getParentTable();
     final String otherTableParent = otherTableMetadata.getParentTable();
     return otherTableParent != null && thisTableMetadata.getTableName().equals(otherTableParent)

@@ -38,16 +38,16 @@ public class PostgresSpannerSqlExprVisitor extends SqlExprVisitor {
 
   @Override
   public String renderStartsWith(String left, String right) {
-    return left + " LIKE '" + right + "%'";
+    return left + " LIKE (" + right + " || '%')";
   }
 
   @Override
   public String renderEndsWith(String left, String right) {
-    return left + " LIKE '%" + right + "'";
+    return left + " LIKE ('%' || " + right + ")";
   }
 
   @Override
   public String renderContains(String left, String right) {
-    return left + " LIKE '%" + right + "%'";
+    return left + " LIKE ('%' || " + right + " || '%')";
   }
 }

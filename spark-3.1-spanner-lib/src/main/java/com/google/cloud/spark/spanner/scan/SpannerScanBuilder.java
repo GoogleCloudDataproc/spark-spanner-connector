@@ -54,6 +54,9 @@ public class SpannerScanBuilder
     this.pushedFilters = new ArrayList<>();
     this.spannerTable = spannerTable;
     this.fields = new LinkedHashMap<>();
+    for (StructField field : this.spannerTable.schema().fields()) {
+      this.fields.put(field.name(), field);
+    }
   }
 
   @Override
@@ -66,18 +69,12 @@ public class SpannerScanBuilder
       logger.info("building join");
       builder.source(this.join).joinSchema(this.joinSchema).resolutionMap(this.resolutionMap);
       // Assume that in a join this will be between two tables. Combine schema of tables.
-      for (StructField field : ((TableRelation) this.join.getLeft()).getTable().schema().fields()) {
-        this.fields.put(field.name(), field);
-      }
       for (StructField field :
           ((TableRelation) this.join.getRight()).getTable().schema().fields()) {
         this.fields.put(field.name(), field);
       }
     } else if (this.spannerTable != null) {
       logger.info("building spanner table");
-      for (StructField field : this.spannerTable.schema().fields()) {
-        this.fields.put(field.name(), field);
-      }
       builder.source(createTableRelation());
     } else {
       throw new SpannerConnectorException(SpannerErrorCode.UNSUPPORTED, "Source type missing");
@@ -107,20 +104,6 @@ public class SpannerScanBuilder
     }
 
     return this.scanner;
-  }
-
-  private static Filter[] mergeFilters(Filter[] left, Filter[] right) {
-    if (left == null || left.length == 0) {
-      return right == null ? new Filter[0] : right;
-    }
-    if (right == null || right.length == 0) {
-      return left;
-    }
-
-    Filter[] merged = new Filter[left.length + right.length];
-    System.arraycopy(left, 0, merged, 0, left.length);
-    System.arraycopy(right, 0, merged, left.length, right.length);
-    return merged;
   }
 
   @Override

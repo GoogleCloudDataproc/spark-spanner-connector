@@ -18,14 +18,21 @@ import java.util.Objects;
 import org.apache.spark.sql.types.DataType;
 
 public final class ColumnExpr implements ValueExpr {
+
+  private final String tableAlias;
   private final String columnName;
   private final DataType sparkType;
   private final boolean nullable;
 
-  public ColumnExpr(String columnName, DataType sparkType, boolean nullable) {
+  public ColumnExpr(String tableAlias, String columnName, DataType sparkType, boolean nullable) {
+    this.tableAlias = Objects.requireNonNull(tableAlias, "tableAlias cannot be null");
     this.columnName = Objects.requireNonNull(columnName, "columnName cannot be null");
     this.sparkType = Objects.requireNonNull(sparkType, "sparkType cannot be null");
     this.nullable = nullable;
+  }
+
+  public String getTableAlias() {
+    return tableAlias;
   }
 
   public boolean isNullable() {

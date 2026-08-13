@@ -53,5 +53,7 @@ public interface SpannerExprVisitor<T> {
 
   T visit(ArithmeticExpr expr);
 
+  T visit(UnaryExpr expr);
+
   T visit(FunctionExpr expr);
 }

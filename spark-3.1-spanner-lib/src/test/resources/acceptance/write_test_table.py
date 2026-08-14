@@ -20,9 +20,12 @@ from pyspark.sql import SparkSession, Row
 from pyspark.sql.types import StructType, StructField, StringType, LongType, BinaryType, TimestampType, DecimalType, BooleanType, DoubleType, DateType, ArrayType
 
 def main():
+    print("\n\nWrite Acceptance Test\n\n")
 
     # Initialize Spark Session
     spark = SparkSession.builder.appName('Write Acceptance Test on Spark').getOrCreate()
+
+    print("spark.version: ", spark.version)
 
     # 1. Define the Schema (Column Name, Type, Nullable)
     schema = StructType([
@@ -80,6 +83,7 @@ def main():
     print('The resulting schema is')
     df.printSchema()
     df.show()
+    print("spark.version: ", spark.version)
 
     df_result = verify_data_to_df(dfw, df, spark, {"A"})
     df_result.show()

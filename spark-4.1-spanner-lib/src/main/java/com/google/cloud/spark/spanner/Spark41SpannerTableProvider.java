@@ -14,4 +14,20 @@
 
 package com.google.cloud.spark.spanner;
 
-public class Spark41SpannerTableProvider extends SparkSpannerTableProviderBase {}
+import com.google.cloud.spark.spanner.scan.SpannerTable;
+import com.google.cloud.spark.spanner.scan.Spark41SpannerTable;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Spark41SpannerTableProvider extends SparkSpannerTableProviderBase {
+
+  private static final Logger logger = LoggerFactory.getLogger(Spark41SpannerTableProvider.class);
+
+  @Override
+  public SpannerTable createSpannerTable(CaseInsensitiveStringMap options, StructType schema) {
+    logger.info("Creating Spark41SpannerTable - options: {}, schema: {}", options, schema);
+    return new Spark41SpannerTable(options, schema);
+  }
+}

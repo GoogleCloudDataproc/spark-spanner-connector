@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -68,9 +67,12 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.apache.spark.unsafe.types.UTF8String;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
 public class SpannerUtils {
+  private static final Logger logger = LoggerFactory.getLogger(SpannerUtils.class);
 
   // GCP project ID naming rules (also allows legacy domain-scoped projects like
   // "example.com:my-project" and numeric project IDs):
@@ -419,6 +421,7 @@ public class SpannerUtils {
     }
 
     Type type = spannerRow.getColumnType(spannerRowIndex);
+
     switch (type.getCode()) {
       case BOOL:
         sparkRow.setBoolean(sparkRowIndex, spannerRow.getBoolean(spannerRowIndex));
@@ -575,7 +578,7 @@ public class SpannerUtils {
   }
 
   public static StructType pruneSchema(
-      StructType originalSchema, @Nullable Set<String> includeColumns) {
+      StructType originalSchema, @Nullable List<String> includeColumns) {
     if (includeColumns == null || includeColumns.isEmpty()) return originalSchema;
     StructType prunedSchema = new StructType();
     for (StructField field : originalSchema.fields()) {

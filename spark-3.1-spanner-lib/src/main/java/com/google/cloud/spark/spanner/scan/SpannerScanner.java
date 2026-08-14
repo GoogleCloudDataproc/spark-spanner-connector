@@ -50,15 +50,23 @@ public class SpannerScanner implements Batch, Scan {
     this.readTimestamp = getReadTimestamp(this.opts);
     this.readSchema = executableQuery.getReadSchema();
     this.executableQuery = executableQuery;
+    if (this.readSchema == null || this.readSchema.isEmpty()) {
+      logger.info("Read Schema is null or empty");
+    } else {
+      logger.info("Read schema has {} fields", this.readSchema.fields().length);
+      logger.info(this.readSchema.treeString());
+    }
   }
 
   @Override
   public StructType readSchema() {
-    return readSchema;
+    logger.info("Reading schema from Spanner");
+    return this.readSchema;
   }
 
   @Override
   public Batch toBatch() {
+    logger.info("Reading batch from Spanner");
     return this;
   }
 
@@ -75,6 +83,7 @@ public class SpannerScanner implements Batch, Scan {
 
   @Override
   public InputPartition[] planInputPartitions() {
+    logger.info("planInputPartitions");
 
     BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
 
@@ -85,6 +94,7 @@ public class SpannerScanner implements Batch, Scan {
       enableDataboost = this.opts.get("enableDataBoost").equalsIgnoreCase("true");
     }
 
+    logger.info("Executing PartitionQuery");
     try (BatchReadOnlyTransaction txn =
         batchClient.batchClient.batchReadOnlyTransaction(readTimestamp)) {
       String mapAsJSON = SpannerUtils.serializeMap(this.opts);

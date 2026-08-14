@@ -16,6 +16,7 @@ package com.google.cloud.spark.spanner.scan;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -23,12 +24,18 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
+import com.google.cloud.spark.spanner.planning.expression.TrueExpr;
+import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.DirectSqlQueryPlan;
 import com.google.cloud.spark.spanner.planning.query.ExecutableQuery;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.query.LogicalQueryPlan;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
+import com.google.cloud.spark.spanner.planning.relation.JoinType;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.DataTypes;
@@ -72,8 +79,12 @@ public class SpannerScannerTest {
     when(spannerTable.schema()).thenReturn(tableSchema);
     when(spannerTable.name()).thenReturn("Users");
     LogicalQuery logicalQuery =
-        new LogicalQuery(
-            spannerTable, Collections.singleton("id"), new Filter[0], Collections.emptyMap());
+        LogicalQuery.builder()
+            .source(new TableRelation("Users", "Users", spannerTable))
+            .requiredColumns(Collections.singletonList("id"))
+            .pushedFilters(new Filter[0])
+            .fields(Collections.emptyMap())
+            .build();
 
     ExecutableQuery executableQuery = new LogicalQueryPlan(logicalQuery);
 
@@ -97,5 +108,47 @@ public class SpannerScannerTest {
     assertSame(schema, executableQuery.getReadSchema());
     assertSame(statement, executableQuery.buildStatement(Dialect.GOOGLE_STANDARD_SQL));
     assertEquals(schema, new SpannerScanner(executableQuery).readSchema());
+  }
+
+  @Test
+  public void logicalQueryPlanPreservesJoinOptionsProjectionAndPredicateRendering() {
+    Map<String, String> optionValues = new HashMap<>();
+    optionValues.put("enablePredicateSql", "true");
+    CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(optionValues);
+    SpannerTable orders = mock(SpannerTable.class);
+    SpannerTable items = mock(SpannerTable.class);
+    when(orders.properties()).thenReturn(options);
+    when(items.properties()).thenReturn(options);
+    TableRelation ordersRelation = new TableRelation("Orders", "Orders", orders);
+    TableRelation itemsRelation = new TableRelation("Items", "Items", items);
+    JoinRelation join =
+        new JoinRelation(ordersRelation, itemsRelation, JoinType.INNER, new TrueExpr());
+    StructType joinSchema =
+        new StructType()
+            .add("order_id", DataTypes.LongType)
+            .add("item_id", DataTypes.LongType)
+            .add("unused", DataTypes.StringType);
+    Map<String, ColumnResolution> resolutionMap = new LinkedHashMap<>();
+    resolutionMap.put(
+        "order_id", new ColumnResolution("order_id", "id", "Orders", DataTypes.LongType, true));
+    resolutionMap.put(
+        "item_id", new ColumnResolution("item_id", "id", "Items", DataTypes.LongType, true));
+    LogicalQuery logicalQuery =
+        LogicalQuery.builder()
+            .source(join)
+            .joinSchema(joinSchema)
+            .resolutionMap(resolutionMap)
+            .build();
+
+    ExecutableQuery executableQuery = new LogicalQueryPlan(logicalQuery);
+    String sql = executableQuery.buildStatement(Dialect.GOOGLE_STANDARD_SQL).getSql();
+
+    assertSame(options, executableQuery.getOptions());
+    assertEquals(
+        new StructType().add("order_id", DataTypes.LongType).add("item_id", DataTypes.LongType),
+        executableQuery.getReadSchema());
+    assertTrue(sql.contains("INNER JOIN"));
+    assertTrue(sql.contains("ON TRUE"));
+    assertEquals(executableQuery.getReadSchema(), new SpannerScanner(executableQuery).readSchema());
   }
 }

@@ -72,13 +72,13 @@ public class DataprocServerlessAcceptanceTestBase {
   // the teardown we delete the Cloud Spanner database, hence use
   // system time.Nanos to avoid any cross-pollution between concurrently
   // running tests.
-  private static final String DATABASE_ID =
+  protected static final String DATABASE_ID =
       Preconditions.checkNotNull(
               System.getenv("SPANNER_DATABASE_ID"),
               "Please set the 'SPANNER_DATABASE_ID' environment variable")
           + "-"
           + System.nanoTime();
-  private static final String INSTANCE_ID =
+  protected static final String INSTANCE_ID =
       Preconditions.checkNotNull(
           System.getenv("SPANNER_INSTANCE_ID"),
           "Please set the 'SPANNER_INSTANCE_ID' environment variable");
@@ -92,15 +92,15 @@ public class DataprocServerlessAcceptanceTestBase {
 
   BatchControllerClient batchController;
   private final String s8sImageVersion;
-  private final String testName;
-  private AcceptanceTestContext context;
+  protected final String testName;
+  protected AcceptanceTestContext context;
 
   public DataprocServerlessAcceptanceTestBase(String s8sImageVersion) {
     this.s8sImageVersion = s8sImageVersion;
     testName = s8sImageVersion.replace(".", "").toLowerCase(Locale.ENGLISH);
   }
 
-  private AcceptanceTestContext generateContext(String testId) {
+  protected AcceptanceTestContext generateContext(String testId) {
     // Cluster name has a length limit of 63 characters. The name format is:
     // <prefix><testName>-<testId>-<time in milliseconds>
     //

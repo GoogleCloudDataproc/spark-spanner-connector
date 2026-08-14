@@ -60,7 +60,7 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
     boolean hasGraph = options.containsKey("graph");
     boolean hasQuery = options.containsKey("query");
     if (hasTable && !hasGraph && !hasQuery) {
-      return new SpannerTable(options, schema);
+      return createSpannerTable(options, schema);
     } else if (!hasTable && hasGraph && !hasQuery) {
       return SpannerGraphBuilder.build(options);
     } else if (!hasTable && !hasGraph && hasQuery) {
@@ -70,6 +70,10 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
           SpannerErrorCode.INVALID_ARGUMENT,
           "properties must contain exactly one of \"table\", \"graph\", or \"query\"");
     }
+  }
+
+  public SpannerTable createSpannerTable(CaseInsensitiveStringMap options, StructType schema) {
+    return new SpannerTable(options, schema);
   }
 
   /*

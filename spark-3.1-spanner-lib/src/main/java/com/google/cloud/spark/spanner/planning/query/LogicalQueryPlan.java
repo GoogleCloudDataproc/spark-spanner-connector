@@ -16,14 +16,20 @@ package com.google.cloud.spark.spanner.planning.query;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.SpannerUtils;
+import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
+import com.google.cloud.spark.spanner.planning.relation.Relation;
+import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
-import com.google.cloud.spark.spanner.scan.SpannerTable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-/** Adapts an existing logical table query for execution by the shared Spanner scanner. */
+/** Adapts a logical table or join query for execution by the shared Spanner scanner. */
 public final class LogicalQueryPlan implements ExecutableQuery {
 
   private final LogicalQuery logicalQuery;
@@ -34,17 +40,33 @@ public final class LogicalQueryPlan implements ExecutableQuery {
 
   @Override
   public CaseInsensitiveStringMap getOptions() {
-    return logicalQuery.getSource().properties();
+    Relation source = logicalQuery.getSource();
+    if (logicalQuery.sourceIsTable()) {
+      return ((TableRelation) source).getTable().properties();
+    }
+    if (logicalQuery.sourceIsJoin()) {
+      return ((TableRelation) ((JoinRelation) source).getLeft()).getTable().properties();
+    }
+    throw new SpannerConnectorException(
+        SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + source.getClass());
   }
 
   @Override
   public StructType getReadSchema() {
-    SpannerTable spannerTable = logicalQuery.getSource();
-    return SpannerUtils.pruneSchema(spannerTable.schema(), logicalQuery.getProjections());
+    List<String> requiredColumns = new ArrayList<>(logicalQuery.getRequiredColumnsForSchema());
+    if (logicalQuery.sourceIsJoin()) {
+      requiredColumns.addAll(logicalQuery.getOtherRequiredColumnsForSchema());
+    }
+    return SpannerUtils.pruneSchema(logicalQuery.schema(), requiredColumns);
   }
 
   @Override
   public Statement buildStatement(Dialect dialect) {
-    return SpannerQueryBuilder.newBuilder(logicalQuery, dialect).buildStatement();
+    CaseInsensitiveStringMap options = getOptions();
+    boolean enablePredicateSql =
+        options.containsKey("enablePredicateSql")
+            && options.get("enablePredicateSql").equalsIgnoreCase("true");
+    return SpannerQueryBuilder.newBuilder(logicalQuery, dialect, enablePredicateSql)
+        .buildStatement();
   }
 }

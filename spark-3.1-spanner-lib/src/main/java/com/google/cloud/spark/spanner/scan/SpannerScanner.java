@@ -85,45 +85,43 @@ public class SpannerScanner implements Batch, Scan {
   public InputPartition[] planInputPartitions() {
     logger.info("planInputPartitions");
 
-    BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
+    try (BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts)) {
+      Statement query = executableQuery.buildStatement(batchClient.databaseClient.getDialect());
 
-    Statement query = executableQuery.buildStatement(batchClient.databaseClient.getDialect());
+      boolean enableDataboost = false;
+      if (this.opts.containsKey("enableDataBoost")) {
+        enableDataboost = this.opts.get("enableDataBoost").equalsIgnoreCase("true");
+      }
 
-    boolean enableDataboost = false;
-    if (this.opts.containsKey("enableDataBoost")) {
-      enableDataboost = this.opts.get("enableDataBoost").equalsIgnoreCase("true");
-    }
+      logger.info("Executing PartitionQuery");
+      try (BatchReadOnlyTransaction txn =
+          batchClient.batchClient.batchReadOnlyTransaction(readTimestamp)) {
+        String mapAsJSON = SpannerUtils.serializeMap(this.opts);
+        java.util.List<com.google.cloud.spanner.Partition> rawPartitions =
+            txn.partitionQuery(
+                PartitionOptions.getDefaultInstance(),
+                query,
+                Options.dataBoostEnabled(enableDataboost));
 
-    logger.info("Executing PartitionQuery");
-    try (BatchReadOnlyTransaction txn =
-        batchClient.batchClient.batchReadOnlyTransaction(readTimestamp)) {
-      String mapAsJSON = SpannerUtils.serializeMap(this.opts);
-      java.util.List<com.google.cloud.spanner.Partition> rawPartitions =
-          txn.partitionQuery(
-              PartitionOptions.getDefaultInstance(),
-              query,
-              Options.dataBoostEnabled(enableDataboost));
+        java.util.List<Partition> parts =
+            Streams.mapWithIndex(
+                    rawPartitions.stream(),
+                    (part, index) ->
+                        new SpannerPartition(
+                            part,
+                            Math.toIntExact(index),
+                            new SpannerInputPartitionContext(
+                                part,
+                                txn.getBatchTransactionId(),
+                                mapAsJSON,
+                                new SpannerRowConverterDirect())))
+                .collect(Collectors.toList());
 
-      java.util.List<Partition> parts =
-          Streams.mapWithIndex(
-                  rawPartitions.stream(),
-                  (part, index) ->
-                      new SpannerPartition(
-                          part,
-                          Math.toIntExact(index),
-                          new SpannerInputPartitionContext(
-                              part,
-                              txn.getBatchTransactionId(),
-                              mapAsJSON,
-                              new SpannerRowConverterDirect())))
-              .collect(Collectors.toList());
-
-      return parts.toArray(new InputPartition[0]);
+        return parts.toArray(new InputPartition[0]);
+      }
     } catch (JsonProcessingException e) {
       throw new SpannerConnectorException(
           SpannerErrorCode.SPANNER_FAILED_TO_PARSE_OPTIONS, "Error parsing the input options.", e);
-    } finally {
-      batchClient.close();
     }
   }
 }

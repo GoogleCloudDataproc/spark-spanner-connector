@@ -19,6 +19,7 @@ import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
+import com.google.cloud.spark.spanner.planning.query.LogicalQueryPlan;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.common.collect.ImmutableList;
@@ -95,7 +96,7 @@ public class SpannerScanBuilder
         System.identityHashCode(this),
         System.identityHashCode(logicalQuery));
 
-    this.scanner = new SpannerScanner(logicalQuery);
+    this.scanner = new SpannerScanner(new LogicalQueryPlan(logicalQuery));
     logger.debug("build() {}", this.scanner.readSchema().treeString());
     logger.info("build() {}", logicalQuery.getSource());
     logger.debug("Required columns passed to LogicalQuery:");

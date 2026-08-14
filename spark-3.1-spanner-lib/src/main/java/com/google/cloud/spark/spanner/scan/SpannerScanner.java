@@ -16,15 +16,14 @@ package com.google.cloud.spark.spanner.scan;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.*;
+import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.Options;
+import com.google.cloud.spanner.PartitionOptions;
+import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spark.spanner.*;
-import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
-import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
-import com.google.cloud.spark.spanner.planning.relation.Relation;
-import com.google.cloud.spark.spanner.planning.relation.TableRelation;
-import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
+import com.google.cloud.spark.spanner.planning.query.ExecutableQuery;
 import com.google.common.collect.Streams;
-import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.spark.Partition;
 import org.apache.spark.sql.connector.read.Batch;
@@ -43,39 +42,20 @@ public class SpannerScanner implements Batch, Scan {
   private final CaseInsensitiveStringMap opts;
   private final TimestampBound readTimestamp;
   private final StructType readSchema;
-  private final LogicalQuery logicalQuery;
+  private final ExecutableQuery executableQuery;
   private static final Logger logger = LoggerFactory.getLogger(SpannerScanner.class);
 
-  public SpannerScanner(LogicalQuery logicalQuery) {
-    final Relation source = logicalQuery.getSource();
-    if (logicalQuery.sourceIsTable()) {
-      logger.info("logicalQuery source: TableRelation");
-      this.opts = ((TableRelation) source).getTable().properties();
-      logger.info("Required columns: {}", logicalQuery.getRequiredColumnsForSchema());
-      this.readSchema =
-          SpannerUtils.pruneSchema(
-              logicalQuery.schema(), logicalQuery.getRequiredColumnsForSchema());
-    } else if (logicalQuery.sourceIsJoin()) {
-      logger.info("logicalQuery source: JoinRelation");
-      // This assumes that a join will be between two tables and not a child join.
-      this.opts = ((TableRelation) ((JoinRelation) source).getLeft()).getTable().properties();
-      List<String> combinedRequiredColumns = logicalQuery.getRequiredColumnsForSchema();
-      combinedRequiredColumns.addAll(logicalQuery.getOtherRequiredColumnsForSchema());
-      logger.info("Combined required columns: {}", combinedRequiredColumns);
-      this.readSchema = SpannerUtils.pruneSchema(logicalQuery.schema(), combinedRequiredColumns);
-    } else {
-      throw new SpannerConnectorException(
-          SpannerErrorCode.UNSUPPORTED, "Source type not supported:" + source.getClass());
-    }
+  public SpannerScanner(ExecutableQuery executableQuery) {
+    this.opts = executableQuery.getOptions();
     this.readTimestamp = getReadTimestamp(this.opts);
+    this.readSchema = executableQuery.getReadSchema();
+    this.executableQuery = executableQuery;
     if (this.readSchema == null || this.readSchema.isEmpty()) {
       logger.info("Read Schema is null or empty");
     } else {
       logger.info("Read schema has {} fields", this.readSchema.fields().length);
       logger.info(this.readSchema.treeString());
     }
-
-    this.logicalQuery = logicalQuery;
   }
 
   @Override
@@ -105,53 +85,43 @@ public class SpannerScanner implements Batch, Scan {
   public InputPartition[] planInputPartitions() {
     logger.info("planInputPartitions");
 
-    BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts);
+    try (BatchClientWithCloser batchClient = SpannerUtils.batchClientFromProperties(this.opts)) {
+      Statement query = executableQuery.buildStatement(batchClient.databaseClient.getDialect());
 
-    boolean enablePredicateSql = false;
-    if (this.opts.containsKey("enablePredicateSql")) {
-      enablePredicateSql = this.opts.get("enablePredicateSql").equalsIgnoreCase("true");
-      logger.info("Enable Predicate Sql: {}", enablePredicateSql);
-    }
+      boolean enableDataboost = false;
+      if (this.opts.containsKey("enableDataBoost")) {
+        enableDataboost = this.opts.get("enableDataBoost").equalsIgnoreCase("true");
+      }
 
-    SpannerQueryBuilder result =
-        SpannerQueryBuilder.newBuilder(
-            this.logicalQuery, batchClient.databaseClient.getDialect(), enablePredicateSql);
+      logger.info("Executing PartitionQuery");
+      try (BatchReadOnlyTransaction txn =
+          batchClient.batchClient.batchReadOnlyTransaction(readTimestamp)) {
+        String mapAsJSON = SpannerUtils.serializeMap(this.opts);
+        java.util.List<com.google.cloud.spanner.Partition> rawPartitions =
+            txn.partitionQuery(
+                PartitionOptions.getDefaultInstance(),
+                query,
+                Options.dataBoostEnabled(enableDataboost));
 
-    boolean enableDataboost = false;
-    if (this.opts.containsKey("enableDataBoost")) {
-      enableDataboost = this.opts.get("enableDataBoost").equalsIgnoreCase("true");
-    }
+        java.util.List<Partition> parts =
+            Streams.mapWithIndex(
+                    rawPartitions.stream(),
+                    (part, index) ->
+                        new SpannerPartition(
+                            part,
+                            Math.toIntExact(index),
+                            new SpannerInputPartitionContext(
+                                part,
+                                txn.getBatchTransactionId(),
+                                mapAsJSON,
+                                new SpannerRowConverterDirect())))
+                .collect(Collectors.toList());
 
-    logger.info("Executing PartitionQuery");
-    try (BatchReadOnlyTransaction txn =
-        batchClient.batchClient.batchReadOnlyTransaction(readTimestamp)) {
-      String mapAsJSON = SpannerUtils.serializeMap(this.opts);
-      java.util.List<com.google.cloud.spanner.Partition> rawPartitions =
-          txn.partitionQuery(
-              PartitionOptions.getDefaultInstance(),
-              result.buildStatement(),
-              Options.dataBoostEnabled(enableDataboost));
-
-      java.util.List<Partition> parts =
-          Streams.mapWithIndex(
-                  rawPartitions.stream(),
-                  (part, index) ->
-                      new SpannerPartition(
-                          part,
-                          Math.toIntExact(index),
-                          new SpannerInputPartitionContext(
-                              part,
-                              txn.getBatchTransactionId(),
-                              mapAsJSON,
-                              new SpannerRowConverterDirect())))
-              .collect(Collectors.toList());
-
-      return parts.toArray(new InputPartition[0]);
+        return parts.toArray(new InputPartition[0]);
+      }
     } catch (JsonProcessingException e) {
       throw new SpannerConnectorException(
           SpannerErrorCode.SPANNER_FAILED_TO_PARSE_OPTIONS, "Error parsing the input options.", e);
-    } finally {
-      batchClient.close();
     }
   }
 }

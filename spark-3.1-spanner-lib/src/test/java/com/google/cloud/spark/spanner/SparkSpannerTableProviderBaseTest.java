@@ -17,6 +17,7 @@ package com.google.cloud.spark.spanner;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.gson.Gson;
@@ -24,6 +25,7 @@ import com.google.gson.reflect.TypeToken;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.spark.sql.connector.catalog.Identifier;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -86,6 +88,50 @@ public class SparkSpannerTableProviderBaseTest {
             });
     Identifier identifier = provider.extractIdentifier(options);
     assertNull(identifier);
+  }
+
+  @Test
+  public void testExtractIdentifierWithQuery() {
+    TestSparkSpannerTableProvider provider = new TestSparkSpannerTableProvider();
+    CaseInsensitiveStringMap options =
+        new CaseInsensitiveStringMap(
+            new HashMap<String, String>() {
+              {
+                put("query", "SELECT id FROM Users");
+              }
+            });
+
+    assertNull(provider.extractIdentifier(options));
+  }
+
+  @Test
+  public void testGetTableRejectsTableAndQuery() {
+    TestSparkSpannerTableProvider provider = new TestSparkSpannerTableProvider();
+    Map<String, String> properties = new HashMap<>();
+    properties.put("table", "Users");
+    properties.put("query", "SELECT id FROM Users");
+
+    SpannerConnectorException error =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> provider.getTable(new StructType(), null, properties));
+
+    assertTrue(error.getMessage().contains("exactly one"));
+  }
+
+  @Test
+  public void testInferSchemaRejectsGraphAndQuery() {
+    TestSparkSpannerTableProvider provider = new TestSparkSpannerTableProvider();
+    Map<String, String> properties = new HashMap<>();
+    properties.put("graph", "SocialGraph");
+    properties.put("query", "SELECT id FROM Users");
+
+    SpannerConnectorException error =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> provider.inferSchema(new CaseInsensitiveStringMap(properties)));
+
+    assertTrue(error.getMessage().contains("exactly one"));
   }
 
   @Test

@@ -2,6 +2,7 @@
 
 ## Next
 
+*   Add a `query` option for reading partitionable SQL query results as Spark DataFrames.
 *   Add a `readTimestamp` option for reading tables from a consistent database snapshot.
 *   Add support for TPC-H benchmarking (framework integration and Databricks execution).
 *   Add integration test support for Spanner Omni.

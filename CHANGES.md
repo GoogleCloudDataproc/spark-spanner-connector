@@ -2,11 +2,15 @@
 
 ## Next
 
+*   Add a `query` option for reading partitionable SQL query results as Spark DataFrames.
 *   Add a `readTimestamp` option for reading tables from a consistent database snapshot.
 *   Add support for TPC-H benchmarking (framework integration and Databricks execution).
 *   Add integration test support for Spanner Omni.
-*   Add foundational changes for join pushdown support.
+*   Add join pushdown support when enabled by option.
 *   Add Spark 4.1 support.
+*   Add index hint support to enable use of secondary indexes:
+    *   Enabled for table reads and join reads.
+    *   README.md updated with minimum criteria required to use index hints.
 *   Testing enhancements:
     *   Upgrade acceptance testing for read operations.
     *   Explicitly configure the service account in acceptance tests for Dataproc Serverless 3.0+.

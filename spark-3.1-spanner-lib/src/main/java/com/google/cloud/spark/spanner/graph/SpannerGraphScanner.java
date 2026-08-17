@@ -34,13 +34,12 @@ import com.google.cloud.spark.spanner.graph.query.SpannerGraphQuery;
 import com.google.cloud.spark.spanner.scan.SpannerPartition;
 import com.google.cloud.spark.spanner.scan.SpannerPartitionReaderFactory;
 import com.google.cloud.spark.spanner.scan.SpannerScanner;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.spark.sql.connector.read.Batch;
@@ -61,7 +60,7 @@ public class SpannerGraphScanner implements Batch, Scan {
   private final TimestampBound readTimestamp;
   private final @Nullable Long partitionSizeBytes;
   private final Options.ReadAndQueryOption dataBoostEnabled;
-  private final @Nullable ImmutableSet<String> requiredColumns;
+  private final @Nullable ImmutableList<String> requiredColumns;
   private final StructType readSchema;
   private final List<Tuple<Statement, SpannerRowConverter>> queryAndRowConverters;
   private final List<SpannerPartition> partitions;
@@ -73,7 +72,7 @@ public class SpannerGraphScanner implements Batch, Scan {
       @Nullable Long partitionSizeBytes,
       Options.ReadAndQueryOption dataBoostEnabled,
       SpannerGraphQuery graphQuery,
-      @Nullable Set<String> requiredColumns,
+      @Nullable List<String> requiredColumns,
       StructType readSchema) {
     // Potential improvement: support filter pushdown.
     this.options = new CaseInsensitiveStringMap(options);
@@ -81,7 +80,7 @@ public class SpannerGraphScanner implements Batch, Scan {
     this.readTimestamp = readTimestamp;
     this.partitionSizeBytes = partitionSizeBytes;
     this.dataBoostEnabled = dataBoostEnabled;
-    this.requiredColumns = requiredColumns == null ? null : ImmutableSet.copyOf(requiredColumns);
+    this.requiredColumns = requiredColumns == null ? null : ImmutableList.copyOf(requiredColumns);
     this.readSchema = readSchema;
     this.queryAndRowConverters =
         graphQuery.graphSubqueries.stream()

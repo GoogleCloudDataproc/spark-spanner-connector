@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spark.spanner.graph.SpannerGraphBuilder;
+import com.google.cloud.spark.spanner.scan.SpannerQueryTable;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
@@ -57,15 +58,22 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
         Boolean.parseBoolean(options.getOrDefault("enablePartialRowUpdates", "false"));
     boolean hasTable = options.containsKey("table");
     boolean hasGraph = options.containsKey("graph");
-    if (hasTable && !hasGraph) {
-      return new SpannerTable(options, schema);
-    } else if (!hasTable && hasGraph) {
+    boolean hasQuery = options.containsKey("query");
+    if (hasTable && !hasGraph && !hasQuery) {
+      return createSpannerTable(options, schema);
+    } else if (!hasTable && hasGraph && !hasQuery) {
       return SpannerGraphBuilder.build(options);
+    } else if (!hasTable && !hasGraph && hasQuery) {
+      return new SpannerQueryTable(options);
     } else {
       throw new SpannerConnectorException(
           SpannerErrorCode.INVALID_ARGUMENT,
-          "properties must contain one of \"table\" or \"graph\"");
+          "properties must contain exactly one of \"table\", \"graph\", or \"query\"");
     }
+  }
+
+  public SpannerTable createSpannerTable(CaseInsensitiveStringMap options, StructType schema) {
+    return new SpannerTable(options, schema);
   }
 
   /*
@@ -89,14 +97,17 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
   private Table getTable(Map<String, String> properties) {
     boolean hasTable = properties.containsKey("table");
     boolean hasGraph = properties.containsKey("graph");
-    if (hasTable && !hasGraph) {
+    boolean hasQuery = properties.containsKey("query");
+    if (hasTable && !hasGraph && !hasQuery) {
       return new SpannerTable(properties);
-    } else if (!hasTable && hasGraph) {
+    } else if (!hasTable && hasGraph && !hasQuery) {
       return SpannerGraphBuilder.build(properties);
+    } else if (!hasTable && !hasGraph && hasQuery) {
+      return new SpannerQueryTable(new CaseInsensitiveStringMap(properties));
     } else {
       throw new SpannerConnectorException(
           SpannerErrorCode.INVALID_ARGUMENT,
-          "properties must contain one of \"table\" or \"graph\"");
+          "properties must contain exactly one of \"table\", \"graph\", or \"query\"");
     }
   }
 

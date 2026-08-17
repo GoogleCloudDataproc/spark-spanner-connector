@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -247,6 +248,39 @@ public class SpannerUtilsTest {
             SpannerConnectorException.class,
             () -> SpannerUtils.getRequiredOption(options, "table"));
     assertTrue(e.getMessage().contains("Option 'table' property must be set"));
+  }
+
+  @Test
+  public void testBuildSpannerOptionsPreservesDefaultCompression() {
+    Map<String, String> props = new HashMap<>();
+    props.put("projectId", "test-project");
+
+    assertNull(
+        SpannerUtils.buildSpannerOptions(new CaseInsensitiveStringMap(props)).getCompressorName());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsEnablesGrpcGzipCompression() {
+    Map<String, String> props = new HashMap<>();
+    props.put("projectId", "test-project");
+    props.put("grpcCompression", "gzip");
+
+    assertEquals(
+        "gzip",
+        SpannerUtils.buildSpannerOptions(new CaseInsensitiveStringMap(props)).getCompressorName());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsRejectsUnknownGrpcCompressor() {
+    Map<String, String> props = new HashMap<>();
+    props.put("projectId", "test-project");
+    props.put("grpcCompression", "unknown");
+
+    IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> SpannerUtils.buildSpannerOptions(new CaseInsensitiveStringMap(props)));
+    assertTrue(error.getMessage().contains("unknown is not a known compressor"));
   }
 
   @Test

@@ -158,6 +158,9 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
       case "TIMESTAMP":
         return DataTypes.TimestampType;
+
+      case "UUID":
+        return DataTypes.StringType;
     }
 
     // STRING(MAX), STRING(10) are the correct type
@@ -239,6 +242,9 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
       case "int":
         return DataTypes.IntegerType;
+
+      case "uuid":
+        return DataTypes.StringType;
     }
 
     Pattern pattern = Pattern.compile("\\[.*\\]");

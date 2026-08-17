@@ -154,7 +154,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     com.google.cloud.Date.parseDate("2023-12-31"),
                     null,
                     null,
-                    -0.1),
+                    -0.1,
+                    "4d2e278e-58ed-40cc-96ec-329c5b8eea6b"),
                 makeATableInternalRow(
                     10,
                     "20",
@@ -166,7 +167,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     com.google.cloud.Date.parseDate("2024-01-01"),
                     null,
                     null,
-                    null),
+                    null,
+                    "7a89d8cd-057f-41ee-b7f0-217614a1d53e"),
                 makeATableInternalRow(
                     30,
                     "30",
@@ -178,7 +180,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     com.google.cloud.Date.parseDate("2025-12-31"),
                     null,
                     null,
-                    -0.1),
+                    -0.1,
+                    "d30b9903-ba70-491f-ba55-42be7d42595e"),
                 makeATableInternalRow(
                     40,
                     "40",
@@ -190,9 +193,10 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     com.google.cloud.Date.parseDate("2026-01-01"),
                     new String[] {"a", "b", "c"},
                     "{\"name\":\"john\"}",
-                    null),
+                    null,
+                    "d30b9903-ba70-491f-ba55-42be7d42595e"),
                 makeATableInternalRow(
-                    50, null, null, null, null, null, null, null, null, null, null)));
+                    50, null, null, null, null, null, null, null, null, null, null, null)));
 
     planInputPartitionsShouldSuccessInSpannerScanBuilderBase(
         "ATable", false, expectRows, SpannerTestBase.getATableSchema());

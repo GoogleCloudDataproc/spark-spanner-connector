@@ -296,7 +296,8 @@ class SpannerTestBase {
                 new StructField(
                     "I", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
                 new StructField("J", DataTypes.StringType, true, jsonMetaBuilder.build()),
-                new StructField("K", DataTypes.DoubleType, true, null))
+                new StructField("K", DataTypes.DoubleType, true, null),
+                new StructField("L", DataTypes.StringType, true, null))
             .toArray(new StructField[0]));
   }
 
@@ -311,8 +312,9 @@ class SpannerTestBase {
       com.google.cloud.Date H,
       String[] I,
       String J,
-      Double K) {
-    GenericInternalRow row = new GenericInternalRow(11);
+      Double K,
+      String L) {
+    GenericInternalRow row = new GenericInternalRow(12);
     row.setLong(0, A);
     row.update(1, UTF8String.fromString(B));
     row.update(2, C);
@@ -344,6 +346,7 @@ class SpannerTestBase {
     } else {
       row.setDouble(10, K);
     }
+    row.update(11, L == null ? null : UTF8String.fromString(L));
     return row;
   }
 

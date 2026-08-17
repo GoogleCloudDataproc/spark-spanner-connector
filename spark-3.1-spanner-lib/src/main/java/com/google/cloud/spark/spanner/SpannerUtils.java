@@ -545,7 +545,8 @@ public class SpannerUtils {
         break;
       case UUID:
         sparkRow.update(
-            sparkRowIndex, UTF8String.fromString(spannerRow.getUuid(spannerRowIndex).toString().toLowerCase()));
+            sparkRowIndex,
+            UTF8String.fromString(spannerRow.getUuid(spannerRowIndex).toString().toLowerCase()));
         break;
 
       default:

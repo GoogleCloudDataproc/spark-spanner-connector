@@ -19,7 +19,7 @@ public class Spark31QueryReadIntegrationTest extends SparkSpannerIntegrationTest
 
     assertThat(dataframe.columns())
         .asList()
-        .containsExactly("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")
+        .containsExactly("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L")
         .inOrder();
     assertThat(dataframe.count()).isEqualTo(5);
   }

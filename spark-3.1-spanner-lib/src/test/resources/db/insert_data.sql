@@ -1,21 +1,21 @@
 DELETE FROM ATable WHERE 1=1;
 
 INSERT INTO
-    ATable(A, B, C, D, E, F, G, H, K)
+    ATable(A, B, C, D, E, F, G, H, K, L)
 VALUES
-    (1,  "2",  NULL, TIMESTAMP("2023-08-22T12:22:00Z"), NUMERIC '1000.282111401', true, -0.1, DATE("2023-12-31"), -0.1),
-    (10, "20", NULL, TIMESTAMP("2023-08-22T12:23:00Z"), NUMERIC '10000.282111603', false, 0.2, DATE("2024-01-01"), null),
-    (30, "30", NULL, TIMESTAMP("2023-08-22T12:24:00Z"), NUMERIC '30000.282111805', false, 0.1, DATE("2025-12-31"), -0.1);
+    (1,  "2",  NULL, TIMESTAMP("2023-08-22T12:22:00Z"), NUMERIC '1000.282111401', true, -0.1, DATE("2023-12-31"), -0.1, '4d2e278e-58ed-40cc-96ec-329c5b8eea6b'),
+    (10, "20", NULL, TIMESTAMP("2023-08-22T12:23:00Z"), NUMERIC '10000.282111603', false, 0.2, DATE("2024-01-01"), null, '7a89d8cd-057f-41ee-b7f0-217614a1d53e'),
+    (30, "30", NULL, TIMESTAMP("2023-08-22T12:24:00Z"), NUMERIC '30000.282111805', false, 0.1, DATE("2025-12-31"), -0.1, 'd30b9903-ba70-491f-ba55-42be7d42595e');
 INSERT INTO
-    ATable(A, B, C, D, E, F, G, H, I, J, K)
+    ATable(A, B, C, D, E, F, G, H, I, J, K, L)
 VALUES
-    (40, "40", b'xyz', TIMESTAMP('2025-01-01T12:34:56Z'), NUMERIC '123.456789123', TRUE,3.14, DATE ("2026-01-01"), ['a','b','c'], JSON '{"name":"john"}', NULL);
+    (40, "40", b'xyz', TIMESTAMP('2025-01-01T12:34:56Z'), NUMERIC '123.456789123', TRUE,3.14, DATE ("2026-01-01"), ['a','b','c'], JSON '{"name":"john"}', NULL, 'd30b9903-ba70-491f-ba55-42be7d42595e');
 
 
 INSERT INTO
-    ATable(A, B, C, D, E, F, G, H, I, J, K)
+    ATable(A, B, C, D, E, F, G, H, I, J, K, L)
 VALUES
-    (50, NULL, NULL, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL);
+    (50, NULL, NULL, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, NULL);
 
 DELETE FROM simpleTable WHERE 1=1;
 

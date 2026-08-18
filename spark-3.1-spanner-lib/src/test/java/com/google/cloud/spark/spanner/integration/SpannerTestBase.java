@@ -296,7 +296,8 @@ class SpannerTestBase {
                 new StructField(
                     "I", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
                 new StructField("J", DataTypes.StringType, true, jsonMetaBuilder.build()),
-                new StructField("K", DataTypes.DoubleType, true, null))
+                new StructField("K", DataTypes.DoubleType, true, null),
+                new StructField("L", DataTypes.StringType, true, null))
             .toArray(new StructField[0]));
   }
 
@@ -311,8 +312,9 @@ class SpannerTestBase {
       com.google.cloud.Date H,
       String[] I,
       String J,
-      Double K) {
-    GenericInternalRow row = new GenericInternalRow(11);
+      Double K,
+      String L) {
+    GenericInternalRow row = new GenericInternalRow(12);
     row.setLong(0, A);
     row.update(1, UTF8String.fromString(B));
     row.update(2, C);
@@ -344,6 +346,7 @@ class SpannerTestBase {
     } else {
       row.setDouble(10, K);
     }
+    row.update(11, L == null ? null : UTF8String.fromString(L));
     return row;
   }
 
@@ -378,7 +381,8 @@ class SpannerTestBase {
                 new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
                 new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
                 new StructField("timestampcol", DataTypes.TimestampType, true, null),
-                new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()))
+                new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()),
+                new StructField("uuidcol", DataTypes.StringType, true, null))
             .toArray(new StructField[0]));
   }
 
@@ -440,8 +444,9 @@ class SpannerTestBase {
       java.math.BigDecimal decimalCol,
       String timewithzoneCol,
       String timestampCol,
-      String jsonCol) {
-    GenericInternalRow row = new GenericInternalRow(18);
+      String jsonCol,
+      String uuidCol) {
+    GenericInternalRow row = new GenericInternalRow(19);
     row.setLong(0, id);
     row.update(1, charvCol == null ? null : UTF8String.fromString(charvCol));
     row.update(2, textCol == null ? null : UTF8String.fromString(textCol));
@@ -508,6 +513,7 @@ class SpannerTestBase {
             ? null
             : SpannerUtils.zonedDateTimeToSparkTimestamp(ZonedDateTime.parse(timestampCol)));
     row.update(17, jsonCol == null ? null : UTF8String.fromString(jsonCol));
+    row.update(18, uuidCol == null ? null : UTF8String.fromString(uuidCol));
     return row;
   }
 

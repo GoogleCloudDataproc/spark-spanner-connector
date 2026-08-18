@@ -474,6 +474,11 @@ public class SpannerUtils {
         sparkRow.update(sparkRowIndex, spannerRow.getBytes(spannerRowIndex).toByteArray());
         break;
 
+      case UUID:
+        sparkRow.update(
+            sparkRowIndex, UTF8String.fromString(spannerRow.getUuid(spannerRowIndex).toString()));
+        break;
+
       case STRUCT:
         sparkRow.update(
             sparkRowIndex, spannerStructToInternalRow(spannerRow.getStruct(spannerRowIndex)));
@@ -546,6 +551,11 @@ public class SpannerUtils {
           List<Decimal> dest = new ArrayList<>();
           value.getNumericArray().forEach((v) -> dest.add(asSparkDecimal(v)));
           sparkRow.update(sparkRowIndex, new GenericArrayData(dest.toArray(new Decimal[0])));
+        } else if (fieldTypeName.indexOf("ARRAY<UUID>") == 0) {
+          List<java.util.UUID> src = value.getUuidArray();
+          List<UTF8String> dest = new ArrayList<>(src.size());
+          src.forEach((u) -> dest.add(u == null ? null : UTF8String.fromString(u.toString())));
+          sparkRow.update(sparkRowIndex, new GenericArrayData(dest.toArray(new UTF8String[0])));
         } else {
           sparkRow.update(sparkRowIndex, null);
         }

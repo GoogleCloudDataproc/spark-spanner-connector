@@ -114,7 +114,7 @@ def run_type_mapping_tests(df, issues):
         issues.append(f"G expected 3.14 but found {row.G}")
 
     if row.L != "d30b9903-ba70-491f-ba55-42be7d42595e":
-        issues.append(f"G expected d30b9903-ba70-491f-ba55-42be7d42595e but found {row.L}")
+        issues.append(f"L expected d30b9903-ba70-491f-ba55-42be7d42595e but found {row.L}")
 
     # Verify types
     if not isinstance(row.A, int):
@@ -132,8 +132,8 @@ def run_type_mapping_tests(df, issues):
     if not isinstance(row.I, list):
         issues.append(f"I expected list but found {type(row.I)}")
 
-    if not isinstance(row.L, string):
-        issues.append(f"I expected string but found {type(row.L)}")
+    if not isinstance(row.L, str):
+        issues.append(f"L expected str but found {type(row.L)}")
 
 
 def run_null_tests(df, issues):

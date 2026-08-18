@@ -381,7 +381,8 @@ class SpannerTestBase {
                 new StructField("decimalcol", DataTypes.createDecimalType(38, 9), true, null),
                 new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
                 new StructField("timestampcol", DataTypes.TimestampType, true, null),
-                new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()))
+                new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()),
+                new StructField("uuidcol", DataTypes.StringType, true, null))
             .toArray(new StructField[0]));
   }
 
@@ -443,8 +444,9 @@ class SpannerTestBase {
       java.math.BigDecimal decimalCol,
       String timewithzoneCol,
       String timestampCol,
-      String jsonCol) {
-    GenericInternalRow row = new GenericInternalRow(18);
+      String jsonCol,
+      String uuidCol) {
+    GenericInternalRow row = new GenericInternalRow(19);
     row.setLong(0, id);
     row.update(1, charvCol == null ? null : UTF8String.fromString(charvCol));
     row.update(2, textCol == null ? null : UTF8String.fromString(textCol));
@@ -511,6 +513,7 @@ class SpannerTestBase {
             ? null
             : SpannerUtils.zonedDateTimeToSparkTimestamp(ZonedDateTime.parse(timestampCol)));
     row.update(17, jsonCol == null ? null : UTF8String.fromString(jsonCol));
+    row.update(18, uuidCol == null ? null : UTF8String.fromString(uuidCol));
     return row;
   }
 

@@ -17,6 +17,7 @@ CREATE TABLE composite_table (
   timeWithZoneCol timestamp with time zone,
   timestampCol timestamptz,
   jsonCol jsonb,
+  uuidCol uuid,
   PRIMARY KEY(id)
 );
 

@@ -226,7 +226,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
             Arrays.asList(
                 makeCompositeTableRowPg(
                     1, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null),
+                    null, null, null, null, null),
                 makeCompositeTableRowPg(
                     2,
                     "charvcol",
@@ -245,7 +245,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     new java.math.BigDecimal("9e23"),
                     "2003-04-12T11:05:06Z",
                     "2003-04-12T12:05:06Z",
-                    "{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}")));
+                    "{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}",
+                    "4d2e278e-58ed-40cc-96ec-329c5b8eea6b")));
 
     planInputPartitionsShouldSuccessInSpannerScanBuilderBase(
         "composite_table", true, expectRows, SpannerTestBase.getCompositeTableSchema());

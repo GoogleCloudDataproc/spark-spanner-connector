@@ -126,4 +126,12 @@ public class SpannerTableSchemaTest {
     assertTrue(field.metadata().contains(SpannerUtils.COLUMN_TYPE));
     assertEquals("jsonb", field.metadata().getString(SpannerUtils.COLUMN_TYPE));
   }
+
+  @Test
+  public void testGetSparkStructField_uuid() {
+    StructField gsqlField = SpannerTableSchema.getSparkStructField("id", "UUID", true, false);
+    assertEquals(DataTypes.StringType, gsqlField.dataType());
+    StructField pgField = SpannerTableSchema.getSparkStructField("id", "uuid", true, true);
+    assertEquals(DataTypes.StringType, pgField.dataType());
+  }
 }

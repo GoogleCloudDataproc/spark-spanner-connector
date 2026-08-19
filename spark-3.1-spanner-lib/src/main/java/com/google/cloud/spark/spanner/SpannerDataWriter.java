@@ -56,6 +56,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   private final long taskId;
   private final String tableName;
   private final StructType schema;
+  private final Map<String, String> spannerTypes;
 
   // Limits
   private final int mutationsPerTransaction;
@@ -85,6 +86,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       long taskId,
       Map<String, String> properties,
       StructType schema,
+      Map<String, String> spannerTypes,
       BatchClientWithCloser batchClient,
       ExecutorService executor,
       ScheduledExecutorService scheduler) {
@@ -95,6 +97,7 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     this.tableName = SpannerUtils.getRequiredOption(caseInsensitiveStringMap, "table");
 
     this.schema = schema;
+    this.spannerTypes = spannerTypes;
 
     // Default to 1MB (Safety) and 1000 Mutations
     this.mutationsPerTransaction =
@@ -146,7 +149,8 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   public void write(InternalRow record) throws IOException {
     // 1. Convert to Spanner Mutation
     Mutation mutation =
-        SpannerWriterUtils.internalRowToMutation(tableName, record, schema, mutationType);
+        SpannerWriterUtils.internalRowToMutation(
+            tableName, record, schema, spannerTypes, mutationType);
 
     // 2. Estimate Size (Crucial for preventing OOM)
     long mutationSize = estimateMutationSize(record, schema);

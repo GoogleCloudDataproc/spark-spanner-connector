@@ -30,10 +30,13 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
   // CaseInsensitiveMap is not.
   private final Map<String, String> properties;
   private final StructType schema;
+  private final Map<String, String> spannerTypes;
 
-  public SpannerDataWriterFactory(CaseInsensitiveStringMap properties, StructType schema) {
+  public SpannerDataWriterFactory(
+      CaseInsensitiveStringMap properties, StructType schema, Map<String, String> spannerTypes) {
     this.properties = properties.asCaseSensitiveMap();
     this.schema = schema;
+    this.spannerTypes = spannerTypes;
   }
 
   @Override
@@ -48,6 +51,6 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
     ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     return new SpannerDataWriter(
-        partitionId, taskId, properties, schema, batchClient, executor, scheduler);
+        partitionId, taskId, properties, schema, spannerTypes, batchClient, executor, scheduler);
   }
 }

@@ -71,6 +71,7 @@ public abstract class SpannerDataWriterTestBase {
   private final ScheduledExecutorService scheduledExecutor =
       TestingExecutors.sameThreadScheduledExecutor();
   protected StructType schema;
+  private Map<String, String> spannerTypes;
   private Map<String, String> properties;
   private BatchClientWithCloser batchClientWithCloser;
   protected ExpressionEncoder.Serializer<Row> serializer;
@@ -90,6 +91,10 @@ public abstract class SpannerDataWriterTestBase {
               DataTypes.createStructField("long_col", DataTypes.LongType, false),
               DataTypes.createStructField("string_col", DataTypes.StringType, true),
             });
+
+    spannerTypes = new HashMap<>();
+    spannerTypes.put("long_col", "INT64");
+    spannerTypes.put("string_col", "STRING");
 
     encoder = getEncoder(schema);
     localSetup();
@@ -111,12 +116,19 @@ public abstract class SpannerDataWriterTestBase {
 
   private SpannerDataWriter createWriter(Map<String, String> props) {
     return new SpannerDataWriter(
-        0, 0, props, schema, batchClientWithCloser, executor, scheduledExecutor);
+        0, 0, props, schema, spannerTypes, batchClientWithCloser, executor, scheduledExecutor);
   }
 
   private SpannerDataWriter createWriterMockExecutors(Map<String, String> props) {
     return new SpannerDataWriter(
-        0, 0, props, schema, batchClientWithCloser, mockExecutor, mockScheduledExecutor);
+        0,
+        0,
+        props,
+        schema,
+        spannerTypes,
+        batchClientWithCloser,
+        mockExecutor,
+        mockScheduledExecutor);
   }
 
   @Test
@@ -167,7 +179,14 @@ public abstract class SpannerDataWriterTestBase {
     ExecutorService realExecutor = Executors.newSingleThreadExecutor();
     SpannerDataWriter writer =
         new SpannerDataWriter(
-            0, 0, properties, schema, batchClientWithCloser, realExecutor, scheduledExecutor);
+            0,
+            0,
+            properties,
+            schema,
+            spannerTypes,
+            batchClientWithCloser,
+            realExecutor,
+            scheduledExecutor);
 
     CompletableFuture<Void> blockingFuture = new CompletableFuture<>();
     writer.pendingWrites.add(blockingFuture); // Manually fill the queue
@@ -209,7 +228,14 @@ public abstract class SpannerDataWriterTestBase {
     ExecutorService realExecutor = Executors.newSingleThreadExecutor();
     SpannerDataWriter writer =
         new SpannerDataWriter(
-            0, 0, properties, schema, batchClientWithCloser, realExecutor, scheduledExecutor);
+            0,
+            0,
+            properties,
+            schema,
+            spannerTypes,
+            batchClientWithCloser,
+            realExecutor,
+            scheduledExecutor);
 
     SpannerException permanentError =
         SpannerExceptionFactory.newSpannerException(ErrorCode.INVALID_ARGUMENT, "Permanent error");
@@ -400,6 +426,10 @@ public abstract class SpannerDataWriterTestBase {
     // Set low batch size to force immediate flush
     props.put("mutationsPerTransaction", "1");
 
+    Map<String, String> spannerTypes = new HashMap<>();
+    spannerTypes = new HashMap<>();
+    spannerTypes.put("col1", "STRING");
+
     // --- 3. EXECUTION ---
     try (SpannerDataWriter writer =
         new SpannerDataWriter(
@@ -407,6 +437,7 @@ public abstract class SpannerDataWriterTestBase {
             1L,
             props,
             new StructType().add("col1", DataTypes.StringType),
+            spannerTypes,
             mockBatchClient,
             executor,
             scheduledExecutor)) {

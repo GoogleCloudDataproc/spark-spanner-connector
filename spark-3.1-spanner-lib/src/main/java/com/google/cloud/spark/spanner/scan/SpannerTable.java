@@ -324,7 +324,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     SpannerUtils.validatePartialRowUpdates(
         this.dfSchema, this.dbSchema.schema, enablePartialRowUpdates);
 
-    return new SpannerWriteBuilder(info, this.properties);
+    return new SpannerWriteBuilder(info, this.properties, this.dbSchema.getSpannerTypes());
   }
 
   @Override

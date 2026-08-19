@@ -18,12 +18,7 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
@@ -43,7 +38,12 @@ public class SpannerTableSchema {
   private final Map<String, StructField> columns;
 
   public final String name;
+  // Spark schema of the table
   public final StructType schema;
+
+  // Maps column names of the table to Spanner types.
+  // Note; this must be serializable so it can be passed to the executor nodes.
+  public final Map<String, String> spannerTypes;
 
   static Statement buildSchemaQuery(String tableName, boolean isPostgreSql) {
     if (isPostgreSql) {
@@ -68,6 +68,7 @@ public class SpannerTableSchema {
       // ...
       // rowN:
       StructType schema = new StructType();
+      Map<String, String> spannerTypes = new HashMap<>();
       while (rs.next()) {
         Struct row = rs.getCurrentRowAsStruct();
         String columnName = row.getString(0);
@@ -76,9 +77,12 @@ public class SpannerTableSchema {
             getSparkStructField(
                 columnName, row.getString(2), row.getBoolean(1), isPostgreSql, isPrimaryKey);
         schema = schema.add(structField);
+
         this.columns.put(columnName, structField);
+        spannerTypes.put(columnName, row.getString(2));
       }
       this.schema = schema;
+      this.spannerTypes = spannerTypes;
     }
   }
 
@@ -138,6 +142,10 @@ public class SpannerTableSchema {
 
   public StructField getStructFieldForColumn(String columnName) {
     return Objects.requireNonNull(columns.get(columnName));
+  }
+
+  public Map<String, String> getSpannerTypes() {
+    return Collections.unmodifiableMap(spannerTypes);
   }
 
   public static boolean isJson(String spannerStrType) {

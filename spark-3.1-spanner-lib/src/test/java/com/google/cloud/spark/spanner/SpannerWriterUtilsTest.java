@@ -82,7 +82,8 @@ public class SpannerWriterUtilsTest {
               "ts",
               DataTypes.TimestampType,
               1704067200000000L,
-              Value.timestamp(Timestamp.ofTimeMicroseconds(1704067200000000L))
+              Value.timestamp(Timestamp.ofTimeMicroseconds(1704067200000000L)),
+              "TIMESTAMP"
             },
             {
               "dt", DataTypes.DateType, 19723, Value.date(Date.fromYearMonthDay(2024, 1, 1)), "DATE"
@@ -204,7 +205,12 @@ public class SpannerWriterUtilsTest {
               Value.timestampArray(null),
               "ARRAY<TIMESTAMP>"
             },
-            {"date_array", DataTypes.createArrayType(DataTypes.DateType), Value.dateArray(null)},
+            {
+              "date_array",
+              DataTypes.createArrayType(DataTypes.DateType),
+              Value.dateArray(null),
+              "ARRAY<DATE>"
+            },
             {
               "decimal_array",
               DataTypes.createArrayType(new DecimalType(38, 9)),

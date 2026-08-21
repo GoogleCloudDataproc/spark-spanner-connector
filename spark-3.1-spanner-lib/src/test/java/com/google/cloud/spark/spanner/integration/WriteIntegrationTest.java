@@ -31,11 +31,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -72,6 +68,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
             DataTypes.createStructField("date_col", DataTypes.DateType, true),
             DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
             DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
+            DataTypes.createStructField("uuid_col", DataTypes.StringType, true),
           });
 
   private Map<String, String> getBaseProps() {
@@ -93,8 +90,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     if (ids.length != 2) Assert.fail("Invalid number of id's provided");
     List<Row> initialRows =
         Arrays.asList(
-            RowFactory.create(ids[0], "original twenty-one", null, null, null, null, null, null),
-            RowFactory.create(ids[1], "original twenty-two", null, null, null, null, null, null));
+            RowFactory.create(
+                ids[0], "original twenty-one", null, null, null, null, null, null, null),
+            RowFactory.create(
+                ids[1], "original twenty-two", null, null, null, null, null, null, null));
 
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, schema);
     initialDf.write().format("cloud-spanner").options(getBaseProps()).mode(SaveMode.Append).save();
@@ -142,13 +141,15 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                   "numeric_array",
                   DataTypes.createArrayType(DataTypes.createDecimalType(38, 9)),
                   true),
+              DataTypes.createStructField(
+                  "uuid_array", DataTypes.createArrayType(DataTypes.StringType), true),
             });
 
     List<Row> rows =
         Collections.singletonList(
             RowFactory.create(
                 3L, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null));
+                null, null, null));
 
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
@@ -173,8 +174,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   public void testIdempotentWrite() {
     List<Row> rows =
         Arrays.asList(
-            RowFactory.create(4L, "four", null, null, null, null, null, null),
-            RowFactory.create(5L, "five", null, null, null, null, null, null));
+            RowFactory.create(4L, "four", null, null, null, null, null, null, null),
+            RowFactory.create(5L, "five", null, null, null, null, null, null, null));
 
     Dataset<Row> df = spark.createDataFrame(rows, SCHEMA);
 
@@ -224,12 +225,13 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     java.sql.Date dt = new java.sql.Date(System.currentTimeMillis());
     byte[] b = "spanner".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     java.math.BigDecimal num = new java.math.BigDecimal("123.456");
+    String uuid = UUID.randomUUID().toString();
 
     // 2. Write the initial data (all columns populated)
     List<Row> initialRows =
         Arrays.asList(
-            RowFactory.create(201L, "original twenty-one", true, 1.5, ts, dt, b, num),
-            RowFactory.create(202L, "original twenty-two", false, 2.5, ts, dt, b, num));
+            RowFactory.create(201L, "original twenty-one", true, 1.5, ts, dt, b, num, uuid),
+            RowFactory.create(202L, "original twenty-two", false, 2.5, ts, dt, b, num, uuid));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
@@ -251,7 +253,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     // We pad the omitted columns with nulls to match the DSv2 table requirements.
     List<Row> insertRows =
         Collections.singletonList(
-            RowFactory.create(301L, "new thirty-one", null, null, null, null, null, null));
+            RowFactory.create(301L, "new thirty-one", null, null, null, null, null, null, null));
     Dataset<Row> insertedRow301 = spark.createDataFrame(insertRows, SCHEMA);
 
     // 3. Combine them into your final updatesDs
@@ -304,9 +306,9 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     List<Row> newRows =
         Arrays.asList(
             RowFactory.create(
-                211L, "new twenty-one", null, null, null, null, null, null), // Update 211
+                211L, "new twenty-one", null, null, null, null, null, null, null), // Update 211
             RowFactory.create(
-                213L, "new twenty-three", null, null, null, null, null, null) // Insert 213
+                213L, "new twenty-three", null, null, null, null, null, null, null) // Insert 213
             );
 
     // To make tests reproducable, set repartition to 1 so all rows are handled in an atomic
@@ -336,7 +338,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     List<Row> successfulInsertRows =
         Collections.singletonList(
             RowFactory.create(
-                213L, "new twenty-three", null, null, null, null, null, null) // Insert 213
+                213L, "new twenty-three", null, null, null, null, null, null, null) // Insert 213
             );
     Dataset<Row> successfulDf = spark.createDataFrame(successfulInsertRows, SCHEMA);
     successfulDf.write().format("cloud-spanner").options(insertProps).mode(SaveMode.Append).save();
@@ -373,9 +375,9 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     List<Row> errorRows =
         Arrays.asList(
             RowFactory.create(
-                221L, "new twenty-one", null, null, null, null, null, null), // Update 221
+                221L, "new twenty-one", null, null, null, null, null, null, null), // Update 221
             RowFactory.create(
-                223L, "new twenty-three", null, null, null, null, null, null) // Update 223
+                223L, "new twenty-three", null, null, null, null, null, null, null) // Update 223
             );
 
     // To make tests reproducable, set repartition to 1 so all rows are handled in atomic
@@ -406,7 +408,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     List<Row> successfulUpdateRows =
         Collections.singletonList(
             RowFactory.create(
-                222L, "new twenty-two", null, null, null, null, null, null) // Update 222
+                222L, "new twenty-two", null, null, null, null, null, null, null) // Update 222
             );
     Dataset<Row> successfulDf = spark.createDataFrame(successfulUpdateRows, SCHEMA);
 
@@ -454,6 +456,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 java.sql.Timestamp.valueOf("2023-01-01 10:10:10"),
                 null,
                 null,
+                null,
                 null),
             RowFactory.create(
                 202L,
@@ -461,6 +464,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 null,
                 null,
                 java.sql.Timestamp.valueOf("2024-01-01 10:10:10"),
+                null,
                 null,
                 null,
                 null));
@@ -481,6 +485,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 java.sql.Timestamp.valueOf("2025-01-01 10:10:10"),
                 null,
                 null,
+                null,
                 null), // Replace 201
             RowFactory.create(
                 202L,
@@ -488,6 +493,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 null,
                 null,
                 java.sql.Timestamp.valueOf("2026-01-01 10:10:10"),
+                null,
                 null,
                 null,
                 null) // Replace 202
@@ -523,11 +529,11 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(nextRows.get(202L).getTimestamp(4))
         .isEqualTo(java.sql.Timestamp.valueOf("2026-01-01 10:10:10"));
 
-    // 4. Write two rows with one column missing
+    // 4. Write two rows with one column replaced with null
     List<Row> shortRows =
         Arrays.asList(
-            RowFactory.create(201L, "short twenty-one", null, null, null, null, null, null),
-            RowFactory.create(202L, "short twenty-two", null, null, null, null, null, null));
+            RowFactory.create(201L, "short twenty-one", null, null, null, null, null, null, null),
+            RowFactory.create(202L, "short twenty-two", null, null, null, null, null, null, null));
     Dataset<Row> shortDf = spark.createDataFrame(shortRows, SCHEMA);
 
     shortDf.write().format("cloud-spanner").options(replaceProps).mode(SaveMode.Append).save();
@@ -560,7 +566,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     // 1. Write initial data with a non-null string value
     List<Row> initialRows =
         Collections.singletonList(
-            RowFactory.create(20L, "originalValue", null, null, null, null, null, null));
+            RowFactory.create(20L, "originalValue", null, null, null, null, null, null, null));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
 
     Map<String, String> props = connectionProperties(usePostgresSql);
@@ -577,7 +583,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
     // 2. Update the existing row, setting string_col to null
     List<Row> updateRows =
-        Collections.singletonList(RowFactory.create(20L, null, null, null, null, null, null, null));
+        Collections.singletonList(
+            RowFactory.create(20L, null, null, null, null, null, null, null, null));
     Dataset<Row> updateDf = spark.createDataFrame(updateRows, SCHEMA);
 
     updateDf.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save();
@@ -593,6 +600,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertNull(dfAfterUpdate.first().get(5));
     assertNull(dfAfterUpdate.first().get(6));
     assertNull(dfAfterUpdate.first().get(7));
+    assertNull(dfAfterUpdate.first().get(8));
   }
 
   @Test
@@ -602,10 +610,11 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     java.sql.Date dt = java.sql.Date.valueOf("2024-06-15");
     byte[] b = "partial".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     java.math.BigDecimal num = new java.math.BigDecimal("999.111");
+    String uuid = UUID.randomUUID().toString();
 
     List<Row> initialRows =
         Collections.singletonList(
-            RowFactory.create(231L, "original value", true, 3.14, ts, dt, b, num));
+            RowFactory.create(231L, "original value", true, 3.14, ts, dt, b, num, uuid));
     Dataset<Row> initialDf = spark.createDataFrame(initialRows, SCHEMA);
 
     Map<String, String> props = getBaseProps();
@@ -639,6 +648,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(row.<java.sql.Date>getAs("date_col")).isEqualTo(dt);
     assertThat(row.<byte[]>getAs("bytes_col")).isEqualTo(b);
     assertThat(row.<java.math.BigDecimal>getAs("numeric_col").compareTo(num)).isEqualTo(0);
+    assertThat(row.<String>getAs("uuid_col")).isEqualTo(uuid);
   }
 
   private void checkChildRow(Row row) {
@@ -691,8 +701,12 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
               DataTypes.createStructField("date_col", DataTypes.DateType, true),
               DataTypes.createStructField("bytes_col", DataTypes.BinaryType, true),
               DataTypes.createStructField("numeric_col", DataTypes.createDecimalType(38, 9), true),
+              DataTypes.createStructField("uuid_col", DataTypes.StringType, true),
               DataTypes.createStructField("struct_col", childStructType, true),
             });
+
+    final String uuid1 = UUID.randomUUID().toString();
+    final String uuid2 = UUID.randomUUID().toString();
 
     List<Row> rows =
         Arrays.asList(
@@ -705,6 +719,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 java.sql.Date.valueOf("2023-01-01"),
                 new byte[] {1, 2, 3},
                 new java.math.BigDecimal("123.456"),
+                uuid1,
                 childRow),
             RowFactory.create(
                 102L,
@@ -715,6 +730,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 java.sql.Date.valueOf("2023-02-02"),
                 new byte[] {4, 5, 6},
                 new java.math.BigDecimal("789.012"),
+                uuid2,
                 childRow));
 
     Dataset<Row> df = spark.createDataFrame(rows, schema);
@@ -752,7 +768,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(row1.getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-01-01"));
     assertThat(row1.<byte[]>getAs(6)).isEqualTo(new byte[] {1, 2, 3});
     assertThat(row1.getDecimal(7).compareTo(new java.math.BigDecimal("123.456"))).isEqualTo(0);
-    checkChildRow(row1.getStruct(8));
+    assertThat(row1.getString(8)).isEqualTo(uuid1);
+    checkChildRow(row1.getStruct(9));
 
     Row row2 = writtenRows.get(102L);
     assertThat(row2.getString(1)).isEqualTo("two");
@@ -762,7 +779,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertThat(row2.getDate(5)).isEqualTo(java.sql.Date.valueOf("2023-02-02"));
     assertThat(row2.<byte[]>getAs(6)).isEqualTo(new byte[] {4, 5, 6});
     assertThat(row2.getDecimal(7).compareTo(new java.math.BigDecimal("789.012"))).isEqualTo(0);
-    checkChildRow(row2.getStruct(8));
+    assertThat(row2.getString(8)).isEqualTo(uuid2);
+    checkChildRow(row2.getStruct(9));
   }
 
   @Test
@@ -796,6 +814,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                   "numeric_array",
                   DataTypes.createArrayType(DataTypes.createDecimalType(38, 9)),
                   true),
+              DataTypes.createStructField(
+                  "uuid_array", DataTypes.createArrayType(DataTypes.StringType), true),
             });
 
     final Long[] testLongArray1 = new Long[] {1L, null, 3L};
@@ -834,6 +854,10 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
       new BigDecimal("135.791", mc).setScale(9, RoundingMode.HALF_UP),
       new BigDecimal("246.802", mc).setScale(9, RoundingMode.HALF_UP)
     };
+    final Object[] testUuidArray1 =
+        new Object[] {UUID.randomUUID().toString(), UUID.randomUUID().toString(), null};
+    final Object[] testUuidArray2 =
+        new Object[] {UUID.randomUUID().toString(), UUID.randomUUID().toString()};
 
     List<Row> rows =
         Arrays.asList(
@@ -853,7 +877,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 testTimestamp1,
                 testDateArray1,
                 testBinaryArray1,
-                testDecimalArray1),
+                testDecimalArray1,
+                testUuidArray1),
             RowFactory.create(
                 102L,
                 "two",
@@ -870,7 +895,8 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
                 testTimestamp2,
                 testDateArray2,
                 testBinaryArray2,
-                testDecimalArray2));
+                testDecimalArray2,
+                testUuidArray2));
 
     Dataset<Row> df = spark.createDataFrame(rows, schema);
 
@@ -904,6 +930,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertArrayEquals(testDateArray1, rowToDateArray(row1, 13));
     assertTrue(java.util.Arrays.deepEquals(testBinaryArray1, rowToByteArray(row1, 14)));
     assertArrayEquals(testDecimalArray1, rowToDecimalArray(row1, 15));
+    assertArrayEquals(testUuidArray1, rowToStrObjectArray(row1, 16));
 
     Row row2 = writtenRows.get(102L);
     assertThat(row2.getString(1)).isEqualTo("two");
@@ -921,6 +948,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     assertArrayEquals(testDateArray2, rowToDateArray(row2, 13));
     assertTrue(java.util.Arrays.deepEquals(testBinaryArray2, rowToByteArray(row2, 14)));
     assertArrayEquals(testDecimalArray2, rowToDecimalArray(row2, 15));
+    assertArrayEquals(testUuidArray2, rowToStrObjectArray(row2, 16));
   }
 
   private long[] rowToLongArray(Row row, int index) {

@@ -20,7 +20,12 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Function;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -292,10 +297,10 @@ public class SpannerWriterUtils {
       return Value.uuid(null);
     }
 
-    String value = row.getString(index);
+    String value = row.getUTF8String(index).toString();
 
     try {
-      return Value.uuid(UUID.fromString(value));
+      return Value.uuid(parseUuid(value));
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException("Invalid UUID value for Spanner UUID column: " + value, e);
     }
@@ -316,11 +321,14 @@ public class SpannerWriterUtils {
   }
 
   private static boolean isUuidType(String spannerType) {
-    return "UUID".equalsIgnoreCase(spannerType.trim());
+    return spannerType != null && "UUID".equalsIgnoreCase(spannerType.trim());
   }
 
   private static boolean isUuidArrayType(String spannerType) {
-    return "ARRAY<UUID>".equalsIgnoreCase(spannerType.trim());
+    return spannerType != null
+        && ("ARRAY<UUID>".equalsIgnoreCase(spannerType.trim())
+            || "UUID[]".equalsIgnoreCase(spannerType.trim())
+            || "UUID ARRAY".equalsIgnoreCase(spannerType.trim()));
   }
 
   private static Value convertUuidArray(InternalRow row, int index) {

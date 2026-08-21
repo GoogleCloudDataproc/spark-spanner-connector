@@ -586,7 +586,7 @@ JSON     | StringType    | Spark has no JSON type. The values are read as String
 NUMERIC  | DecimalType   | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.
 STRING   | StringType    |
 TIMESTAMP| TimestampType | Only microseconds will be converted to Spark timestamp type. The range of timestamp is  [0001-01-01 00:00:00, 9999-12-31 23:59:59.999999]
-UUID     | StringType    | Read only.
+UUID     | StringType    |
 
 ### Filter Pushdown
 
@@ -634,7 +634,7 @@ jsonb                                |StringType   | Spark has no JSON type. The
 numeric / decimal                    |DecimalType  | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.
 varchar / text / character varying   |StringType   |
 timestamptz/timestamp with time zone |TimestampType| Only microseconds will be converted to Spark timestamp type. The range of timestamp is  [0001-01-01 00:00:00, 9999-12-31 23:59:59.999999]
-uuid                                 |StringType   | Read only.
+uuid                                 |StringType   |
 
 #### Filter Pushdown
 

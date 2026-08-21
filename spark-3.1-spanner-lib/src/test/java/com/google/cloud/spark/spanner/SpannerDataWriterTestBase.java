@@ -427,7 +427,6 @@ public abstract class SpannerDataWriterTestBase {
     props.put("mutationsPerTransaction", "1");
 
     Map<String, String> spannerTypes = new HashMap<>();
-    spannerTypes = new HashMap<>();
     spannerTypes.put("col1", "STRING");
 
     // --- 3. EXECUTION ---

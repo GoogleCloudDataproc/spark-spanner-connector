@@ -24,7 +24,11 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -65,7 +69,7 @@ public class SpannerWriterUtilsTest {
             {
               "uuid",
               DataTypes.StringType,
-              "4d2e278e-58ed-40cc-96ec-329c5b8eea6b",
+              UTF8String.fromString("4d2e278e-58ed-40cc-96ec-329c5b8eea6b"),
               Value.uuid(UUID.fromString("4d2e278e-58ed-40cc-96ec-329c5b8eea6b")),
               "UUID"
             },
@@ -115,13 +119,14 @@ public class SpannerWriterUtilsTest {
       // 2. Mock InternalRow based on the current parameter's type
       InternalRow row = mock(InternalRow.class);
       when(row.isNullAt(0)).thenReturn(false);
-      Map<String, String> mockMap = mock(Map.class);
-      when(mockMap.get(fieldName)).thenReturn(spannerType);
+      Map<String, String> spannerTypes = Collections.singletonMap(fieldName, spannerType);
 
       // Setup specific getter based on type
       if (sparkType == DataTypes.LongType) when(row.getLong(0)).thenReturn((Long) mockValue);
       else if (sparkType == DataTypes.StringType)
-        when(row.getString(0)).thenReturn((String) mockValue);
+        if ("UUID".equals(spannerType))
+          when(row.getUTF8String(0)).thenReturn((UTF8String) mockValue);
+        else when(row.getString(0)).thenReturn((String) mockValue);
       else if (sparkType == DataTypes.BooleanType)
         when(row.getBoolean(0)).thenReturn((Boolean) mockValue);
       else if (sparkType == DataTypes.DoubleType)
@@ -136,7 +141,7 @@ public class SpannerWriterUtilsTest {
 
       // 3. Execute
       com.google.cloud.spanner.Mutation mutation =
-          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, mockMap);
+          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes);
 
       // 4. Verify the mapped value
       Assert.assertEquals(
@@ -216,6 +221,15 @@ public class SpannerWriterUtilsTest {
               DataTypes.createArrayType(new DecimalType(38, 9)),
               Value.numericArray(null),
               "ARRAY<NUMERIC>"
+            },
+            {
+              "uuid", DataTypes.StringType, Value.string(null), ""
+            }, // UUID conversion reverts to string. Will fail at write phase.
+            {
+              "uuid_array",
+              DataTypes.createArrayType(DataTypes.StringType),
+              Value.stringArray(null),
+              ""
             }
           });
     }
@@ -243,12 +257,11 @@ public class SpannerWriterUtilsTest {
       // Simulate a null value in Spark
       when(row.isNullAt(0)).thenReturn(true);
 
-      Map<String, String> mockMap = mock(Map.class);
-      when(mockMap.get(fieldName)).thenReturn(spannerType);
+      Map<String, String> spannerTypes = Collections.singletonMap(fieldName, spannerType);
 
       // 2. Execute
       Mutation mutation =
-          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, mockMap);
+          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes);
 
       // 4. Verify the mapped value
       Assert.assertEquals(expectedValue, mutation.asMap().get(fieldName));
@@ -428,19 +441,6 @@ public class SpannerWriterUtilsTest {
           });
     }
 
-    private static void setupArrayMock(
-        ArrayData ad, Object[] data, BiConsumer<Integer, Object> getterStubber) {
-      when(ad.numElements()).thenReturn(data.length);
-      for (int i = 0; i < data.length; i++) {
-        if (data[i] == null) {
-          when(ad.isNullAt(i)).thenReturn(true);
-        } else {
-          when(ad.isNullAt(i)).thenReturn(false);
-          getterStubber.accept(i, data[i]);
-        }
-      }
-    }
-
     @Test
     public void testArrayConversion() {
       String TABLE_NAME = "test_table";
@@ -454,14 +454,83 @@ public class SpannerWriterUtilsTest {
       // Executes the specific stubbing (e.g., ad.toLongArray() or ad.toIntArray())
       mockSetup.accept(arrayData, inputData);
 
-      Map<String, String> mockMap = mock(Map.class);
-      when(mockMap.get(colName)).thenReturn(spannerType);
+      Map<String, String> spannerTypes = Collections.singletonMap(colName, spannerType);
 
       Mutation mutation =
-          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, mockMap);
+          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes);
 
       Assert.assertEquals(
           "Failure on type: " + colName, expectedValue, mutation.asMap().get(colName));
+    }
+  }
+
+  private static void setupArrayMock(
+      ArrayData ad, Object[] data, BiConsumer<Integer, Object> getterStubber) {
+    when(ad.numElements()).thenReturn(data.length);
+    for (int i = 0; i < data.length; i++) {
+      if (data[i] == null) {
+        when(ad.isNullAt(i)).thenReturn(true);
+      } else {
+        when(ad.isNullAt(i)).thenReturn(false);
+        getterStubber.accept(i, data[i]);
+      }
+    }
+  }
+
+  public static class ThrowsTests {
+
+    @Test
+    public void testInvalidUuidArrayThrows() {
+      String colName = "uuid_array";
+      DataType sparkType = DataTypes.StringType;
+      Object inputData = new String[] {"invalid-uuid-str", "1-2-3-4-5", null};
+      String spannerType = "ARRAY<UUID>";
+      InternalRow row = mock(InternalRow.class);
+      ArrayData arrayData = mock(ArrayData.class);
+      when(row.getArray(0)).thenReturn(arrayData);
+      StructType schema = new StructType().add(colName, DataTypes.createArrayType(sparkType));
+      BiConsumer<ArrayData, Object> mockSetup =
+          (BiConsumer<ArrayData, Object>)
+              (ad, d) ->
+                  setupArrayMock(
+                      ad,
+                      (String[]) d,
+                      (i, val) ->
+                          when(ad.getUTF8String(i))
+                              .thenReturn(UTF8String.fromString((String) val)));
+
+      // Executes the specific stubbing (e.g., ad.toLongArray() or ad.toIntArray())
+      mockSetup.accept(arrayData, inputData);
+
+      Map<String, String> spannerTypes = Collections.singletonMap(colName, spannerType);
+
+      Assert.assertThrows(
+          IllegalArgumentException.class,
+          () -> SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes));
+    }
+
+    @Test
+    public void testInvalidUuidThrows() {
+      String fieldName = "uuid";
+      DataType sparkType = DataTypes.StringType;
+      UTF8String mockValue = UTF8String.fromString("invalid-uuid-str");
+      String spannerType = "UUID";
+
+      // 1. Setup single-column schema for this parameter set
+      StructType schema = new StructType().add(fieldName, sparkType);
+
+      // 2. Mock InternalRow based on the current parameter's type
+      InternalRow row = mock(InternalRow.class);
+      when(row.isNullAt(0)).thenReturn(false);
+      Map<String, String> spannerTypes = Collections.singletonMap(fieldName, spannerType);
+
+      // Setup specific getter based on type
+      when(row.getUTF8String(0)).thenReturn(mockValue);
+
+      // 3. Execute
+      Assert.assertThrows(
+          IllegalArgumentException.class,
+          () -> SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes));
     }
   }
 }

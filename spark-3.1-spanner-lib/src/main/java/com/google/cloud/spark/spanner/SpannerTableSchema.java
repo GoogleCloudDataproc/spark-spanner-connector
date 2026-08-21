@@ -18,7 +18,14 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeMap;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
@@ -42,7 +49,7 @@ public class SpannerTableSchema {
   public final StructType schema;
 
   // Maps column names of the table to Spanner types.
-  // Note; this must be serializable so it can be passed to the executor nodes.
+  // Note: this must be serializable so it can be passed to the executor nodes.
   public final Map<String, String> spannerTypes;
 
   static Statement buildSchemaQuery(String tableName, boolean isPostgreSql) {
@@ -68,7 +75,7 @@ public class SpannerTableSchema {
       // ...
       // rowN:
       StructType schema = new StructType();
-      Map<String, String> spannerTypes = new HashMap<>();
+      Map<String, String> spannerTypes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
       while (rs.next()) {
         Struct row = rs.getCurrentRowAsStruct();
         String columnName = row.getString(0);

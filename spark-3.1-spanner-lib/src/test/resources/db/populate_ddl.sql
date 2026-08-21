@@ -64,7 +64,8 @@ CREATE TABLE AWriteTable (
   F BOOL,
   G FLOAT64,
   H DATE,
-  I ARRAY<STRING(20)>
+  I UUID,
+  J ARRAY<STRING(20)>
 ) PRIMARY KEY(A);
 
 CREATE TABLE compositeTable (
@@ -130,7 +131,8 @@ CREATE TABLE write_test_table (
     timestamp_col TIMESTAMP,
     date_col DATE,
     bytes_col BYTES(MAX),
-    numeric_col NUMERIC
+    numeric_col NUMERIC,
+    uuid_col UUID
     ) PRIMARY KEY(long_col);
 
 CREATE TABLE write_struct_test_table (
@@ -142,6 +144,7 @@ CREATE TABLE write_struct_test_table (
     date_col DATE,
     bytes_col BYTES(MAX),
     numeric_col NUMERIC,
+    uuid_col UUID,
     struct_col JSON
     ) PRIMARY KEY(long_col);
 
@@ -161,7 +164,8 @@ CREATE TABLE write_array_test_table (
     timestamp_array ARRAY<TIMESTAMP>,
     date_array ARRAY<DATE>,
     binary_array ARRAY<BYTES(MAX)>,
-    numeric_array ARRAY<NUMERIC>
+    numeric_array ARRAY<NUMERIC>,
+    uuid_array ARRAY<UUID>
     ) PRIMARY KEY(long_col);
 
 CREATE TABLE schema_test_table (

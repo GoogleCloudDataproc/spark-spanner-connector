@@ -27,6 +27,8 @@ import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -62,19 +64,35 @@ public class SpannerWriterUtilsTest {
     public static Collection<Object[]> data() {
       return Arrays.asList(
           new Object[][] {
-            {"long", DataTypes.LongType, 100L, Value.int64(100L)},
-            {"string", DataTypes.StringType, "Hello", Value.string("Hello")},
-            {"boolean", DataTypes.BooleanType, true, Value.bool(true)},
-            {"double", DataTypes.DoubleType, 95.5, Value.float64(95.5)},
-            {"binary", DataTypes.BinaryType, BYTE_DATA, Value.bytes(ByteArray.copyFrom(BYTE_DATA))},
+            {"long", DataTypes.LongType, 100L, Value.int64(100L), "INT64"},
+            {"string", DataTypes.StringType, "Hello", Value.string("Hello"), "STRING"},
+            {
+              "uuid",
+              DataTypes.StringType,
+              UTF8String.fromString("4d2e278e-58ed-40cc-96ec-329c5b8eea6b"),
+              Value.uuid(UUID.fromString("4d2e278e-58ed-40cc-96ec-329c5b8eea6b")),
+              "UUID"
+            },
+            {"boolean", DataTypes.BooleanType, true, Value.bool(true), "BOOL"},
+            {"double", DataTypes.DoubleType, 95.5, Value.float64(95.5), "FLOAT64"},
+            {
+              "binary",
+              DataTypes.BinaryType,
+              BYTE_DATA,
+              Value.bytes(ByteArray.copyFrom(BYTE_DATA)),
+              "BYTES"
+            },
             {
               "ts",
               DataTypes.TimestampType,
               1704067200000000L,
-              Value.timestamp(Timestamp.ofTimeMicroseconds(1704067200000000L))
+              Value.timestamp(Timestamp.ofTimeMicroseconds(1704067200000000L)),
+              "TIMESTAMP"
             },
-            {"dt", DataTypes.DateType, 19723, Value.date(Date.fromYearMonthDay(2024, 1, 1))},
-            {"decimal", new DecimalType(38, 9), decimal, Value.numeric(jbd)}
+            {
+              "dt", DataTypes.DateType, 19723, Value.date(Date.fromYearMonthDay(2024, 1, 1)), "DATE"
+            },
+            {"decimal", new DecimalType(38, 9), decimal, Value.numeric(jbd), "NUMERIC"},
           });
     }
 
@@ -90,6 +108,9 @@ public class SpannerWriterUtilsTest {
     @Parameter(3)
     public Value expectedValue;
 
+    @Parameter(4)
+    public String spannerType;
+
     @Test
     public void testScalarConversion() {
       // 1. Setup single-column schema for this parameter set
@@ -98,11 +119,14 @@ public class SpannerWriterUtilsTest {
       // 2. Mock InternalRow based on the current parameter's type
       InternalRow row = mock(InternalRow.class);
       when(row.isNullAt(0)).thenReturn(false);
+      Map<String, String> spannerTypes = Collections.singletonMap(fieldName, spannerType);
 
       // Setup specific getter based on type
       if (sparkType == DataTypes.LongType) when(row.getLong(0)).thenReturn((Long) mockValue);
       else if (sparkType == DataTypes.StringType)
-        when(row.getString(0)).thenReturn((String) mockValue);
+        if ("UUID".equals(spannerType))
+          when(row.getUTF8String(0)).thenReturn((UTF8String) mockValue);
+        else when(row.getString(0)).thenReturn((String) mockValue);
       else if (sparkType == DataTypes.BooleanType)
         when(row.getBoolean(0)).thenReturn((Boolean) mockValue);
       else if (sparkType == DataTypes.DoubleType)
@@ -117,7 +141,7 @@ public class SpannerWriterUtilsTest {
 
       // 3. Execute
       com.google.cloud.spanner.Mutation mutation =
-          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
+          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes);
 
       // 4. Verify the mapped value
       Assert.assertEquals(
@@ -135,45 +159,77 @@ public class SpannerWriterUtilsTest {
     public static Collection<Object[]> data() {
       return Arrays.asList(
           new Object[][] {
-            {"long", DataTypes.LongType, Value.int64(null)},
-            {"string", DataTypes.StringType, Value.string(null)},
-            {"boolean", DataTypes.BooleanType, Value.bool(null)},
-            {"double", DataTypes.DoubleType, Value.float64(null)},
-            {"binary", DataTypes.BinaryType, Value.bytes(null)},
-            {"timestamp", DataTypes.TimestampType, Value.timestamp(null)},
-            {"date", DataTypes.DateType, Value.date(null)},
-            {"decimal", new DecimalType(38, 9), Value.numeric(null)},
+            {"long", DataTypes.LongType, Value.int64(null), "INT64"},
+            {"string", DataTypes.StringType, Value.string(null), "STRING"},
+            {"uuid", DataTypes.StringType, Value.uuid(null), "UUID"},
+            {"boolean", DataTypes.BooleanType, Value.bool(null), "BOOL"},
+            {"double", DataTypes.DoubleType, Value.float64(null), "FLOAT64"},
+            {"binary", DataTypes.BinaryType, Value.bytes(null), "BYTES"},
+            {"timestamp", DataTypes.TimestampType, Value.timestamp(null), "TIMESTAMP"},
+            {"date", DataTypes.DateType, Value.date(null), "DATE"},
+            {"decimal", new DecimalType(38, 9), Value.numeric(null), "NUMERIC"},
             {
               "long_array",
               DataTypes.createArrayType(DataTypes.LongType),
-              Value.int64Array((long[]) null)
+              Value.int64Array((long[]) null),
+              "ARRAY<INT64>"
             },
-            {"str_array", DataTypes.createArrayType(DataTypes.StringType), Value.stringArray(null)},
+            {
+              "str_array",
+              DataTypes.createArrayType(DataTypes.StringType),
+              Value.stringArray(null),
+              "ARRAY<STRING>"
+            },
+            {
+              "uuid_array",
+              DataTypes.createArrayType(DataTypes.StringType),
+              Value.uuidArray(null),
+              "ARRAY<UUID>"
+            },
             {
               "boolean_array",
               DataTypes.createArrayType(DataTypes.BooleanType),
-              Value.boolArray((boolean[]) null)
+              Value.boolArray((boolean[]) null),
+              "ARRAY<BOOL>"
             },
             {
               "double_array",
               DataTypes.createArrayType(DataTypes.DoubleType),
-              Value.float64Array((double[]) null)
+              Value.float64Array((double[]) null),
+              "ARRAY<FLOAT64>"
             },
             {
               "binary_array",
               DataTypes.createArrayType(DataTypes.BinaryType),
-              Value.bytesArray(null)
+              Value.bytesArray(null),
+              "ARRAY<BYTES>"
             },
             {
               "timestamp_array",
               DataTypes.createArrayType(DataTypes.TimestampType),
-              Value.timestampArray(null)
+              Value.timestampArray(null),
+              "ARRAY<TIMESTAMP>"
             },
-            {"date_array", DataTypes.createArrayType(DataTypes.DateType), Value.dateArray(null)},
+            {
+              "date_array",
+              DataTypes.createArrayType(DataTypes.DateType),
+              Value.dateArray(null),
+              "ARRAY<DATE>"
+            },
             {
               "decimal_array",
               DataTypes.createArrayType(new DecimalType(38, 9)),
-              Value.numericArray(null)
+              Value.numericArray(null),
+              "ARRAY<NUMERIC>"
+            },
+            {
+              "uuid", DataTypes.StringType, Value.string(null), ""
+            }, // UUID conversion reverts to string. Will fail at write phase.
+            {
+              "uuid_array",
+              DataTypes.createArrayType(DataTypes.StringType),
+              Value.stringArray(null),
+              ""
             }
           });
     }
@@ -187,6 +243,9 @@ public class SpannerWriterUtilsTest {
     @Parameter(2)
     public Value expectedValue;
 
+    @Parameter(3)
+    public String spannerType;
+
     @Test
     public void testNullHandling() {
       // 1. Setup single-column schema for this parameter set
@@ -198,8 +257,11 @@ public class SpannerWriterUtilsTest {
       // Simulate a null value in Spark
       when(row.isNullAt(0)).thenReturn(true);
 
+      Map<String, String> spannerTypes = Collections.singletonMap(fieldName, spannerType);
+
       // 2. Execute
-      Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
+      Mutation mutation =
+          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes);
 
       // 4. Verify the mapped value
       Assert.assertEquals(expectedValue, mutation.asMap().get(fieldName));
@@ -213,6 +275,7 @@ public class SpannerWriterUtilsTest {
     private final DataType sparkType;
     private final Object inputData;
     private final Value expectedValue;
+    private final String spannerType;
     private final BiConsumer<ArrayData, Object> mockSetup;
 
     public ScalarArrayTests(
@@ -220,11 +283,13 @@ public class SpannerWriterUtilsTest {
         DataType sparkType,
         Object inputData,
         Value expectedValue,
+        String spannerType,
         BiConsumer<ArrayData, Object> mockSetup) {
       this.colName = colName;
       this.sparkType = sparkType;
       this.inputData = inputData;
       this.expectedValue = expectedValue;
+      this.spannerType = spannerType;
       this.mockSetup = mockSetup;
     }
 
@@ -238,6 +303,7 @@ public class SpannerWriterUtilsTest {
               DataTypes.LongType,
               new Long[] {1L, 2L, null},
               Value.int64Array(Arrays.asList(1L, 2L, null)),
+              "ARRAY<INT64>",
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
                       setupArrayMock(
@@ -250,6 +316,30 @@ public class SpannerWriterUtilsTest {
               DataTypes.StringType,
               new String[] {"A", "B", null},
               Value.stringArray(Arrays.asList("A", "B", null)),
+              "ARRAY<STRING>",
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad,
+                          (String[]) d,
+                          (i, val) ->
+                              when(ad.getUTF8String(i))
+                                  .thenReturn(UTF8String.fromString((String) val)))
+            },
+
+            // 2.1 Uuid Array
+            {
+              "uuid_array",
+              DataTypes.StringType,
+              new String[] {
+                "4d2e278e-58ed-40cc-96ec-329c5b8eea6b", "7a89d8cd-057f-41ee-b7f0-217614a1d53e", null
+              },
+              Value.uuidArray(
+                  Arrays.asList(
+                      UUID.fromString("4d2e278e-58ed-40cc-96ec-329c5b8eea6b"),
+                      UUID.fromString("7a89d8cd-057f-41ee-b7f0-217614a1d53e"),
+                      null)),
+              "ARRAY<UUID>",
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
                       setupArrayMock(
@@ -266,6 +356,7 @@ public class SpannerWriterUtilsTest {
               DataTypes.BooleanType,
               new Boolean[] {true, false, null},
               Value.boolArray(Arrays.asList(new Boolean[] {true, false, null})),
+              "ARRAY<BOOL>",
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
                       setupArrayMock(
@@ -280,6 +371,7 @@ public class SpannerWriterUtilsTest {
               DataTypes.DoubleType,
               new Double[] {95.5, -10.88, null},
               Value.float64Array(Arrays.asList(new Double[] {95.5, -10.88, null})),
+              "ARRAY<FLOAT64>",
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
                       setupArrayMock(
@@ -294,6 +386,7 @@ public class SpannerWriterUtilsTest {
               DataTypes.BinaryType,
               new byte[][] {new byte[] {95, 10, 127}, null},
               Value.bytesArray(Arrays.asList(ByteArray.copyFrom(new byte[] {95, 10, 127}), null)),
+              "ARRAY<BINARY>",
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
                       setupArrayMock(
@@ -309,6 +402,7 @@ public class SpannerWriterUtilsTest {
               new Long[] {1704067200000000L, null},
               Value.timestampArray(
                   Arrays.asList(Timestamp.ofTimeMicroseconds(1704067200000000L), null)),
+              "ARRAY<TIMESTAMP>",
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
                       setupArrayMock(
@@ -321,6 +415,7 @@ public class SpannerWriterUtilsTest {
               DataTypes.DateType,
               new Integer[] {18628, null}, // Epoch days
               Value.dateArray(Arrays.asList(Date.fromYearMonthDay(2021, 1, 1), null)),
+              "ARRAY<DATE>",
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
                       setupArrayMock(
@@ -335,6 +430,7 @@ public class SpannerWriterUtilsTest {
               new DecimalType(38, 9),
               new Decimal[] {decimal},
               Value.numericArray(Collections.singletonList(jbd)),
+              "ARRAY<NUMERIC>",
               (BiConsumer<ArrayData, Object>)
                   (ad, d) ->
                       setupArrayMock(
@@ -343,19 +439,6 @@ public class SpannerWriterUtilsTest {
                           (i, val) -> when(ad.getDecimal(i, 38, 9)).thenReturn((Decimal) val))
             }
           });
-    }
-
-    private static void setupArrayMock(
-        ArrayData ad, Object[] data, BiConsumer<Integer, Object> getterStubber) {
-      when(ad.numElements()).thenReturn(data.length);
-      for (int i = 0; i < data.length; i++) {
-        if (data[i] == null) {
-          when(ad.isNullAt(i)).thenReturn(true);
-        } else {
-          when(ad.isNullAt(i)).thenReturn(false);
-          getterStubber.accept(i, data[i]);
-        }
-      }
     }
 
     @Test
@@ -371,10 +454,83 @@ public class SpannerWriterUtilsTest {
       // Executes the specific stubbing (e.g., ad.toLongArray() or ad.toIntArray())
       mockSetup.accept(arrayData, inputData);
 
-      Mutation mutation = SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema);
+      Map<String, String> spannerTypes = Collections.singletonMap(colName, spannerType);
+
+      Mutation mutation =
+          SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes);
 
       Assert.assertEquals(
           "Failure on type: " + colName, expectedValue, mutation.asMap().get(colName));
+    }
+  }
+
+  private static void setupArrayMock(
+      ArrayData ad, Object[] data, BiConsumer<Integer, Object> getterStubber) {
+    when(ad.numElements()).thenReturn(data.length);
+    for (int i = 0; i < data.length; i++) {
+      if (data[i] == null) {
+        when(ad.isNullAt(i)).thenReturn(true);
+      } else {
+        when(ad.isNullAt(i)).thenReturn(false);
+        getterStubber.accept(i, data[i]);
+      }
+    }
+  }
+
+  public static class ThrowsTests {
+
+    @Test
+    public void testInvalidUuidArrayThrows() {
+      String colName = "uuid_array";
+      DataType sparkType = DataTypes.StringType;
+      Object inputData = new String[] {"invalid-uuid-str", "1-2-3-4-5", null};
+      String spannerType = "ARRAY<UUID>";
+      InternalRow row = mock(InternalRow.class);
+      ArrayData arrayData = mock(ArrayData.class);
+      when(row.getArray(0)).thenReturn(arrayData);
+      StructType schema = new StructType().add(colName, DataTypes.createArrayType(sparkType));
+      BiConsumer<ArrayData, Object> mockSetup =
+          (BiConsumer<ArrayData, Object>)
+              (ad, d) ->
+                  setupArrayMock(
+                      ad,
+                      (String[]) d,
+                      (i, val) ->
+                          when(ad.getUTF8String(i))
+                              .thenReturn(UTF8String.fromString((String) val)));
+
+      // Executes the specific stubbing (e.g., ad.toLongArray() or ad.toIntArray())
+      mockSetup.accept(arrayData, inputData);
+
+      Map<String, String> spannerTypes = Collections.singletonMap(colName, spannerType);
+
+      Assert.assertThrows(
+          IllegalArgumentException.class,
+          () -> SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes));
+    }
+
+    @Test
+    public void testInvalidUuidThrows() {
+      String fieldName = "uuid";
+      DataType sparkType = DataTypes.StringType;
+      UTF8String mockValue = UTF8String.fromString("invalid-uuid-str");
+      String spannerType = "UUID";
+
+      // 1. Setup single-column schema for this parameter set
+      StructType schema = new StructType().add(fieldName, sparkType);
+
+      // 2. Mock InternalRow based on the current parameter's type
+      InternalRow row = mock(InternalRow.class);
+      when(row.isNullAt(0)).thenReturn(false);
+      Map<String, String> spannerTypes = Collections.singletonMap(fieldName, spannerType);
+
+      // Setup specific getter based on type
+      when(row.getUTF8String(0)).thenReturn(mockValue);
+
+      // 3. Execute
+      Assert.assertThrows(
+          IllegalArgumentException.class,
+          () -> SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes));
     }
   }
 }

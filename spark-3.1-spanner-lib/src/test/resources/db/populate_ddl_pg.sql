@@ -90,6 +90,7 @@ CREATE TABLE write_test_table (
   date_col DATE,
   bytes_col BYTEA,
   numeric_col NUMERIC,
+  uuid_col UUID,
   PRIMARY KEY(long_col)
 );
 
@@ -102,6 +103,7 @@ CREATE TABLE write_struct_test_table (
     date_col DATE,
     bytes_col BYTEA,
     numeric_col NUMERIC,
+    uuid_col UUID,
     struct_col jsonb,
     PRIMARY KEY(long_col)
 );
@@ -123,6 +125,7 @@ CREATE TABLE write_array_test_table (
   date_array DATE ARRAY,
   binary_array BYTEA ARRAY,
   numeric_array NUMERIC ARRAY,
+  uuid_array UUID ARRAY,
   PRIMARY KEY(long_col)
 );
 

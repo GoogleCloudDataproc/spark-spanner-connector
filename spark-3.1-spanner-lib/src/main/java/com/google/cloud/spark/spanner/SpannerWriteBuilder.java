@@ -22,6 +22,7 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import org.apache.spark.sql.connector.catalog.Identifier;
 import org.apache.spark.sql.connector.write.BatchWrite;
@@ -39,16 +40,21 @@ public class SpannerWriteBuilder implements WriteBuilder, SupportsTruncate {
   private final LogicalWriteInfo info;
   private final CaseInsensitiveStringMap properties;
   private final StructType schema;
+  private final Map<String, String> spannerTypes;
 
-  public SpannerWriteBuilder(LogicalWriteInfo info, CaseInsensitiveStringMap properties) {
+  public SpannerWriteBuilder(
+      LogicalWriteInfo info,
+      CaseInsensitiveStringMap properties,
+      Map<String, String> spannerTypes) {
     this.info = info;
     this.properties = properties;
     this.schema = info.schema();
+    this.spannerTypes = spannerTypes;
   }
 
   @Override
   public BatchWrite buildForBatch() {
-    return new SpannerBatchWrite(info, properties);
+    return new SpannerBatchWrite(this.info, this.properties, this.spannerTypes);
   }
 
   @Override

@@ -20,7 +20,12 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Function;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -207,12 +212,17 @@ public class SpannerWriterUtils {
   }
 
   public static Mutation internalRowToMutation(
-      String tableName, InternalRow record, StructType schema) {
-    return internalRowToMutation(tableName, record, schema, Mutation.Op.INSERT_OR_UPDATE);
+      String tableName, InternalRow record, StructType schema, Map<String, String> spannerTypes) {
+    return internalRowToMutation(
+        tableName, record, schema, spannerTypes, Mutation.Op.INSERT_OR_UPDATE);
   }
 
   public static Mutation internalRowToMutation(
-      String tableName, InternalRow record, StructType schema, Mutation.Op mode) {
+      String tableName,
+      InternalRow record,
+      StructType schema,
+      Map<String, String> spannerTypes,
+      Mutation.Op mode) {
 
     Mutation.WriteBuilder builder = createBuilder(tableName, mode);
 
@@ -220,8 +230,9 @@ public class SpannerWriterUtils {
       StructField field = schema.fields()[i];
       DataType fieldType = field.dataType();
       String fieldName = field.name();
+      String spannerType = spannerTypes.get(fieldName);
 
-      Value spannerValue = convertField(record, i, fieldType);
+      Value spannerValue = convertField(record, i, fieldType, spannerType);
       builder.set(fieldName).to(spannerValue);
     }
 
@@ -229,7 +240,20 @@ public class SpannerWriterUtils {
   }
 
   // Helper method to resolve the strategy
-  private static Value convertField(InternalRow row, int index, DataType type) {
+  private static Value convertField(InternalRow row, int index, DataType type, String spannerType) {
+    // Destination-driven conversions first.
+    if (type.equals(DataTypes.StringType) && isUuidType(spannerType)) {
+      return convertUuid(row, index);
+    }
+
+    if (type instanceof ArrayType && isUuidArrayType(spannerType)) {
+      ArrayType arrayType = (ArrayType) type;
+
+      if (arrayType.elementType().equals(DataTypes.StringType)) {
+        return convertUuidArray(row, index);
+      }
+    }
+
     // Check exact matches
     FieldConverter converter = TYPE_CONVERTERS.get(type);
     if (converter != null) {
@@ -266,5 +290,52 @@ public class SpannerWriterUtils {
     // TODO handle Struct here.
     // unsupported type
     throw new UnsupportedOperationException("Unsupported Spark DataType: " + type);
+  }
+
+  private static Value convertUuid(InternalRow row, int index) {
+    if (row.isNullAt(index)) {
+      return Value.uuid(null);
+    }
+
+    String value = row.getUTF8String(index).toString();
+
+    try {
+      return Value.uuid(parseUuid(value));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid UUID value for Spanner UUID column: " + value, e);
+    }
+  }
+
+  private static UUID parseUuid(String value) {
+    try {
+      UUID uuid = UUID.fromString(value);
+
+      if (!uuid.toString().equalsIgnoreCase(value)) {
+        throw new IllegalArgumentException("Not a canonical UUID");
+      }
+
+      return uuid;
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid UUID value: " + value, e);
+    }
+  }
+
+  private static boolean isUuidType(String spannerType) {
+    return spannerType != null && "UUID".equalsIgnoreCase(spannerType.trim());
+  }
+
+  private static boolean isUuidArrayType(String spannerType) {
+    return spannerType != null
+        && ("ARRAY<UUID>".equalsIgnoreCase(spannerType.trim())
+            || "UUID[]".equalsIgnoreCase(spannerType.trim())
+            || "UUID ARRAY".equalsIgnoreCase(spannerType.trim()));
+  }
+
+  private static Value convertUuidArray(InternalRow row, int index) {
+    return arrayConverter(
+        row,
+        index,
+        (array, idx) -> parseUuid(array.getUTF8String(idx).toString()),
+        Value::uuidArray);
   }
 }

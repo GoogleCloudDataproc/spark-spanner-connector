@@ -36,7 +36,8 @@ public class PredicateToExprConverterTest {
   public void equalProducesEqExpr() {
 
     Map<String, ColumnResolution> resolutionMap = new HashMap<>();
-    resolutionMap.put("A", new ColumnResolution("A", "A", "ATable", DataTypes.IntegerType, true));
+    resolutionMap.put(
+        "A", new ColumnResolution("A", "A", "ATable", DataTypes.IntegerType, "INT64", true));
     NamedReference ref = mock(NamedReference.class);
     when(ref.fieldNames()).thenReturn(new String[] {"A"});
 

@@ -31,6 +31,7 @@ public final class ColumnResolution {
   private final String columnName; // physical table column name
   private final String tableAlias;
   private final DataType sparkType;
+  private final String spannerType;
   private final boolean nullable;
 
   public ColumnResolution(
@@ -38,18 +39,21 @@ public final class ColumnResolution {
       String columnName,
       String tableAlias,
       DataType sparkType,
+      String spannerType,
       boolean nullable) {
     this.outputName = outputName;
     this.columnName = columnName;
     this.tableAlias = tableAlias;
     this.sparkType = sparkType;
+    this.spannerType = spannerType;
     this.nullable = nullable;
     logger.debug(
-        "outputname: {}, columnName: {}, tableAlias: {}, sparkType: {}, nullable: {}",
+        "outputname: {}, columnName: {}, tableAlias: {}, sparkType: {}, spannerType: {}, nullable: {}",
         outputName,
         columnName,
         tableAlias,
         sparkType,
+        spannerType,
         nullable);
   }
 
@@ -67,6 +71,10 @@ public final class ColumnResolution {
 
   public DataType getSparkType() {
     return sparkType;
+  }
+
+  public String getSpannerType() {
+    return spannerType;
   }
 
   public boolean isNullable() {

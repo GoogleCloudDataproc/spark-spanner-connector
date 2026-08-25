@@ -294,6 +294,10 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     return this.dbSchema.schema;
   }
 
+  public Map<String, String> getSpannerTypes() {
+    return this.dbSchema.getSpannerTypes();
+  }
+
   /*
    * Cloud Spanner tables support:
    *    BATCH_READ

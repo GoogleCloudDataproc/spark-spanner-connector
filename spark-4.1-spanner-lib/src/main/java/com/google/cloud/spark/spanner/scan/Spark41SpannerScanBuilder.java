@@ -102,15 +102,18 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
             false);
 
     logger.info("pushDownJoin: joinSchema: {}", joinSchema);
+    Map<String, String> spannerTypes = this.getSpannerTypes();
 
     final Map<String, ColumnResolution> resolutionMap =
         createColumnResolutionMap(
             this.getTableName(),
             leftSideRequiredColumnsWithAliases,
             this.getSchema(),
+            this.getSpannerTypes(),
             right.getTableName(),
             rightSideRequiredColumnsWithAliases,
-            right.getSchema());
+            right.getSchema(),
+            right.getSpannerTypes());
 
     try {
       logger.debug("predicate class = {}", predicate.getClass());
@@ -184,14 +187,18 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       String leftTableAlias,
       ColumnWithAlias[] leftColumns,
       StructType leftSchema,
+      Map<String, String> leftSpannerTypes,
       String rightTableAlias,
       ColumnWithAlias[] rightColumns,
-      StructType rightSchema) {
+      StructType rightSchema,
+      Map<String, String> rightSpannerTypes) {
     // Use LinkedHashMap to preserve insertion order.
     // This is important to ensure required columns matches schema order.
     Map<String, ColumnResolution> columnResolutionMap = new LinkedHashMap<>();
-    populateColumnResolutionMap(columnResolutionMap, leftColumns, leftTableAlias, leftSchema);
-    populateColumnResolutionMap(columnResolutionMap, rightColumns, rightTableAlias, rightSchema);
+    populateColumnResolutionMap(
+        columnResolutionMap, leftColumns, leftTableAlias, leftSchema, leftSpannerTypes);
+    populateColumnResolutionMap(
+        columnResolutionMap, rightColumns, rightTableAlias, rightSchema, rightSpannerTypes);
     return columnResolutionMap;
   }
 
@@ -199,20 +206,24 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       Map<String, ColumnResolution> columnResolutionMap,
       ColumnWithAlias[] columns,
       String tableAlias,
-      StructType schema) {
+      StructType schema,
+      Map<String, String> spannerTypes) {
     logger.info("populateColumnResolutionMap: tableAlias: {}", tableAlias);
     for (SupportsPushDownJoin.ColumnWithAlias columnWithAlias : columns) {
       final String columnName = columnWithAlias.colName();
       final String alias = columnWithAlias.alias() == null ? columnName : columnWithAlias.alias();
       final StructField field = schema.apply(columnName);
+      final String spannerType = spannerTypes.get(columnName);
       final ColumnResolution columnResolution =
-          new ColumnResolution(alias, columnName, tableAlias, field.dataType(), field.nullable());
+          new ColumnResolution(
+              alias, columnName, tableAlias, field.dataType(), spannerType, field.nullable());
       logger.debug(
-          "populateColumnResolutionMap: alias: {}, columnName: {}, tableAlias: {}, dataType(): {}, field.dataType(): {}, field.nullable(): {}",
+          "populateColumnResolutionMap: alias: {}, columnName: {}, tableAlias: {}, dataType(): {}, field.dataType(): {}, spannerType: {}, field.nullable(): {}",
           alias,
           columnName,
           tableAlias,
           field.dataType(),
+          spannerType,
           field.nullable());
       columnResolutionMap.put(alias, columnResolution);
     }

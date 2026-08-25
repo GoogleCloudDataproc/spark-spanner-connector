@@ -130,9 +130,11 @@ public class SpannerScannerTest {
             .add("unused", DataTypes.StringType);
     Map<String, ColumnResolution> resolutionMap = new LinkedHashMap<>();
     resolutionMap.put(
-        "order_id", new ColumnResolution("order_id", "id", "Orders", DataTypes.LongType, true));
+        "order_id",
+        new ColumnResolution("order_id", "id", "Orders", DataTypes.LongType, "NUMERIC", true));
     resolutionMap.put(
-        "item_id", new ColumnResolution("item_id", "id", "Items", DataTypes.LongType, true));
+        "item_id",
+        new ColumnResolution("item_id", "id", "Items", DataTypes.LongType, "NUMERIC", true));
     LogicalQuery logicalQuery =
         LogicalQuery.builder()
             .source(join)

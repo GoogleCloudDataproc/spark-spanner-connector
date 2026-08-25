@@ -164,7 +164,8 @@ public class SpannerQueryBuilderTest {
     when(mockProperties.get("indexHint")).thenReturn("IndexByA");
     Map<String, ColumnResolution> columnResolution = new HashMap<>();
     columnResolution.put(
-        "A", new ColumnResolution("A", "A", "mockSpannerTable", DataTypes.StringType, true));
+        "A",
+        new ColumnResolution("A", "A", "mockSpannerTable", DataTypes.StringType, "STRING", true));
     LogicalQuery logicalQuery =
         LogicalQuery.builder()
             .source(

@@ -175,10 +175,20 @@ public final class PredicateToExprConverter {
           "Left side of IN predicate must be a column reference");
     }
 
+    String columnName = ((ColumnExpr) left).getColumnName();
+    ColumnResolution resolution = resolutionMap.get(columnName);
+
     List<ValueExpr> values = new ArrayList<>();
 
     for (int i = 1; i < predicate.children().length; i++) {
-      values.add(translateExpression(predicate.children()[i], resolutionMap));
+      Expression value = predicate.children()[i];
+
+      if (value instanceof Literal<?>) {
+        values.add(
+            ExprConverterUtils.toLiteral(((Literal<?>) value).value(), resolutionMap, columnName));
+      } else {
+        values.add(translateExpression(value, resolutionMap));
+      }
     }
 
     return new InExpr(left, values);

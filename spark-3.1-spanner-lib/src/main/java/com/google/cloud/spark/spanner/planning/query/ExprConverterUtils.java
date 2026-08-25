@@ -16,6 +16,7 @@ package com.google.cloud.spark.spanner.planning.query;
 import com.google.cloud.spark.spanner.planning.expression.*;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
@@ -42,34 +43,45 @@ public class ExprConverterUtils {
   public static LiteralExpr toLiteral(
       Object value, Map<String, ColumnResolution> resolutionMap, String columnName) {
     logger.debug("Looking up literal column '{}' in resolutionMap {}", columnName, resolutionMap);
-    logger.info(
-        "Literal value class={}, value={}",
-        value == null ? null : value.getClass().getName(),
-        value);
+
     ColumnResolution columnResolution = resolutionMap.get(columnName);
 
-    Object normalizedValue = normalizeLiteral(value, columnResolution.getSparkType());
+    if (columnResolution == null) {
+      throw new IllegalArgumentException("No column resolution found for column: " + columnName);
+    }
+
+    Object normalizedValue =
+        normalizeLiteral(value, columnResolution.getSparkType(), columnResolution.getSpannerType());
 
     return new LiteralExpr(normalizedValue, columnResolution.getSparkType());
   }
 
-  private static Object normalizeLiteral(Object value, DataType type) {
+  private static Object normalizeLiteral(Object value, DataType sparkType, String spannerType) {
+
     if (value == null) {
       return null;
     }
 
-    if (type.sameType(DataTypes.StringType)) {
+    if (sparkType.sameType(DataTypes.StringType)) {
+      if (isUuid(spannerType)) {
+        return UUID.fromString(value.toString());
+      }
+
       return value.toString();
     }
 
-    if (type.sameType(DataTypes.DateType)) {
+    if (sparkType.sameType(DataTypes.DateType)) {
       return LocalDate.ofEpochDay((Integer) value);
     }
 
-    if (type instanceof DecimalType) {
+    if (sparkType instanceof DecimalType) {
       return ((Decimal) value).toJavaBigDecimal();
     }
 
     return value;
+  }
+
+  private static boolean isUuid(String spannerType) {
+    return "UUID".equalsIgnoreCase(spannerType.trim());
   }
 }

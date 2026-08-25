@@ -50,38 +50,42 @@ public class ExprConverterUtils {
       throw new IllegalArgumentException("No column resolution found for column: " + columnName);
     }
 
-    Object normalizedValue =
-        normalizeLiteral(value, columnResolution.getSparkType(), columnResolution.getSpannerType());
+    Object normalizedValue = normalizeLiteral(value, columnResolution.getSparkType());
 
-    return new LiteralExpr(normalizedValue, columnResolution.getSparkType());
+    if (ColumnResolution.isUuid(columnResolution.getSpannerType()) && normalizedValue != null) {
+      validateUuid(normalizedValue);
+    }
+
+    return new LiteralExpr(
+        normalizedValue, columnResolution.getSparkType(), columnResolution.getSpannerType());
   }
 
-  private static Object normalizeLiteral(Object value, DataType sparkType, String spannerType) {
+  private static void validateUuid(Object value) {
+    try {
+      UUID.fromString(value.toString());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid UUID value for Spanner UUID column: " + value, e);
+    }
+  }
+
+  private static Object normalizeLiteral(Object value, DataType type) {
 
     if (value == null) {
       return null;
     }
 
-    if (sparkType.sameType(DataTypes.StringType)) {
-      if (isUuid(spannerType)) {
-        return UUID.fromString(value.toString());
-      }
-
+    if (type.sameType(DataTypes.StringType)) {
       return value.toString();
     }
 
-    if (sparkType.sameType(DataTypes.DateType)) {
+    if (type.sameType(DataTypes.DateType)) {
       return LocalDate.ofEpochDay((Integer) value);
     }
 
-    if (sparkType instanceof DecimalType) {
+    if (type instanceof DecimalType) {
       return ((Decimal) value).toJavaBigDecimal();
     }
 
     return value;
-  }
-
-  private static boolean isUuid(String spannerType) {
-    return "UUID".equalsIgnoreCase(spannerType.trim());
   }
 }

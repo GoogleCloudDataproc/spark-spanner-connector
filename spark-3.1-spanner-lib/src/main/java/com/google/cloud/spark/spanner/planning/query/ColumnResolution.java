@@ -80,4 +80,8 @@ public final class ColumnResolution {
   public boolean isNullable() {
     return nullable;
   }
+
+  public static boolean isUuid(String spannerType) {
+    return spannerType != null && "UUID".equalsIgnoreCase(spannerType.trim());
+  }
 }

@@ -27,9 +27,10 @@ public class SpannerExprTest {
 
   @Test
   public void testVisit() {
-    final LiteralExpr aLongLiteral = new LiteralExpr(Long.valueOf(123L), DataTypes.LongType);
+    final LiteralExpr aLongLiteral =
+        new LiteralExpr(Long.valueOf(123L), DataTypes.LongType, "INT64");
     final LiteralExpr aBooleanLiteral =
-        new LiteralExpr(Boolean.valueOf(true), DataTypes.BooleanType);
+        new LiteralExpr(Boolean.valueOf(true), DataTypes.BooleanType, "BOOL");
     SpannerExpr predicate =
         new OrExpr(
             new AndExpr(
@@ -73,9 +74,9 @@ public class SpannerExprTest {
 
   @Test
   public void testInVisit() {
-    final LiteralExpr a47Literal = new LiteralExpr(Long.valueOf(47), DataTypes.LongType);
-    final LiteralExpr a45Literal = new LiteralExpr(Long.valueOf(45), DataTypes.LongType);
-    final LiteralExpr a43Literal = new LiteralExpr(Long.valueOf(43), DataTypes.LongType);
+    final LiteralExpr a47Literal = new LiteralExpr(Long.valueOf(47), DataTypes.LongType, "INT64");
+    final LiteralExpr a45Literal = new LiteralExpr(Long.valueOf(45), DataTypes.LongType, "INT64");
+    final LiteralExpr a43Literal = new LiteralExpr(Long.valueOf(43), DataTypes.LongType, "INT64");
     SpannerExpr predicate =
         new InExpr(
             new ColumnExpr("ATable", "SingerId", DataTypes.LongType, false),

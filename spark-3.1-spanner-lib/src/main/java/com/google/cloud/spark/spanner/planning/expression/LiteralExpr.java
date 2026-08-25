@@ -21,10 +21,16 @@ public final class LiteralExpr implements ValueExpr {
 
   private final Object value;
   private final DataType sparkType;
+  private final String spannerType;
 
-  public LiteralExpr(Object value, DataType sparkType) {
+  public LiteralExpr(Object value, DataType sparkType, String spannerType) {
     this.value = value;
     this.sparkType = Objects.requireNonNull(sparkType, "sparkType cannot be null");
+    this.spannerType = spannerType;
+  }
+
+  public LiteralExpr(Object value, DataType sparkType) {
+    this(value, sparkType, null);
   }
 
   public Object getValue() {
@@ -33,6 +39,14 @@ public final class LiteralExpr implements ValueExpr {
 
   public DataType getSparkType() {
     return sparkType;
+  }
+
+  public String getSpannerType() {
+    return spannerType;
+  }
+
+  public boolean hasSpannerType() {
+    return spannerType != null;
   }
 
   public <T> T accept(SpannerExprVisitor<T> visitor) {

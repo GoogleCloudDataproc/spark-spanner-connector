@@ -102,7 +102,6 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
             false);
 
     logger.info("pushDownJoin: joinSchema: {}", joinSchema);
-    Map<String, String> spannerTypes = this.getSpannerTypes();
 
     final Map<String, ColumnResolution> resolutionMap =
         createColumnResolutionMap(

@@ -525,7 +525,7 @@ def run_join_on_uuid_columns_and_string_and_literal_projection_tests(uuid_parent
 
     if actual_rows != expected_rows:
         issues.append(
-            f"Join on uuid projection expected {expected_rows} rows but found {actual_rows}"
+            f"Join on uuid columns and string and literal projection expected {expected_rows} rows but found {actual_rows}"
         )
 
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)

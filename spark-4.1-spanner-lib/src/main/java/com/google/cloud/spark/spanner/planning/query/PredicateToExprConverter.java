@@ -176,7 +176,6 @@ public final class PredicateToExprConverter {
     }
 
     String columnName = ((ColumnExpr) left).getColumnName();
-    ColumnResolution resolution = resolutionMap.get(columnName);
 
     List<ValueExpr> values = new ArrayList<>();
 

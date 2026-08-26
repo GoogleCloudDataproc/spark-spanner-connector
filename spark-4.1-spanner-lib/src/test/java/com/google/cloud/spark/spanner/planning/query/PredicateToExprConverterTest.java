@@ -178,7 +178,7 @@ public class PredicateToExprConverterTest {
 
   @Test
   public void stringColumnInKeepsUuidLookingValuesAsStrings() {
-    Predicate predicate = in(uuidColumn(), stringLiteral(UUID1), stringLiteral(UUID2));
+    Predicate predicate = in(stringColumn(), stringLiteral(UUID1), stringLiteral(UUID2));
 
     BoolExpr result = PredicateToExprConverter.translatePredicate(predicate, resolutionMap());
 
@@ -193,11 +193,11 @@ public class PredicateToExprConverterTest {
 
     assertEquals(UUID1, first.getValue());
     assertEquals(DataTypes.StringType, first.getSparkType());
-    assertEquals("UUID", first.getSpannerType());
+    assertEquals("STRING", first.getSpannerType());
 
     assertEquals(UUID2, second.getValue());
     assertEquals(DataTypes.StringType, second.getSparkType());
-    assertEquals("UUID", second.getSpannerType());
+    assertEquals("STRING", second.getSpannerType());
   }
 
   @Test

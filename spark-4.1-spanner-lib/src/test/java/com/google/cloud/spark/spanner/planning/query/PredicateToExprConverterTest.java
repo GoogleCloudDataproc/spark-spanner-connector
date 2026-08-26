@@ -138,11 +138,11 @@ public class PredicateToExprConverterTest {
 
     EqExpr eq = (EqExpr) result;
 
-    assertTrue(eq.getLeft() instanceof LiteralExpr);
-    assertTrue(eq.getRight() instanceof ColumnExpr);
+    assertTrue(eq.getLeft() instanceof ColumnExpr);
+    assertTrue(eq.getRight() instanceof LiteralExpr);
 
-    LiteralExpr literal = (LiteralExpr) eq.getLeft();
-    ColumnExpr column = (ColumnExpr) eq.getRight();
+    ColumnExpr column = (ColumnExpr) eq.getLeft();
+    LiteralExpr literal = (LiteralExpr) eq.getRight();
 
     assertEquals(UUID1, literal.getValue());
     assertEquals(DataTypes.StringType, literal.getSparkType());
@@ -193,11 +193,11 @@ public class PredicateToExprConverterTest {
 
     assertEquals(UUID1, first.getValue());
     assertEquals(DataTypes.StringType, first.getSparkType());
-    assertEquals("STRING", first.getSpannerType());
+    assertEquals("UUID", first.getSpannerType());
 
     assertEquals(UUID2, second.getValue());
     assertEquals(DataTypes.StringType, second.getSparkType());
-    assertEquals("STRING", second.getSpannerType());
+    assertEquals("UUID", second.getSpannerType());
   }
 
   @Test

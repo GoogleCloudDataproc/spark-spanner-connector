@@ -386,6 +386,152 @@ def run_simple_join_projection_tests(orders, lineitem, issues):
 
     print(status)
 
+
+def run_join_on_uuid_projection_tests(uuid_parent, uuid_child, issues):
+    print("\nrun_join_on_uuid_projection_tests")
+
+    joined = (
+        uuid_parent.alias("p")
+        .join(
+            uuid_child.alias("c"),
+            col("p.PARENT_ID") == col("c.PARENT_ID"),
+            "inner"
+        )
+        .select(
+            col("p.PARENT_ID"),
+            col("p.PARENT_NAME"),
+            col("c.CHILD_ID"),
+            col("c.CHILD_NAME")
+        )
+    )
+
+    print("\nrun_join_on_uuid_projection_tests Execution plan:")
+    joined.explain(True)
+
+    expected_columns = [
+        "PARENT_ID",
+        "PARENT_NAME",
+        "CHILD_ID",
+        "CHILD_NAME"
+    ]
+
+    if joined.columns != expected_columns:
+        issues.append(
+            f"Join on uuid projection expected columns {expected_columns} but found {joined.columns}"
+        )
+
+    expected_rows = 3
+    actual_rows = joined.count()
+
+    if actual_rows != expected_rows:
+        issues.append(
+            f"Join on uuid projection expected {expected_rows} rows but found {actual_rows}"
+        )
+
+    status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
+
+    print(status)
+
+def run_join_on_uuid_columns_and_uuid_and_literal_projection_tests(uuid_parent, uuid_child, issues):
+    # Without SupportsPushdownV2Filter this only tests that we can join on UUID to UUID columns. Spark handled the filter instead.
+    # SupportsPushdownV2Filter will allow this test, without modification,
+    # to test that the connector can not only bind string parameters to STRING columns,
+    # but bind strings parameters to UUID columns if the underlying Spanner column is UUID.
+    print("\nrun_join_on_uuid_columns_and_uuid_and_literal_projection_tests")
+
+    joined = (
+        uuid_parent.alias("p")
+        .join(
+            uuid_child.alias("c"),
+            (col("p.PARENT_ID") == col("c.PARENT_ID"))
+            & (col("p.PARENT_ID") == "550e8400-e29b-41d4-a716-446655440000"),
+            "inner"
+        )
+        .select(
+            col("p.PARENT_ID"),
+            col("p.PARENT_NAME"),
+            col("c.CHILD_ID"),
+            col("c.CHILD_NAME")
+        )
+    )
+
+    print("\nrun_join_on_uuid_columns_and_uuid_and_literal_projection_tests Execution plan:")
+    joined.explain(True)
+
+    expected_columns = [
+        "PARENT_ID",
+        "PARENT_NAME",
+        "CHILD_ID",
+        "CHILD_NAME"
+    ]
+
+    if joined.columns != expected_columns:
+        issues.append(
+            f"Join on uuid columns and uuid and literal projection expected columns {expected_columns} but found {joined.columns}"
+        )
+
+    expected_rows = 2
+    actual_rows = joined.count()
+
+    if actual_rows != expected_rows:
+        issues.append(
+            f"Join on uuid columns and uuid and literal projection expected {expected_rows} rows but found {actual_rows}"
+        )
+
+    status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
+
+    print(status)
+
+def run_join_on_uuid_columns_and_string_and_literal_projection_tests(uuid_parent, uuid_child, issues):
+    # Without SupportsPushdownV2Filter this only tests that we can join on UUID to UUID columns. Spark handled the filter instead.
+    # SupportsPushdownV2Filter will allow this test, without modification,
+    # to test that the connector can not only bind string parameters to STRING columns,
+    # but bind strings parameters to UUID columns if the underlying Spanner column is UUID.
+    print("\nrun_join_on_uuid_columns_and_string_and_literal_projection_tests")
+
+    joined = (
+        uuid_parent.alias("p")
+        .join(
+            uuid_child.alias("c"),
+            (col("p.PARENT_ID") == col("c.PARENT_ID"))
+            & (col("p.PARENT_NAME") == "6ba7b810-9dad-11d1-80b4-00c04fd430c8"),
+            "inner"
+        )
+        .select(
+            col("p.PARENT_ID"),
+            col("p.PARENT_NAME"),
+            col("c.CHILD_ID"),
+            col("c.CHILD_NAME")
+        )
+    )
+
+    print("\nrun_join_on_uuid_columns_and_string_and_literal_projection_tests Execution plan:")
+    joined.explain(True)
+
+    expected_columns = [
+        "PARENT_ID",
+        "PARENT_NAME",
+        "CHILD_ID",
+        "CHILD_NAME"
+    ]
+
+    if joined.columns != expected_columns:
+        issues.append(
+            f"Join on uuid columns and string and literal projection expected columns {expected_columns} but found {joined.columns}"
+        )
+
+    expected_rows = 1
+    actual_rows = joined.count()
+
+    if actual_rows != expected_rows:
+        issues.append(
+            f"Join on uuid projection expected {expected_rows} rows but found {actual_rows}"
+        )
+
+    status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
+
+    print(status)
+
 def write_results(spark, output_path, issues):
     status = "PASS" if not issues else "FAIL: " + " | ".join(issues)
 
@@ -444,6 +590,22 @@ def main():
         indexHint="LineitemJoinTestIndex"
     )
 
+    uuid_parent = load_table(
+        spark,
+        project_id,
+        instance_id,
+        database_id,
+        "UUID_PARENT",
+    )
+
+    uuid_child = load_table(
+        spark,
+        project_id,
+        instance_id,
+        database_id,
+        "UUID_CHILD",
+    )
+
     print('The resulting schema are')
     print('ORDERS')
     orders.printSchema()
@@ -451,6 +613,9 @@ def main():
     lineitem.printSchema()
 
     issues = []
+    run_join_on_uuid_projection_tests(uuid_parent, uuid_child, issues)
+    run_join_on_uuid_columns_and_uuid_and_literal_projection_tests(uuid_parent, uuid_child, issues)
+    run_join_on_uuid_columns_and_string_and_literal_projection_tests(uuid_parent, uuid_child, issues)
     run_inner_join_tests(orders, lineitem, issues)
     run_join_projection_tests(orders, lineitem, issues)
     run_join_predicate_filter_on_child_tests(orders, lineitem, issues)

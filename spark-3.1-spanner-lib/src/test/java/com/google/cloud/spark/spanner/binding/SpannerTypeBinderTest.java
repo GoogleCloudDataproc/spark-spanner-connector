@@ -14,9 +14,12 @@
 
 package com.google.cloud.spark.spanner.binding;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import org.apache.spark.sql.types.DataTypes;
 import org.junit.Test;
@@ -69,17 +72,32 @@ public class SpannerTypeBinderTest {
     // column is STRING.
     SpannerTypeBinder.bind(builder, "p1", literal);
 
-    builder.build();
+    Statement statement = builder.build();
+    Value value = statement.getParameters().get("p1");
+
+    assertThat(value.getType().getCode()).isEqualTo(Type.Code.STRING);
+    assertThat(value.getString()).isEqualTo(UUID_VALUE);
   }
 
   @Test
   public void bindsNullStringAsString() {
     LiteralExpr literal = new LiteralExpr(null, DataTypes.StringType, "STRING");
-
     Statement.Builder builder = Statement.newBuilder("SELECT @p1");
 
     SpannerTypeBinder.bind(builder, "p1", literal);
 
-    builder.build();
+    Statement statement = builder.build();
+    assertThat(statement.getParameters().get("p1").isNull()).isTrue();
+  }
+
+  @Test
+  public void bindsNullUuidAsUuid() {
+    LiteralExpr literal = new LiteralExpr(null, DataTypes.StringType, "UUID");
+    Statement.Builder builder = Statement.newBuilder("SELECT @p1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal);
+
+    Statement statement = builder.build();
+    assertThat(statement.getParameters().get("p1").isNull()).isTrue();
   }
 }

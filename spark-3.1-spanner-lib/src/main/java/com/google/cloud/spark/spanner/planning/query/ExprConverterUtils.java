@@ -13,9 +13,12 @@
 // limitations under the License.
 package com.google.cloud.spark.spanner.planning.query;
 
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.planning.expression.*;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.DataType;
@@ -50,6 +53,13 @@ public class ExprConverterUtils {
       throw new IllegalArgumentException("No column resolution found for column: " + columnName);
     }
 
+    return toLiteral(value, columnResolution);
+  }
+
+  public static LiteralExpr toLiteral(Object value, ColumnResolution columnResolution) {
+
+    Objects.requireNonNull(columnResolution, "columnResolution cannot be null");
+
     Object normalizedValue = normalizeLiteral(value, columnResolution.getSparkType());
 
     if (ColumnResolution.isUuid(columnResolution.getSpannerType()) && normalizedValue != null) {
@@ -68,8 +78,7 @@ public class ExprConverterUtils {
     }
   }
 
-  private static Object normalizeLiteral(Object value, DataType type) {
-
+  public static Object normalizeLiteral(Object value, DataType type) {
     if (value == null) {
       return null;
     }
@@ -79,7 +88,21 @@ public class ExprConverterUtils {
     }
 
     if (type.sameType(DataTypes.DateType)) {
-      return LocalDate.ofEpochDay((Integer) value);
+      if (value instanceof LocalDate) {
+        return value;
+      }
+
+      if (value instanceof java.sql.Date) {
+        return ((java.sql.Date) value).toLocalDate();
+      }
+
+      if (value instanceof Number) {
+        return LocalDate.ofEpochDay(((Number) value).longValue());
+      }
+
+      throw new SpannerConnectorException(
+          SpannerErrorCode.UNSUPPORTED_DATATYPE,
+          "Unexpected DateType literal value: " + value.getClass());
     }
 
     if (type instanceof DecimalType) {

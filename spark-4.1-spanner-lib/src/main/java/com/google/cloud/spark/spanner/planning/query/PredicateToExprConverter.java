@@ -13,9 +13,33 @@
 // limitations under the License.
 package com.google.cloud.spark.spanner.planning.query;
 
-import com.google.cloud.spark.spanner.planning.expression.*;
-import java.time.LocalDate;
-import java.util.*;
+import com.google.cloud.spark.spanner.planning.expression.AndExpr;
+import com.google.cloud.spark.spanner.planning.expression.ArithmeticExpr;
+import com.google.cloud.spark.spanner.planning.expression.BoolExpr;
+import com.google.cloud.spark.spanner.planning.expression.ColumnExpr;
+import com.google.cloud.spark.spanner.planning.expression.ContainsExpr;
+import com.google.cloud.spark.spanner.planning.expression.EndsWithExpr;
+import com.google.cloud.spark.spanner.planning.expression.EqExpr;
+import com.google.cloud.spark.spanner.planning.expression.EqNullSafeExpr;
+import com.google.cloud.spark.spanner.planning.expression.FunctionExpr;
+import com.google.cloud.spark.spanner.planning.expression.GtExpr;
+import com.google.cloud.spark.spanner.planning.expression.GteExpr;
+import com.google.cloud.spark.spanner.planning.expression.InExpr;
+import com.google.cloud.spark.spanner.planning.expression.IsNotNullExpr;
+import com.google.cloud.spark.spanner.planning.expression.IsNullExpr;
+import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
+import com.google.cloud.spark.spanner.planning.expression.LtExpr;
+import com.google.cloud.spark.spanner.planning.expression.LteExpr;
+import com.google.cloud.spark.spanner.planning.expression.NotExpr;
+import com.google.cloud.spark.spanner.planning.expression.OrExpr;
+import com.google.cloud.spark.spanner.planning.expression.StartsWithExpr;
+import com.google.cloud.spark.spanner.planning.expression.UnaryExpr;
+import com.google.cloud.spark.spanner.planning.expression.ValueExpr;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import org.apache.spark.sql.connector.expressions.Expression;
@@ -23,10 +47,6 @@ import org.apache.spark.sql.connector.expressions.GeneralScalarExpression;
 import org.apache.spark.sql.connector.expressions.Literal;
 import org.apache.spark.sql.connector.expressions.NamedReference;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.types.DecimalType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,22 +189,25 @@ public final class PredicateToExprConverter {
     if (predicate.children().length == 0) {
       throw new IllegalArgumentException("IN predicate must have at least 1 child");
     }
-    ValueExpr left = translateExpression(predicate.children()[0], resolutionMap);
-    if (!(left instanceof ColumnExpr)) {
+
+    Expression leftChild = predicate.children()[0];
+    ValueExpr left = translateExpression(leftChild, resolutionMap);
+    if (!(left instanceof ColumnExpr) || !(leftChild instanceof NamedReference)) {
       throw new UnsupportedOperationException(
           "Left side of IN predicate must be a column reference");
     }
 
-    String columnName = ((ColumnExpr) left).getColumnName();
+    String referenceName = ((NamedReference) leftChild).fieldNames()[0];
+    ColumnResolution resolution = resolutionMap.get(referenceName);
+    if (resolution == null) {
+      throw new IllegalArgumentException("No column resolution found for column: " + referenceName);
+    }
 
     List<ValueExpr> values = new ArrayList<>();
-
     for (int i = 1; i < predicate.children().length; i++) {
       Expression value = predicate.children()[i];
-
       if (value instanceof Literal<?>) {
-        values.add(
-            ExprConverterUtils.toLiteral(((Literal<?>) value).value(), resolutionMap, columnName));
+        values.add(ExprConverterUtils.toLiteral(((Literal<?>) value).value(), resolution));
       } else {
         values.add(translateExpression(value, resolutionMap));
       }
@@ -214,29 +237,9 @@ public final class PredicateToExprConverter {
   }
 
   private static LiteralExpr translateLiteral(Literal<?> literal) {
-    Object value = normalizeLiteralValue(literal.value(), literal.dataType());
+    Object value = ExprConverterUtils.normalizeLiteral(literal.value(), literal.dataType());
 
     return new LiteralExpr(value, literal.dataType());
-  }
-
-  private static Object normalizeLiteralValue(Object value, DataType dataType) {
-    if (value == null) {
-      return null;
-    }
-
-    if (dataType.sameType(DataTypes.StringType)) {
-      return value.toString();
-    }
-
-    if (dataType.sameType(DataTypes.DateType)) {
-      return java.sql.Date.valueOf(LocalDate.ofEpochDay(((Number) value).longValue()));
-    }
-
-    if (dataType instanceof DecimalType) {
-      return ((Decimal) value).toJavaBigDecimal();
-    }
-
-    return value;
   }
 
   private static ColumnExpr translateExpression(

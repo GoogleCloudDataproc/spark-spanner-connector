@@ -21,6 +21,7 @@ import com.google.cloud.spanner.Type;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
@@ -59,7 +60,7 @@ public final class SpannerTypeBinder {
     } else if (sparkType.sameType(DataTypes.BooleanType)) {
       builder.bind(parameter).to((Boolean) value);
     } else if (sparkType.sameType(DataTypes.IntegerType)) {
-      builder.bind(parameter).to(((Integer) value).longValue());
+      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.ShortType)) {
       builder.bind(parameter).to(((Short) value).longValue());
     } else if (sparkType.sameType(DataTypes.ByteType)) {
@@ -92,15 +93,13 @@ public final class SpannerTypeBinder {
             "Unexpected timestamp literal type: " + value.getClass());
       }
     } else if (sparkType.sameType(DataTypes.DateType)) {
-      java.sql.Date date = (java.sql.Date) value;
-
+      // Spark predicate dates will have been normalized to LocalDate.
+      LocalDate localDate = (LocalDate) value;
       builder
           .bind(parameter)
           .to(
               com.google.cloud.Date.fromYearMonthDay(
-                  date.toLocalDate().getYear(),
-                  date.toLocalDate().getMonthValue(),
-                  date.toLocalDate().getDayOfMonth()));
+                  localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
     } else if (sparkType.sameType(DataTypes.BinaryType)) {
       builder.bind(parameter).to(ByteArray.copyFrom((byte[]) value));
     } else {
@@ -178,7 +177,7 @@ public final class SpannerTypeBinder {
 
       default:
         throw new UnsupportedOperationException(
-            "Unsupported Spanner type for null binding: " + spannerType);
+            "Unsupported Spanner type for null binding: " + mappedType);
     }
   }
 

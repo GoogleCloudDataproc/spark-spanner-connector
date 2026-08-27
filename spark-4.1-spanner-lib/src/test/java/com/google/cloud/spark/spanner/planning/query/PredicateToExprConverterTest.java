@@ -130,24 +130,21 @@ public class PredicateToExprConverterTest {
 
   @Test
   public void literalEqualsUuidColumnGetsUuidTargetType() {
-    Predicate predicate = equal(uuidColumn(), stringLiteral(UUID1));
+    Predicate predicate = equal(stringLiteral(UUID1), uuidColumn());
 
     BoolExpr result = PredicateToExprConverter.translatePredicate(predicate, resolutionMap());
 
     assertTrue(result instanceof EqExpr);
-
     EqExpr eq = (EqExpr) result;
+    assertTrue(eq.getLeft() instanceof LiteralExpr);
+    assertTrue(eq.getRight() instanceof ColumnExpr);
 
-    assertTrue(eq.getLeft() instanceof ColumnExpr);
-    assertTrue(eq.getRight() instanceof LiteralExpr);
-
-    ColumnExpr column = (ColumnExpr) eq.getLeft();
-    LiteralExpr literal = (LiteralExpr) eq.getRight();
+    LiteralExpr literal = (LiteralExpr) eq.getLeft();
+    ColumnExpr column = (ColumnExpr) eq.getRight();
 
     assertEquals(UUID1, literal.getValue());
     assertEquals(DataTypes.StringType, literal.getSparkType());
     assertEquals("UUID", literal.getSpannerType());
-
     assertEquals("uuid_col", column.getColumnName());
   }
 

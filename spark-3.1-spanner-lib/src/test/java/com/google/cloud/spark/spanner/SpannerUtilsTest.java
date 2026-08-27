@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner;
 
 import static com.google.cloud.spark.spanner.SpannerUtils.pruneSchema;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -351,8 +352,6 @@ public class SpannerUtilsTest {
 
     StructType actualSchema = pruneSchema(originalSchema, requiredColumns);
 
-    // Should not throw any exception
-    SpannerUtils.validateSchema(expectedSchema, originalSchema, TABLE_NAME);
-    assertEquals(expectedSchema.fields().length, actualSchema.fields().length);
+    assertArrayEquals(expectedSchema.fields(), actualSchema.fields());
   }
 }

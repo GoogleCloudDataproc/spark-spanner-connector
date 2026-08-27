@@ -334,8 +334,6 @@ public class SpannerUtilsTest {
   @Test
   public void testDuplicateColumnsAreNotPruned() {
     StructType originalSchema = createSpannerSchema();
-    Map<String, String> props = new HashMap<>();
-    props.put("projectId", "test-project");
     List<String> requiredColumns = new LinkedList<>();
     requiredColumns.add("id");
     requiredColumns.add("value");

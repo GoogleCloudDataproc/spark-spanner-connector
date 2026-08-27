@@ -598,7 +598,7 @@ public class SpannerUtils {
       return originalSchema;
     }
 
-    Map<String, StructField> fieldsByName = new HashMap<>();
+    Map<String, StructField> fieldsByName = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     for (StructField field : originalSchema.fields()) {
       fieldsByName.put(field.name(), field);
     }
@@ -608,13 +608,9 @@ public class SpannerUtils {
     for (String columnName : includeColumns) {
       StructField field = fieldsByName.get(columnName);
 
-      if (field == null) {
-        throw new SpannerConnectorException(
-            SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
-            String.format("Column '%s' does not exist in the schema.", columnName));
+      if (field != null) {
+        prunedSchema = prunedSchema.add(field);
       }
-
-      prunedSchema = prunedSchema.add(field);
     }
 
     return prunedSchema;

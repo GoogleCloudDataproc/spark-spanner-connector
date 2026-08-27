@@ -593,13 +593,30 @@ public class SpannerUtils {
 
   public static StructType pruneSchema(
       StructType originalSchema, @Nullable List<String> includeColumns) {
-    if (includeColumns == null || includeColumns.isEmpty()) return originalSchema;
-    StructType prunedSchema = new StructType();
-    for (StructField field : originalSchema.fields()) {
-      if (includeColumns.contains(field.name())) {
-        prunedSchema = prunedSchema.add(field);
-      }
+
+    if (includeColumns == null || includeColumns.isEmpty()) {
+      return originalSchema;
     }
+
+    Map<String, StructField> fieldsByName = new HashMap<>();
+    for (StructField field : originalSchema.fields()) {
+      fieldsByName.put(field.name(), field);
+    }
+
+    StructType prunedSchema = new StructType();
+
+    for (String columnName : includeColumns) {
+      StructField field = fieldsByName.get(columnName);
+
+      if (field == null) {
+        throw new SpannerConnectorException(
+            SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+            String.format("Column '%s' does not exist in the schema.", columnName));
+      }
+
+      prunedSchema = prunedSchema.add(field);
+    }
+
     return prunedSchema;
   }
 

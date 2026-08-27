@@ -14,12 +14,15 @@
 
 package com.google.cloud.spark.spanner;
 
+import static com.google.cloud.spark.spanner.SpannerUtils.pruneSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
@@ -43,13 +46,7 @@ public class SpannerUtilsTest {
   @Test
   public void testValidateSchemaSuccess() {
     StructType spannerSchema = createSpannerSchema();
-    StructType dfSchema =
-        new StructType(
-            new StructField[] {
-              new StructField("id", DataTypes.LongType, false, null),
-              new StructField("name", DataTypes.StringType, true, null),
-              new StructField("value", DataTypes.DoubleType, true, null)
-            });
+    StructType dfSchema = createSpannerSchema();
 
     // Should not throw any exception
     SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME);
@@ -151,13 +148,7 @@ public class SpannerUtilsTest {
   @Test
   public void testPartialRowUpdatesSuccessEnablePartialRowUpdates() {
     StructType spannerSchema = createSpannerSchema();
-    StructType dfSchema =
-        new StructType(
-            new StructField[] {
-              new StructField("id", DataTypes.LongType, false, null),
-              new StructField("name", DataTypes.StringType, true, null),
-              new StructField("value", DataTypes.DoubleType, true, null)
-            });
+    StructType dfSchema = createSpannerSchema();
 
     // Should not throw any exception
     SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, true);
@@ -166,13 +157,7 @@ public class SpannerUtilsTest {
   @Test
   public void testPartialRowUpdatesSuccessDisablePartialRowUpdates() {
     StructType spannerSchema = createSpannerSchema();
-    StructType dfSchema =
-        new StructType(
-            new StructField[] {
-              new StructField("id", DataTypes.LongType, false, null),
-              new StructField("name", DataTypes.StringType, true, null),
-              new StructField("value", DataTypes.DoubleType, true, null)
-            });
+    StructType dfSchema = createSpannerSchema();
 
     // Should not throw any exception
     SpannerUtils.validatePartialRowUpdates(dfSchema, spannerSchema, false);
@@ -344,5 +329,32 @@ public class SpannerUtilsTest {
             SpannerConnectorException.class,
             () -> SpannerUtils.validateEmulatorHost("localhost:9010/evil?param=val"));
     assertTrue(e.getMessage().contains("Invalid emulatorHost"));
+  }
+
+  @Test
+  public void testDuplicateColumnsAreNotPruned() {
+    StructType originalSchema = createSpannerSchema();
+    Map<String, String> props = new HashMap<>();
+    props.put("projectId", "test-project");
+    List<String> requiredColumns = new LinkedList<>();
+    requiredColumns.add("id");
+    requiredColumns.add("value");
+    requiredColumns.add("name");
+    requiredColumns.add("id"); // duplicates first required column
+
+    StructType expectedSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField("value", DataTypes.DoubleType, true, null),
+              new StructField("name", DataTypes.StringType, true, null),
+              new StructField("id", DataTypes.LongType, false, null)
+            });
+
+    StructType actualSchema = pruneSchema(originalSchema, requiredColumns);
+
+    // Should not throw any exception
+    SpannerUtils.validateSchema(expectedSchema, originalSchema, TABLE_NAME);
+    assertEquals(expectedSchema.fields().length, actualSchema.fields().length);
   }
 }

@@ -185,6 +185,10 @@ public class SpannerScanBuilder
     return spannerTable.name();
   }
 
+  public Map<String, String> getSpannerTypes() {
+    return spannerTable.getSpannerTypes();
+  }
+
   public TableRelation createTableRelation() {
     // Join pushdown currently supports only interleaved parent/child tables.
     // Self-joins are rejected by isOtherSideCompatibleForJoin(), so using the

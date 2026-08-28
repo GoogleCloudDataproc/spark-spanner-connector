@@ -13,9 +13,13 @@
 // limitations under the License.
 package com.google.cloud.spark.spanner.planning.query;
 
+import com.google.cloud.spark.spanner.SpannerConnectorException;
+import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.planning.expression.*;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
@@ -42,18 +46,39 @@ public class ExprConverterUtils {
   public static LiteralExpr toLiteral(
       Object value, Map<String, ColumnResolution> resolutionMap, String columnName) {
     logger.debug("Looking up literal column '{}' in resolutionMap {}", columnName, resolutionMap);
-    logger.info(
-        "Literal value class={}, value={}",
-        value == null ? null : value.getClass().getName(),
-        value);
+
     ColumnResolution columnResolution = resolutionMap.get(columnName);
+
+    if (columnResolution == null) {
+      throw new IllegalArgumentException("No column resolution found for column: " + columnName);
+    }
+
+    return toLiteral(value, columnResolution);
+  }
+
+  public static LiteralExpr toLiteral(Object value, ColumnResolution columnResolution) {
+
+    Objects.requireNonNull(columnResolution, "columnResolution cannot be null");
 
     Object normalizedValue = normalizeLiteral(value, columnResolution.getSparkType());
 
-    return new LiteralExpr(normalizedValue, columnResolution.getSparkType());
+    if (ColumnResolution.isUuid(columnResolution.getSpannerType()) && normalizedValue != null) {
+      validateUuid(normalizedValue);
+    }
+
+    return new LiteralExpr(
+        normalizedValue, columnResolution.getSparkType(), columnResolution.getSpannerType());
   }
 
-  private static Object normalizeLiteral(Object value, DataType type) {
+  private static void validateUuid(Object value) {
+    try {
+      UUID.fromString(value.toString());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid UUID value for Spanner UUID column: " + value, e);
+    }
+  }
+
+  public static Object normalizeLiteral(Object value, DataType type) {
     if (value == null) {
       return null;
     }
@@ -63,7 +88,21 @@ public class ExprConverterUtils {
     }
 
     if (type.sameType(DataTypes.DateType)) {
-      return LocalDate.ofEpochDay((Integer) value);
+      if (value instanceof LocalDate) {
+        return value;
+      }
+
+      if (value instanceof java.sql.Date) {
+        return ((java.sql.Date) value).toLocalDate();
+      }
+
+      if (value instanceof Number) {
+        return LocalDate.ofEpochDay(((Number) value).longValue());
+      }
+
+      throw new SpannerConnectorException(
+          SpannerErrorCode.UNSUPPORTED_DATATYPE,
+          "Unexpected DateType literal value: " + value.getClass());
     }
 
     if (type instanceof DecimalType) {

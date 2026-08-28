@@ -46,7 +46,7 @@ public class RelationTableTest {
 
   @Test
   public void testJoinRelation() {
-    final LiteralExpr aStringLiteral = new LiteralExpr("test", DataTypes.StringType);
+    final LiteralExpr aStringLiteral = new LiteralExpr("test", DataTypes.StringType, "STRING");
     BoolExpr expr =
         new EqExpr(new ColumnExpr("a", "aCol", DataTypes.StringType, false), aStringLiteral);
     Relation tableA = new TableRelation("ATable", "a", mockSpannerTable);
@@ -67,7 +67,7 @@ public class RelationTableTest {
 
   @Test
   public void testJoinRelationWithHint() {
-    final LiteralExpr aStringLiteral = new LiteralExpr("test", DataTypes.StringType);
+    final LiteralExpr aStringLiteral = new LiteralExpr("test", DataTypes.StringType, "STRING");
     BoolExpr expr =
         new EqExpr(new ColumnExpr("a", "aCol", DataTypes.StringType, false), aStringLiteral);
     Relation tableA = new TableRelation("ATable", "a", mockSpannerTable);

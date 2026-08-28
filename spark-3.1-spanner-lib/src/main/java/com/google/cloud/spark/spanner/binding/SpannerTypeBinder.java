@@ -13,12 +13,16 @@
 // limitations under the License.
 package com.google.cloud.spark.spanner.binding;
 
+import static com.google.cloud.spark.spanner.planning.query.ColumnResolution.isUuid;
+
 import com.google.cloud.ByteArray;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DecimalType;
@@ -28,14 +32,20 @@ public final class SpannerTypeBinder {
   public static void bind(Statement.Builder builder, String parameter, LiteralExpr literal) {
 
     Object value = literal.getValue();
-    DataType type = literal.getSparkType();
+    DataType sparkType = literal.getSparkType();
+    String spannerType = literal.getSpannerType();
 
     if (value == null) {
-      bindNull(builder, parameter, type);
+      bindNull(builder, parameter, sparkType, spannerType);
       return;
     }
 
-    if (type instanceof DecimalType) {
+    if (isUuid(spannerType)) {
+      bindUuid(builder, parameter, value);
+      return;
+    }
+
+    if (sparkType instanceof DecimalType) {
       BigDecimal bd = (BigDecimal) value;
       // Spanner NUMERIC validation: precision <= 38, scale <= 9
       if (bd.precision() <= 38 && bd.scale() <= 9) {
@@ -43,23 +53,23 @@ public final class SpannerTypeBinder {
       } else {
         throw new IllegalArgumentException("Decimal out of Spanner NUMERIC range");
       }
-    } else if (type.sameType(DataTypes.StringType)) {
+    } else if (sparkType.sameType(DataTypes.StringType)) {
       builder.bind(parameter).to(value.toString());
-    } else if (type.sameType(DataTypes.LongType)) {
+    } else if (sparkType.sameType(DataTypes.LongType)) {
       builder.bind(parameter).to((Long) value);
-    } else if (type.sameType(DataTypes.BooleanType)) {
+    } else if (sparkType.sameType(DataTypes.BooleanType)) {
       builder.bind(parameter).to((Boolean) value);
-    } else if (type.sameType(DataTypes.IntegerType)) {
-      builder.bind(parameter).to(((Integer) value).longValue());
-    } else if (type.sameType(DataTypes.ShortType)) {
+    } else if (sparkType.sameType(DataTypes.IntegerType)) {
+      builder.bind(parameter).to(((Number) value).longValue());
+    } else if (sparkType.sameType(DataTypes.ShortType)) {
       builder.bind(parameter).to(((Short) value).longValue());
-    } else if (type.sameType(DataTypes.ByteType)) {
+    } else if (sparkType.sameType(DataTypes.ByteType)) {
       builder.bind(parameter).to(((Byte) value).longValue());
-    } else if (type.sameType(DataTypes.DoubleType)) {
+    } else if (sparkType.sameType(DataTypes.DoubleType)) {
       builder.bind(parameter).to((Double) value);
-    } else if (type.sameType(DataTypes.FloatType)) {
+    } else if (sparkType.sameType(DataTypes.FloatType)) {
       builder.bind(parameter).to(((Float) value).doubleValue());
-    } else if (type.sameType(DataTypes.TimestampType)) {
+    } else if (sparkType.sameType(DataTypes.TimestampType)) {
 
       if (value instanceof Instant) {
         Instant instant = (Instant) value;
@@ -82,20 +92,18 @@ public final class SpannerTypeBinder {
         throw new IllegalArgumentException(
             "Unexpected timestamp literal type: " + value.getClass());
       }
-    } else if (type.sameType(DataTypes.DateType)) {
-      java.sql.Date date = (java.sql.Date) value;
-
+    } else if (sparkType.sameType(DataTypes.DateType)) {
+      // Spark predicate dates will have been normalized to LocalDate.
+      LocalDate localDate = (LocalDate) value;
       builder
           .bind(parameter)
           .to(
               com.google.cloud.Date.fromYearMonthDay(
-                  date.toLocalDate().getYear(),
-                  date.toLocalDate().getMonthValue(),
-                  date.toLocalDate().getDayOfMonth()));
-    } else if (type.sameType(DataTypes.BinaryType)) {
+                  localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
+    } else if (sparkType.sameType(DataTypes.BinaryType)) {
       builder.bind(parameter).to(ByteArray.copyFrom((byte[]) value));
     } else {
-      throw new UnsupportedOperationException("Unsupported type: " + type);
+      throw new UnsupportedOperationException("Unsupported type: " + sparkType);
     }
   }
 
@@ -125,11 +133,16 @@ public final class SpannerTypeBinder {
     }
   }
 
-  private static void bindNull(Statement.Builder builder, String parameter, DataType sparkType) {
+  private static void bindNull(
+      Statement.Builder builder, String parameter, DataType sparkType, String spannerType) {
+    if (isUuid(spannerType)) {
+      builder.bind(parameter).to((UUID) null);
+      return;
+    }
 
-    Type spannerType = mapToSpannerType(sparkType);
+    Type mappedType = mapToSpannerType(sparkType);
 
-    switch (spannerType.getCode()) {
+    switch (mappedType.getCode()) {
       case STRING:
         builder.bind(parameter).to((String) null);
         break;
@@ -164,7 +177,24 @@ public final class SpannerTypeBinder {
 
       default:
         throw new UnsupportedOperationException(
-            "Unsupported Spanner type for null binding: " + spannerType);
+            "Unsupported Spanner type for null binding: " + mappedType);
     }
+  }
+
+  private static void bindUuid(Statement.Builder builder, String parameter, Object value) {
+
+    if (!(value instanceof String)) {
+      throw new IllegalArgumentException(
+          "Expected String value for UUID parameter but got: " + value.getClass().getName());
+    }
+
+    UUID uuid;
+    try {
+      uuid = UUID.fromString((String) value);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid UUID value: " + value, e);
+    }
+
+    builder.bind(parameter).to(uuid);
   }
 }

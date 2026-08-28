@@ -487,6 +487,21 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
   }
 
   @Test
+  public void testDataset_where_on_uuid() {
+    // 1. SELECT WHERE A < 8
+    Dataset<Row> df = readFromTable("ATable");
+    List<String> gotUuid =
+        df.select("L")
+            .where("L = '4d2e278e-58ed-40cc-96ec-329c5b8eea6b'")
+            .as(Encoders.STRING())
+            .collectAsList();
+    List<String> wantUuid =
+        Arrays.stream(new String[] {"4d2e278e-58ed-40cc-96ec-329c5b8eea6b"})
+            .collect(Collectors.toList());
+    assertThat(gotUuid).containsExactlyElementsIn(wantUuid);
+  }
+
+  @Test
   public void testDataset_takeAsList() {
     // 1. Firstly check that the count of rows unlimited is 9.
     assertThat(readFromTable("simpleTable").count()).isEqualTo(9);

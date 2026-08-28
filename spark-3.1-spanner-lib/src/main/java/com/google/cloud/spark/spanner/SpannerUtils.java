@@ -593,13 +593,26 @@ public class SpannerUtils {
 
   public static StructType pruneSchema(
       StructType originalSchema, @Nullable List<String> includeColumns) {
-    if (includeColumns == null || includeColumns.isEmpty()) return originalSchema;
-    StructType prunedSchema = new StructType();
+
+    if (includeColumns == null || includeColumns.isEmpty()) {
+      return originalSchema;
+    }
+
+    Map<String, StructField> fieldsByName = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     for (StructField field : originalSchema.fields()) {
-      if (includeColumns.contains(field.name())) {
+      fieldsByName.put(field.name(), field);
+    }
+
+    StructType prunedSchema = new StructType();
+
+    for (String columnName : includeColumns) {
+      StructField field = fieldsByName.get(columnName);
+
+      if (field != null) {
         prunedSchema = prunedSchema.add(field);
       }
     }
+
     return prunedSchema;
   }
 

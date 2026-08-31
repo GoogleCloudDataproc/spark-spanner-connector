@@ -8,6 +8,7 @@
 *   Add integration test support for Spanner Omni.
 *   Add join pushdown support when enabled by option.
 *   Add Spark 4.1 support.
+*   Add UUID data type support.
 *   Add index hint support to enable use of secondary indexes:
     *   Enabled for table reads and join reads.
     *   README.md updated with minimum criteria required to use index hints.

@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -349,7 +350,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   private Map<String, InterleaveTableMetadata> getInterleaving(Connection connection) {
     Statement statement = SpannerInformationSchema.getInterleaving(checkIsPostgreSql(connection));
     try (ResultSet resultSet = connection.executeQuery(statement)) {
-      Map<String, InterleaveTableMetadata> tables = new HashMap<>();
+      Map<String, InterleaveTableMetadata> tables = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
       while (resultSet.next()) {
         final String tableName = resultSet.getString("table_name");
         InterleaveTableMetadata interleaveTableMetadata =

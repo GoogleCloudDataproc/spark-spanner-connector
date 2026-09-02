@@ -1,6 +1,6 @@
 # Release Notes
 
-## Next
+## 1.5.0 - 2026-09-02
 
 *   Add a `query` option for reading partitionable SQL query results as Spark DataFrames.
 *   Add a `readTimestamp` option for reading tables from a consistent database snapshot.

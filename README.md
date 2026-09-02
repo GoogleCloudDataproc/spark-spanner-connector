@@ -29,29 +29,32 @@ If you run a Spark job on the Dataproc cluster, you'll have to assign correspond
 
 ## Downloading and Using the Connector
 
-You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-1.4.0.jar` directly.
+You can find the released jar file from the Releases tag on right of the github page. The name pattern is spark-3.1-spanner-x.x.x.jar. The 3.1 indicates the driver depends on the Spark 3.1 and x.x.x is the Spark Spanner connector version. The alternative way is to use `gs://spark-lib/spanner/spark-3.1-spanner-1.5.0.jar` directly.
 
 ### Connector to Spark Compatibility Matrix
-| Connector \ Spark | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     | 4.0     |
-|-------------------|---------|---------------------|---------------------|---------|---------|---------|---------|---------|---------|---------|
-| spark-3.1-spanner |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; | Note 1  |
-| spark-3.2-spanner |         |                     |                     |         |         | &check; | &check; | &check; | &check; | Note 1  |
-| spark-3.3-spanner |         |                     |                     |         |         |         | &check; | &check; | &check; | Note 1  |
-| spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; | Note 1  |
-| spark-4.0-spanner |         |                     |                     |         |         |         |         |         |         | &check; |
+| Connector \ Spark | 2.3     | 2.4<br>(Scala 2.11) | 2.4<br>(Scala 2.12) | 3.0     | 3.1     | 3.2     | 3.3     | 3.4     | 3.5     | 4.0     | 4.1     |
+|-------------------|---------|---------------------|---------------------|---------|---------|---------|---------|---------|---------|---------|---------|
+| spark-3.1-spanner |         |                     |                     |         | &check; | &check; | &check; | &check; | &check; | Note 1  | Note 1  |
+| spark-3.2-spanner |         |                     |                     |         |         | &check; | &check; | &check; | &check; | Note 1  | Note 1  |
+| spark-3.3-spanner |         |                     |                     |         |         |         | &check; | &check; | &check; | Note 1  | Note 1  |
+| spark-3.5-spanner |         |                     |                     |         |         |         |         |         | &check; | Note 1  | Note 1  |
+| spark-4.0-spanner |         |                     |                     |         |         |         |         |         |         | &check; | Note 1  |
+| spark-4.1-spanner |         |                     |                     |         |         |         |         |         |         |         | &check; |
 
 Note 1: Spark compatibility to be tested.
 
 ### Connector to Dataproc Image Compatibility Matrix
-| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | 3.0     | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 | Serverless<br>Image 3.0 |
-|----------------------------|---------|---------|---------|---------|---------|---------|---------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
-| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | Note 1  | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
-| spark-3.5-spanner          |         |         |         |         |         | &check; | Note 1  |                         | &check;                 |                         |                         | &check;                 | Note 1                  |
-| spark-4.0-spanner          |         |         |         |         |         |         | &check; |                         |                         |                         |                         |                         | &check;                 |
+| Connector \ Dataproc Image | 1.3     | 1.4     | 1.5     | 2.0     | 2.1     | 2.2     | 3.0            | Serverless<br>Image 1.1 | Serverless<br>Image 1.2 | Serverless<br>Image 2.0 | Serverless<br>Image 2.1 | Serverless<br>Image 2.2 | Serverless<br>Image 3.0 |
+|----------------------------|---------|---------|---------|---------|---------|---------|----------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
+| spark-3.1-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.2-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.3-spanner          |         |         |         | &check; | &check; | &check; | Note 1         | &check;                 | Note 1                  | &check;                 | &check;                 | Note 1                  | Note 1                  |
+| spark-3.5-spanner          |         |         |         |         |         | &check; | Note 1         |                         | &check;                 |                         |                         | &check;                 | Note 1                  |
+| spark-4.0-spanner          |         |         |         |         |         |         | &check;        |                         |                         |                         |                         |                         | &check;                 |
+| spark-4.1-spanner          |         |         |         |         |         |         | &check; Note 2 |                         |                         |                         |                         |                         | &check; Note 2          |
 
 Note 1: Dataproc compatibility to be tested.
+Note 2: SupportsPushDownJoin requires Managed Service for Apache Spark Dataproc image 3.0-debian13. Serverless image supports Spark 4.0.1 not Spark 4.1. SupportsPushDownJoin is not available in serverless.
 
 ### Connector to Java Compatibility
 
@@ -74,22 +77,23 @@ no need to build from source. Supply the artifact coordinates via the
 
 | version   | Connector Artifact                                                     |
 |-----------|------------------------------------------------------------------------|
-| Spark 4.0 | `com.google.cloud.spark.spanner:spark-4.0-spanner:1.4.0` |
-| Spark 3.5 | `com.google.cloud.spark.spanner:spark-3.5-spanner:1.4.0` |
-| Spark 3.3 | `com.google.cloud.spark.spanner:spark-3.3-spanner:1.4.0` |
-| Spark 3.2 | `com.google.cloud.spark.spanner:spark-3.2-spanner:1.4.0` |
-| Spark 3.1 | `com.google.cloud.spark.spanner:spark-3.1-spanner:1.4.0` |
+| Spark 4.1 | `com.google.cloud.spark.spanner:spark-4.1-spanner:1.5.0` |
+| Spark 4.0 | `com.google.cloud.spark.spanner:spark-4.0-spanner:1.5.0` |
+| Spark 3.5 | `com.google.cloud.spark.spanner:spark-3.5-spanner:1.5.0` |
+| Spark 3.3 | `com.google.cloud.spark.spanner:spark-3.3-spanner:1.5.0` |
+| Spark 3.2 | `com.google.cloud.spark.spanner:spark-3.2-spanner:1.5.0` |
+| Spark 3.1 | `com.google.cloud.spark.spanner:spark-3.1-spanner:1.5.0` |
 
 For example, to start a PySpark shell with the connector:
 
 ```shell
-pyspark --packages com.google.cloud.spark.spanner:spark-3.5-spanner:1.4.0
+pyspark --packages com.google.cloud.spark.spanner:spark-3.5-spanner:1.5.0
 ```
 
 Or in a `spark-submit` job:
 
 ```shell
-spark-submit --packages com.google.cloud.spark.spanner:spark-3.5-spanner:1.4.0 \
+spark-submit --packages com.google.cloud.spark.spanner:spark-3.5-spanner:1.5.0 \
     my_job.py
 ```
 
@@ -98,7 +102,7 @@ You can also set it programmatically when creating a `SparkSession`:
 ```python
 spark = (SparkSession.builder
          .config("spark.jars.packages",
-                 "com.google.cloud.spark.spanner:spark-3.5-spanner:1.4.0")
+                 "com.google.cloud.spark.spanner:spark-3.5-spanner:1.5.0")
          .getOrCreate())
 ```
 
@@ -110,7 +114,7 @@ Using Maven coordinates (recommended):
 
 ```shell
 gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
-    --packages=com.google.cloud.spark.spanner:spark-3.5-spanner:1.4.0 \
+    --packages=com.google.cloud.spark.spanner:spark-3.5-spanner:1.5.0 \
     --region us-central1 examples/SpannerSpark.py
 ```
 
@@ -118,7 +122,7 @@ Using a JAR from Google Cloud Storage:
 
 ```shell
 gcloud dataproc jobs submit pyspark --cluster "$MY_CLUSTER" \
-    --jars=gs://spark-lib/spanner/spark-3.5-spanner-1.4.0.jar \
+    --jars=gs://spark-lib/spanner/spark-3.5-spanner-1.5.0.jar \
     --region us-central1 examples/SpannerSpark.py
 ```
 ## Usage
@@ -163,15 +167,17 @@ tables.
 
 Variable|Validation|Comments
 ---|---|---
-projectId|String|The projectID containing the Cloud Spanner database
-instanceId|String|The instanceID of the Cloud Spanner database
+projectId|String|The projectID containing the Cloud Spanner database. For Spanner Omni this should always be `default`.
+instanceId|String|The instanceID of the Cloud Spanner database. For Spanner Omni this should always be `default`.
 databaseId|String|The databaseID of the Cloud Spanner database
 table|String|The Table of the Cloud Spanner database that you are reading from. Mutually exclusive with `query`.
 query|String|A root-partitionable, read-only SQL query whose results should be loaded as a Spark DataFrame. Mutually exclusive with `table`.
-enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing).
+enableDataboost|Boolean|Enable the [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview), which provides independent compute resources to query Spanner with near-zero impact to existing workloads. Note1: the option may trigger [extra charge](https://cloud.google.com/spanner/pricing#spanner-data-boost-pricing). Note2: this feature is not supported in Spanner Omni.
 grpcCompression|String|Compression for gRPC requests and responses. Use `gzip` to enable compression or `identity` to disable it. By default, the Spanner client uses its normal compression settings.
 readTimestamp|String|An RFC 3339 timestamp identifying the database snapshot to read. Multiple table reads using the same timestamp observe a consistent snapshot. By default, each table read uses the time when its scan is created.
-emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
+emulatorHost|String|The host and port of the Spanner emulator (e.g. `localhost:9010`) or a Spanner Omni instance (e.g. `localhost:15000`). When set, the connector connects to the emulator or Spanner Omni instead of Cloud Spanner. Useful for local development and testing.
+enablePredicateSql|Boolean|Enable SQL generation for Spark Predicates
+indexHint|String|The name of the secondary index to use. This overrides Google Cloud Spanner's automatic query optimizer and forces the database engine to use a specific secondary index.
 
 #### Reading a SQL Query
 
@@ -237,8 +243,8 @@ tables.
 
 Variable| Validation |Comments
 ---|------------|---
-projectId| String     |The projectID containing the Cloud Spanner database
-instanceId| String     |The instanceID of the Cloud Spanner database
+projectId| String     |The projectID containing the Cloud Spanner database. For Spanner Omni this should always be `default`.
+instanceId| String     |The instanceID of the Cloud Spanner database. For Spanner Omni this should always be `default`.
 databaseId| String     |The databaseID of the Cloud Spanner database
 table| String     |The name of the destination Cloud Spanner table
 mutationsPerTransaction| Integer    |The number of mutations to send in a single transaction. Default: 1000
@@ -250,7 +256,7 @@ mutationType| String     |The row write mode used. Valid values are: insert, ins
 overwriteMode| String     |Controls behavior when using `mode("overwrite")`. `truncate` (default) deletes all rows but keeps the table schema. `recreate` drops and recreates the table from the DataFrame schema.
 enablePartialRowUpdates| Boolean    |When `true`, the connector uses the DataFrame schema instead of the Spanner table schema, allowing writes with a subset of columns. Requires `mutationType` set to `update` or `insert_or_update`. Default: `false`
 grpcCompression| String     |Compression for gRPC requests and responses. Use `gzip` to enable compression or `identity` to disable it. By default, the Spanner client uses its normal compression settings.
-emulatorHost| String     |The host and port of the Spanner emulator (e.g. `localhost:9010`). When set, the connector connects to the emulator instead of Cloud Spanner. Useful for local development and testing.
+emulatorHost| String     |The host and port of the Spanner emulator (e.g. `localhost:9010`) or a Spanner Omni instance (e.g. `localhost:15000`). When set, the connector connects to the emulator or Spanner Omni instead of Cloud Spanner. Useful for local development and testing.
 
 `mutationsPerTransaction` and `bytesPerTransaction` are both used when building a transaction to send to spanner.
 
@@ -470,26 +476,26 @@ Please refer to the API documentation of
 
 ##### Required
 
-| Option                  | Summary of Purpose                                                                                                    |
-|-------------------------|-----------------------------------------------------------------------------------------------------------------------|
-| spark                   | The spark session to read graph to                                                                                    |
-| project                 | ID of the Google Cloud project containing the graph                                                                   |
-| instance                | ID of the Spanner instance containing the graph                                                                       |
-| database                | ID of the Spanner database containing the graph                                                                       |
-| graph                   | Name of the graph as defined in the database schema                                                                   |
+| Option                  | Summary of Purpose                                                                              |
+|-------------------------|-------------------------------------------------------------------------------------------------|
+| spark                   | The spark session to read graph to                                                              |
+| project                 | ID of the Google Cloud project containing the graph. For Spanner Omni this is always `default`. |
+| instance                | ID of the Spanner instance containing the graph. For Spanner Omni this is always `default`.     |
+| database                | ID of the Spanner database containing the graph                                                 |
+| graph                   | Name of the graph as defined in the database schema                                             |
 
 ##### Optional
 
-| Option                  | Summary of Purpose                                                                                                    | Default                                            |
-|-------------------------|-----------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| data_boost              | Enable [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview)                               | Disabled                                           |
-| partition_size_bytes    | The [partitionSizeBytes](https://cloud.google.com/spanner/docs/reference/rest/v1/PartitionOptions) hint for Spanner   | No hint provided                                   |
-| repartition             | Enable repartitioning of node and edge DataFrames and set the target number of partitions                             | No repartitioning                                  |
-| read_timestamp          | The timestamp of the snapshot to read from                                                                            | Read the snapshot at the time when load is called  |
-| symmetrize_graph        | Symmetrizes the output graph by adding reverse edges                                                                  | No symmetrization                                  |
-| export_string_ids       | Output string concatenations of the element keys instead of assigning integer IDs and performing joins                | Output integer IDs                                 |
-| node_label / edge_label | Specify label element filters, additional properties to fetch, and element-wise property filters (details below)      | Export all nodes and edges and no element property |
-| node_query / edge_query | Overwrite the queries used to fetch nodes and edges (details below)                                                   | Use queries generated by the connector             |
+| Option                  | Summary of Purpose                                                                                                                         | Default                                                   |
+|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
+| data_boost              | Enable [Data Boost](https://cloud.google.com/spanner/docs/databoost/databoost-overview). This feature is not supported in Spanner Omni.                                                                   | Disabled                                                  |
+| partition_size_bytes    | The [partitionSizeBytes](https://cloud.google.com/spanner/docs/reference/rest/v1/PartitionOptions) hint for Spanner                                                                                             | No hint provided                                          |
+| repartition             | Enable repartitioning of node and edge DataFrames and set the target number of partitions                                                  | No repartitioning                                         |
+| read_timestamp          | The timestamp of the snapshot to read from                                                                                                 | Read the snapshot at the time when load is called         |
+| symmetrize_graph        | Symmetrizes the output graph by adding reverse edges                                                                                       | No symmetrization                                         |
+| export_string_ids       | Output string concatenations of the element keys instead of assigning integer IDs and performing joins                                     | Output integer IDs                                        |
+| node_label / edge_label | Specify label element filters, additional properties to fetch, and element-wise property filters (details below)                           | Export all nodes and edges and no element property        |
+| node_query / edge_query | Overwrite the queries used to fetch nodes and edges (details below)                                                                        | Use queries generated by the connector                    |
 
 #### Filters and Element Properties
 
@@ -574,6 +580,7 @@ JSON     | StringType    | Spark has no JSON type. The values are read as String
 NUMERIC  | DecimalType   | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.
 STRING   | StringType    |
 TIMESTAMP| TimestampType | Only microseconds will be converted to Spark timestamp type. The range of timestamp is  [0001-01-01 00:00:00, 9999-12-31 23:59:59.999999]
+UUID     | StringType    |
 
 ### Filter Pushdown
 
@@ -621,9 +628,71 @@ jsonb                                |StringType   | Spark has no JSON type. The
 numeric / decimal                    |DecimalType  | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.
 varchar / text / character varying   |StringType   |
 timestamptz/timestamp with time zone |TimestampType| Only microseconds will be converted to Spark timestamp type. The range of timestamp is  [0001-01-01 00:00:00, 9999-12-31 23:59:59.999999]
+uuid                                 |StringType   |
 
 #### Filter Pushdown
 
 Since jsonb is converted to StringType in Spark, a filter containing jsonb column can only be pushed down as a string filter. For the jsonb column, `IN` filter is not pushdown to Cloud Spanner.
 
 Filters containing array column will not be pushed down.
+
+#### Join Pushdown
+
+Spanner requires that pushdown joins are on interleaved tables. Attempts to pushdown joins on other tables will result in Spark executing the join.
+Spark currently supports pushdown joins in the Managed Service for Apache Spark Dataproc image 3.0-debian13 or later. Debian12 does not support this.
+Spark requires that the Spark session is configured with `spark.sql.optimizer.datasourceV2JoinPushdown` set to `true` to enable the pushdown join feature.
+
+```
+    spark = SparkSession.builder.appName('MyApp').getOrCreate()
+    spark.conf.set(
+        "spark.sql.optimizer.datasourceV2JoinPushdown",
+        "true"
+    )
+```
+
+Further this connector requires that `enablePredicateSql` is also set to generate the join SQL for pushdown.
+
+```
+    spark.read.format("cloud-spanner")
+    .option("projectId", project_id)
+    .option("instanceId", instance_id)
+    .option("databaseId", database_id)
+    .option("table", table)
+    .option("enablePredicateSql", True)
+    .load()
+```
+
+#### Index Hints and Partitioned Reads
+
+The Spark Spanner connector uses Cloud Spanner's `PartitionQuery` API to execute reads in parallel across Spark partitions. As a result, queries pushed down to Spanner must satisfy the requirements for a **root-partitionable query**.
+
+You can specify a Cloud Spanner index hint using the `FORCE_INDEX` query hint, by adding an indexHint table connector option.
+
+Index hints are supported for both table scans and joins, but an index hint can affect the execution plan chosen by Spanner. Consequently, adding an index hint can cause a query that was previously root partitionable to become non-partitionable.
+
+For example, a query without an index hint may be accepted by `PartitionQuery`, while the same query with `FORCE_INDEX` may be rejected by Spanner because its resulting execution plan does not have a `DistributedUnion` at the root.
+
+Index hints can also be used successfully with partitionable joins. Whether a particular hinted join is root partitionable depends on the query, indexes, schema, and execution plan selected by Spanner.
+
+##### Recommendations
+
+When using index hints with the Spark Spanner connector:
+
+- Ensure that the complete SQL query is **root partitionable** according to Cloud Spanner's `PartitionQuery` requirements.
+- Test the query with the index hint enabled. Do not assume that a query remains partitionable after adding `FORCE_INDEX`.
+- Pay particular attention to joins. An index hint on one side of a join can change the execution plan and may make the complete query non-partitionable.
+- Prefer indexes that provide an appropriate access path for the query while still allowing Spanner to produce a distributed execution plan.
+- Do not assume that an index hint merely changes performance characteristics. `FORCE_INDEX` can change whether the query is eligible for partitioned execution.
+- If Spanner reports that a query is not root partitionable, changing the index hint or query shape may be necessary.
+
+The connector does not independently determine whether an arbitrary SQL query will be root partitionable. Partitionability is ultimately determined by Cloud Spanner's query execution plan.
+
+For more information, see the Cloud Spanner documentation on [reading data in parallel](https://cloud.google.com/spanner/docs/reads#read_data_in_parallel).
+
+##### Important: Valid Spanner SQL Is Not Necessarily Partitionable
+
+A query may be valid Cloud Spanner SQL and execute successfully through a normal Spanner query execution path while still being unsuitable for the Spark Spanner connector's partitioned-read execution.
+
+The Spark Spanner connector requires queries to be executable through `PartitionQuery`. Therefore, an index hint or other query construct that is valid in Cloud Spanner may nevertheless prevent the query from being used by the connector if the resulting query is not root partitionable.
+
+In particular, index hints should be considered part of the query's execution characteristics, not simply an instruction to prefer one index over another.

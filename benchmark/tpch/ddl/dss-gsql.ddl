@@ -35,7 +35,7 @@ CREATE TABLE PARTSUPP ( PS_PARTKEY     INT64 NOT NULL,
                         PS_AVAILQTY    INT64 NOT NULL,
                         PS_SUPPLYCOST  NUMERIC  NOT NULL,
                         PS_COMMENT     STRING(199) NOT NULL
-                      ) PRIMARY KEY (PS_PARTKEY);
+                      ) PRIMARY KEY (PS_PARTKEY, PS_SUPPKEY);
 
 CREATE TABLE CUSTOMER ( C_CUSTKEY     INT64 NOT NULL,
                         C_NAME        STRING(25) NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE CUSTOMER ( C_CUSTKEY     INT64 NOT NULL,
                       ) PRIMARY KEY (C_CUSTKEY);
 
 CREATE TABLE ORDERS  ( O_ORDERKEY       INT64 NOT NULL,
-                       O_CUSTKEY        INT64 NOT NULL,
+                       C_CUSTKEY        INT64 NOT NULL,
                        O_ORDERSTATUS    STRING(1) NOT NULL,
                        O_TOTALPRICE     NUMERIC NOT NULL,
                        O_ORDERDATE      DATE NOT NULL,
@@ -56,10 +56,12 @@ CREATE TABLE ORDERS  ( O_ORDERKEY       INT64 NOT NULL,
                        O_CLERK          STRING(15) NOT NULL,
                        O_SHIPPRIORITY   INT64 NOT NULL,
                        O_COMMENT        STRING(79) NOT NULL
-                     ) PRIMARY KEY (O_ORDERKEY);
+                     ) PRIMARY KEY (C_CUSTKEY, O_ORDERKEY),
+                       INTERLEAVE IN PARENT CUSTOMER ON DELETE CASCADE;
 
 -- Child Table: LINEITEM (Interleaved in ORDERS)
-CREATE TABLE LINEITEM ( O_ORDERKEY      INT64   NOT NULL,
+CREATE TABLE LINEITEM ( C_CUSTKEY       INT64   NOT NULL,
+                        O_ORDERKEY      INT64   NOT NULL,
                         L_PARTKEY       INT64   NOT NULL,
                         L_SUPPKEY       INT64   NOT NULL,
                         L_LINENUMBER    INT64   NOT NULL,
@@ -75,6 +77,7 @@ CREATE TABLE LINEITEM ( O_ORDERKEY      INT64   NOT NULL,
                         L_SHIPINSTRUCT  STRING(25) NOT NULL,
                         L_SHIPMODE      STRING(10) NOT NULL,
                         L_COMMENT       STRING(44) NOT NULL
-                    ) PRIMARY KEY (O_ORDERKEY, L_LINENUMBER),
+                    ) PRIMARY KEY (C_CUSTKEY, O_ORDERKEY, L_LINENUMBER),
                       INTERLEAVE IN PARENT ORDERS ON DELETE CASCADE;
+
 

@@ -227,6 +227,14 @@ This section describes how to run benchmarks using sbt tasks.
         sbt "compareBenchmarkResults dataproc-100mil-records <full_gcs_path_for_new_run>"
         ```
     The task will output a formatted comparison report, showing performance deltas between your baseline and the new run.
+4.  Alternate Spark versions and other Spark options can be set using JVM system properties.
+    * spark.version major spark version against which tests will be run.
+    * enablePredicateSql (default false) true - Enables Spark predicate processing. Join statements will not be pushed down if set to false.
+    * compareOutput (default false) true - compares actual query results against expected tpch/answers/*.out files. Only valid for tpch tests.
+    eg.
+    ```bash
+    sbt -Dspark.version=4.1 -DenablePredicateSql=true "runBenchmark dataproc-tpch-q21"
+    ```
 
 ## Benchmark Results
 

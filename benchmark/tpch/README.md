@@ -14,7 +14,7 @@ Download the official TPC-H toolkit from the TPC website https://www.tpc.org/TPC
 
 2. Compile dbgen and run it to generate data.
 ``` bash
-./dbgen -s 1  # -s 1 generates 1GB of data
+./dbgen -s 1  # -s 100 generates 100GB of data
 ```
 * This generates files like customer.tbl, orders.tbl, etc., which are pipe-delimited (|).
 
@@ -25,25 +25,38 @@ cd <project location>/benchmark/tpch/table
 ```
 * The output will be *.csv files which are equivalent to the *.tbl files.
 
+1. Copy the dss.ddl file from dbgen to the project benchmark/tpch/ddl directory. Rename the file to dss-gsql.ddl.
+2. Update dss-gsql.ddl to include primary key definitions and any interleaving or constraints.
+
+
 #### 2. Upload the .csv files to object storage.
 
-1. Create a GCS bucket <my-tpch-data> and upload the .csv files and also the manifest.json file contained in this table directory there.
+1. Create a GCS bucket <my-tpch-data> and upload the .csv files and also the manifest.json file contained in this table directory there. You might want to create a separate folder for each scale factor (SF) of data. For large scale factor data sets it is best to disable composite upload so any data failure can be resumed where it left off.
 ``` bash
-gcloud storage buckets create gs://my-tpch-data
-gcloud storage cp *.csv gs://my-tpch-data/
-gcloud storage cp manifest.json gs://my-tpch-data/
+gcloud config set storage/parallel_composite_upload_enabled False
+gcloud storage buckets create gs://my-tpch-data/sf100
+gcloud storage cp *.csv gs://my-tpch-data/sf100
+gcloud storage cp manifest.json gs://my-tpch-data/sf100
 ```
 
-#### 3. Import Data Using Dataflow
+#### 3. Create the database and tables
+``` bash
+cd <project location>/benchmark/tpch/ddl
+gcloud spanner databases create test-tpch \
+  --instance=my-spark-dev \
+  --ddl-file=dss-gsql.ddl
+```
+
+#### 4. Import Data Using Dataflow
 1.  Use the Dataflow CSV to Spanner template.
 ``` bash
 gcloud dataflow jobs run steve-upload-tpch \
 --gcs-location gs://dataflow-templates/latest/GCS_Text_to_Cloud_Spanner \
 --region us-central1 \
---parameters instanceId=slord-spark-dev,databaseId=test-tpch,importManifest=gs://my-tpch-data/manifest.json,columnDelimiter="|"
+--parameters instanceId=my-spark-dev,databaseId=test-tpch,importManifest=gs://my-tpch-data/manifest.json,columnDelimiter="|"
 ```
 * Provide the GCS path to your files, the Spanner instance/database, and the CSV file definitions (mapping files to tables).
-* This creates a test-tpch database in the slord-spark-dev Spanner instance containing the TCP-H tables populated with the generated data.
+* This populates the TPC-H tables with the generated data.
 
 ## Other environment set up
 
@@ -81,7 +94,8 @@ gcloud dataflow jobs run steve-upload-tpch \
 
 ### Creating expected output
 
-* Expected results have to be generated for each query.
+* Comparison against expected results is optional. If required, expected results have to be generated for each query.
+* To compare against expected results add the JVM argument -DcompareOutput=true
 
 1. Run each query in Spanner Studio and export the results to Google Sheets.
 2. Download the Google Sheets file as a tab separated file (.tsv) named q<query number>.tsv
@@ -95,11 +109,12 @@ gcloud storage cp answers/q3.out gs://steve-benchmark-results/answers
 ```
 
 ## Run dataproc benchmark test
+This will run query 13 (join query) on Spark 4.1 with Join pushdown, but no comparison of output datasets.
 ``` bash
-sbt "runBenchmark dataproc-tpch-q3"
+sbt -Dspark.version=4.1 -DenablePredicateSql=true "runBenchmark dataproc-tpch-q13"
 ```
 
 ## Databricks benchmark test
 ``` bash
-sbt "runBenchmark databricks-tpch-q1"
+sbt -DcompareOutput=true "runBenchmark databricks-tpch-q1"
 ```

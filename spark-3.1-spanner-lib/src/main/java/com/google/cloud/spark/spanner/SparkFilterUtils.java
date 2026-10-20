@@ -394,6 +394,15 @@ public class SparkFilterUtils {
     } else if (value instanceof Double) {
       return "CAST(\"" + value + "\" AS FLOAT64)";
     }
+    // Floats must be compared as FLOAT32 values. A bare literal such as 0.1 is a FLOAT64
+    // (GoogleSQL) or numeric (PostgreSQL) value that does not exactly match the FLOAT32 value 0.1f,
+    // and NaN or Infinity are not valid literals. In PostgreSQL, the untyped string literal takes
+    // the type of the compared real/float4 column.
+    if (isPostgreSql && value instanceof Float) {
+      return "'" + value + "'";
+    } else if (value instanceof Float) {
+      return "CAST(\"" + value + "\" AS FLOAT32)";
+    }
     if (value instanceof Object[]) {
       return Arrays.stream((Object[]) value)
           .map(v -> SparkFilterUtils.compileValue(v, isPostgreSql))

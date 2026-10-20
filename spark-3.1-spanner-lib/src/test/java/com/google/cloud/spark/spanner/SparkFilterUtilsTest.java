@@ -354,6 +354,57 @@ public class SparkFilterUtilsTest {
   }
 
   @Test
+  public void testFloatFilters() {
+    String equalTo =
+        SparkFilterUtils.compileFilter(EqualTo.apply("f", 0.1f), isPostgreSql, EMPTY_FIELDS, null);
+    String greaterThan =
+        SparkFilterUtils.compileFilter(
+            GreaterThan.apply("f", -1.5f), isPostgreSql, EMPTY_FIELDS, null);
+    String in =
+        SparkFilterUtils.compileFilter(
+            In.apply(
+                "f",
+                new Object[] {
+                  Float.NaN,
+                  Float.POSITIVE_INFINITY,
+                  Float.NEGATIVE_INFINITY,
+                  Float.MAX_VALUE,
+                  Float.MIN_VALUE
+                }),
+            isPostgreSql,
+            EMPTY_FIELDS,
+            null);
+
+    if (isPostgreSql) {
+      assertThat(equalTo).isEqualTo("\"f\" = '0.1'");
+      assertThat(greaterThan).isEqualTo("\"f\" > '-1.5'");
+      assertThat(in)
+          .isEqualTo("\"f\" IN ('NaN', 'Infinity', '-Infinity', '3.4028235E38', '1.4E-45')");
+    } else {
+      // Floats must not be rendered as FLOAT64 literals: 0.1 (FLOAT64) != 0.1f (FLOAT32).
+      assertThat(equalTo).isEqualTo("`f` = CAST(\"0.1\" AS FLOAT32)");
+      assertThat(greaterThan).isEqualTo("`f` > CAST(\"-1.5\" AS FLOAT32)");
+      assertThat(in)
+          .isEqualTo(
+              "`f` IN (CAST(\"NaN\" AS FLOAT32), CAST(\"Infinity\" AS FLOAT32), "
+                  + "CAST(\"-Infinity\" AS FLOAT32), CAST(\"3.4028235E38\" AS FLOAT32), "
+                  + "CAST(\"1.4E-45\" AS FLOAT32))");
+    }
+  }
+
+  @Test
+  public void testDoubleFilters() {
+    String equalTo =
+        SparkFilterUtils.compileFilter(EqualTo.apply("d", 0.1d), isPostgreSql, EMPTY_FIELDS, null);
+
+    if (isPostgreSql) {
+      assertThat(equalTo).isEqualTo("\"d\" = '0.1'");
+    } else {
+      assertThat(equalTo).isEqualTo("`d` = CAST(\"0.1\" AS FLOAT64)");
+    }
+  }
+
+  @Test
   public void testDateFilters_java8Time() {
     assertThat(
             SparkFilterUtils.compileFilter(

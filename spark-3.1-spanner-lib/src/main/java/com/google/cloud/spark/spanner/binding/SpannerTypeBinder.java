@@ -68,7 +68,8 @@ public final class SpannerTypeBinder {
     } else if (sparkType.sameType(DataTypes.DoubleType)) {
       builder.bind(parameter).to((Double) value);
     } else if (sparkType.sameType(DataTypes.FloatType)) {
-      builder.bind(parameter).to(((Float) value).doubleValue());
+      // Spark FloatType columns map to Spanner FLOAT32 columns.
+      builder.bind(parameter).to(((Number) value).floatValue());
     } else if (sparkType.sameType(DataTypes.TimestampType)) {
 
       if (value instanceof Instant) {
@@ -119,8 +120,10 @@ public final class SpannerTypeBinder {
       return Type.int64();
     } else if (type.sameType(DataTypes.BooleanType)) {
       return Type.bool();
-    } else if (type.sameType(DataTypes.DoubleType) || type.sameType(DataTypes.FloatType)) {
+    } else if (type.sameType(DataTypes.DoubleType)) {
       return Type.float64();
+    } else if (type.sameType(DataTypes.FloatType)) {
+      return Type.float32();
     } else if (type.sameType(DataTypes.TimestampType)) {
       return Type.timestamp();
     } else if (type.sameType(DataTypes.DateType)) {
@@ -157,6 +160,10 @@ public final class SpannerTypeBinder {
 
       case FLOAT64:
         builder.bind(parameter).to((Double) null);
+        break;
+
+      case FLOAT32:
+        builder.bind(parameter).to((Float) null);
         break;
 
       case NUMERIC:

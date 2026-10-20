@@ -2,6 +2,8 @@
 
 ## Next
 
+*   Add FLOAT32 data type support.
+
 ## 1.5.0 - 2026-09-02
 
 *   Add a `query` option for reading partitionable SQL query results as Spark DataFrames.

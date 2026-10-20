@@ -470,8 +470,8 @@ object BenchmarkingTasks {
         val baselineFile = tempDir / "baseline.json"
         val currentFile = tempDir / "current.json"
 
-        val gsutilCpBaseline = Seq("gcloud", "storage", "cp", baselineGcsPath, baselineFile.getAbsolutePath)
-        val gsutilCpCurrent = Seq("gcloud", "storage", "cp", currentGcsPath, currentFile.getAbsolutePath)
+        val gcloudCpBaseline = Seq("gcloud", "storage", "cp", baselineGcsPath, baselineFile.getAbsolutePath)
+        val gcloudCpCurrent = Seq("gcloud", "storage", "cp", currentGcsPath, currentFile.getAbsolutePath)
 
         if (gsutilCpBaseline.! != 0) {
           IO.delete(tempDir)

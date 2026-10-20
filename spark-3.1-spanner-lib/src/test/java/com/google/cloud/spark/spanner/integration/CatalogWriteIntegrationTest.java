@@ -26,6 +26,7 @@ import java.util.Collection;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.analysis.TableAlreadyExistsException;
+import org.apache.spark.sql.types.DataTypes;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -77,6 +78,39 @@ public class CatalogWriteIntegrationTest extends SparkCatalogSpannerIntegrationT
     Object[] strArr = new Object[] {"hello", "world"};
     assertArrayEquals(longArr, row.getList(1).toArray(new Long[0]));
     assertArrayEquals(strArr, row.getList(2).toArray());
+  }
+
+  @Test
+  public void testCreateTableWithFloatColumns() {
+    String tableName = TestData.WRITE_TABLE_NAME + "_FLOAT32_DDL";
+    spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
+
+    // 1. Create the table with FLOAT columns, which map to FLOAT32 (GoogleSQL) / float4 (PG).
+    spark.sql(
+        "CREATE TABLE spanner."
+            + tableName
+            + " (id BIGINT NOT NULL, float_col FLOAT, float_array ARRAY<FLOAT>) USING `cloud-spanner`"
+            + " TBLPROPERTIES('primaryKeys' = 'id')");
+
+    // 2. Insert data with float values.
+    spark.sql(
+        "INSERT INTO spanner."
+            + tableName
+            + " VALUES (1, CAST(-0.1 AS FLOAT),"
+            + " ARRAY(CAST(1.25 AS FLOAT), CAST('NaN' AS FLOAT), CAST(NULL AS FLOAT)))");
+
+    // 3. Verify that the columns are read back as FloatType with the same values.
+    Dataset<Row> readBack = spark.sql("SELECT * FROM spanner." + tableName).filter("id = 1");
+    assertEquals(DataTypes.FloatType, readBack.schema().apply("float_col").dataType());
+    assertEquals(
+        DataTypes.createArrayType(DataTypes.FloatType, true),
+        readBack.schema().apply("float_array").dataType());
+    assertEquals(1, readBack.count());
+
+    Row row = readBack.first();
+    assertThat(row.getLong(0)).isEqualTo(1L);
+    assertThat(row.getFloat(1)).isEqualTo(-0.1f);
+    assertThat(row.getList(2)).containsExactly(1.25f, Float.NaN, null).inOrder();
   }
 
   @Test

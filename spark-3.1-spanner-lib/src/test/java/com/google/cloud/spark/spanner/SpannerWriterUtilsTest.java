@@ -75,6 +75,8 @@ public class SpannerWriterUtilsTest {
             },
             {"boolean", DataTypes.BooleanType, true, Value.bool(true), "BOOL"},
             {"double", DataTypes.DoubleType, 95.5, Value.float64(95.5), "FLOAT64"},
+            {"float", DataTypes.FloatType, 1.25f, Value.float32(1.25f), "FLOAT32"},
+            {"inexact_float", DataTypes.FloatType, -0.1f, Value.float32(-0.1f), "FLOAT32"},
             {
               "binary",
               DataTypes.BinaryType,
@@ -131,6 +133,8 @@ public class SpannerWriterUtilsTest {
         when(row.getBoolean(0)).thenReturn((Boolean) mockValue);
       else if (sparkType == DataTypes.DoubleType)
         when(row.getDouble(0)).thenReturn((Double) mockValue);
+      else if (sparkType == DataTypes.FloatType)
+        when(row.getFloat(0)).thenReturn((Float) mockValue);
       else if (sparkType == DataTypes.BinaryType)
         when(row.getBinary(0)).thenReturn((byte[]) mockValue);
       else if (sparkType == DataTypes.TimestampType)
@@ -164,6 +168,7 @@ public class SpannerWriterUtilsTest {
             {"uuid", DataTypes.StringType, Value.uuid(null), "UUID"},
             {"boolean", DataTypes.BooleanType, Value.bool(null), "BOOL"},
             {"double", DataTypes.DoubleType, Value.float64(null), "FLOAT64"},
+            {"float", DataTypes.FloatType, Value.float32(null), "FLOAT32"},
             {"binary", DataTypes.BinaryType, Value.bytes(null), "BYTES"},
             {"timestamp", DataTypes.TimestampType, Value.timestamp(null), "TIMESTAMP"},
             {"date", DataTypes.DateType, Value.date(null), "DATE"},
@@ -197,6 +202,12 @@ public class SpannerWriterUtilsTest {
               DataTypes.createArrayType(DataTypes.DoubleType),
               Value.float64Array((double[]) null),
               "ARRAY<FLOAT64>"
+            },
+            {
+              "float_array",
+              DataTypes.createArrayType(DataTypes.FloatType),
+              Value.float32Array((float[]) null),
+              "ARRAY<FLOAT32>"
             },
             {
               "binary_array",
@@ -378,6 +389,19 @@ public class SpannerWriterUtilsTest {
                           ad,
                           (Double[]) d,
                           (i, val) -> when(ad.getDouble(i)).thenReturn((Double) val))
+            },
+
+            // 4.1 Float Array
+            {
+              "float_array",
+              DataTypes.FloatType,
+              new Float[] {1.25f, -0.1f, null},
+              Value.float32Array(Arrays.asList(new Float[] {1.25f, -0.1f, null})),
+              "ARRAY<FLOAT32>",
+              (BiConsumer<ArrayData, Object>)
+                  (ad, d) ->
+                      setupArrayMock(
+                          ad, (Float[]) d, (i, val) -> when(ad.getFloat(i)).thenReturn((Float) val))
             },
 
             // 5. Binary Array (Array[Byte])

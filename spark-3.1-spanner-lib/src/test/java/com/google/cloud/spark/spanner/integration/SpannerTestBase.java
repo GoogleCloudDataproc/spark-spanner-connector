@@ -297,7 +297,8 @@ class SpannerTestBase {
                     "I", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
                 new StructField("J", DataTypes.StringType, true, jsonMetaBuilder.build()),
                 new StructField("K", DataTypes.DoubleType, true, null),
-                new StructField("L", DataTypes.StringType, true, null))
+                new StructField("L", DataTypes.StringType, true, null),
+                new StructField("M", DataTypes.FloatType, true, null))
             .toArray(new StructField[0]));
   }
 
@@ -313,8 +314,9 @@ class SpannerTestBase {
       String[] I,
       String J,
       Double K,
-      String L) {
-    GenericInternalRow row = new GenericInternalRow(12);
+      String L,
+      Float M) {
+    GenericInternalRow row = new GenericInternalRow(13);
     row.setLong(0, A);
     row.update(1, UTF8String.fromString(B));
     row.update(2, C);
@@ -347,6 +349,11 @@ class SpannerTestBase {
       row.setDouble(10, K);
     }
     row.update(11, L == null ? null : UTF8String.fromString(L));
+    if (M == null) {
+      row.update(12, null);
+    } else {
+      row.setFloat(12, M);
+    }
     return row;
   }
 

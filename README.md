@@ -577,6 +577,7 @@ ARRAY    | ArrayType     | Nested ARRAY is not supported, e.g. ARRAY<ARRAY<BOOL>
 BOOL     | BooleanType   |
 BYTES    | BinaryType    |
 DATE     | DateType      | The date range is [1700-01-01, 9999-12-31].
+FLOAT32  | FloatType     |
 FLOAT64  | DoubleType    |
 INT64    | LongType      | The supported integer range is [-9,223,372,036,854,775,808, 9,223,372,036,854,775,807]
 JSON     | StringType    | Spark has no JSON type. The values are read as String.
@@ -626,6 +627,7 @@ bool / boolean                       |BooleanType  |
 bytea                                |BinaryType   |
 date                                 |DateType     | The date range is [1700-01-01, 9999-12-31].
 double precision / float8            |DoubleType   |
+real / float4                        |FloatType    |
 int8 / bigint                        |LongType     | The supported integer range is [-9,223,372,036,854,775,808, 9,223,372,036,854,775,807]
 jsonb                                |StringType   | Spark has no JSON type. The values are read as String.
 numeric / decimal                    |DecimalType  | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.

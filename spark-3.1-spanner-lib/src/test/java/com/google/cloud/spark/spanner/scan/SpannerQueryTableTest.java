@@ -68,6 +68,23 @@ public class SpannerQueryTableTest {
   }
 
   @Test
+  public void resultSetMetadataToSchemaConvertsFloat32Types() {
+    Type float32ArrayType =
+        Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(type(TypeCode.FLOAT32))
+            .build();
+
+    StructType schema =
+        SpannerQueryTable.resultSetMetadataToSchema(
+            metadata(field("f32", type(TypeCode.FLOAT32)), field("f32s", float32ArrayType)));
+
+    assertEquals(DataTypes.FloatType, schema.apply("f32").dataType());
+    assertEquals(
+        DataTypes.createArrayType(DataTypes.FloatType, true), schema.apply("f32s").dataType());
+  }
+
+  @Test
   public void resultSetMetadataToSchemaConvertsArraysAndStructs() {
     Type arrayType =
         Type.newBuilder().setCode(TypeCode.ARRAY).setArrayElementType(type(TypeCode.INT64)).build();

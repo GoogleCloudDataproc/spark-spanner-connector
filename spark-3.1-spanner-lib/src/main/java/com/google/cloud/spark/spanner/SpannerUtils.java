@@ -435,6 +435,10 @@ public class SpannerUtils {
         sparkRow.update(sparkRowIndex, toSparkDate(spannerRow.getDate(spannerRowIndex)));
         break;
 
+      case FLOAT32:
+        sparkRow.setFloat(sparkRowIndex, spannerRow.getFloat(spannerRowIndex));
+        break;
+
       case FLOAT64:
         sparkRow.setDouble(sparkRowIndex, spannerRow.getDouble(spannerRowIndex));
         break;
@@ -501,6 +505,9 @@ public class SpannerUtils {
         if (fieldTypeName.indexOf("ARRAY<BOOL>") == 0) {
           sparkRow.update(
               sparkRowIndex, new GenericArrayData(value.getBoolArray().toArray(new Boolean[0])));
+        } else if (fieldTypeName.indexOf("ARRAY<FLOAT32>") == 0) {
+          sparkRow.update(
+              sparkRowIndex, new GenericArrayData(value.getFloat32Array().toArray(new Float[0])));
         } else if (fieldTypeName.indexOf("ARRAY<FLOAT64>") == 0) {
           sparkRow.update(
               sparkRowIndex, new GenericArrayData(value.getFloat64Array().toArray(new Double[0])));

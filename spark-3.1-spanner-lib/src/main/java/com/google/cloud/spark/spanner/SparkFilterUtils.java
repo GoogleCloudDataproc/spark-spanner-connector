@@ -722,7 +722,7 @@ public class SparkFilterUtils {
       return new LiteralExpr(value, DataTypes.DoubleType, "FLOAT64");
     }
     if (value instanceof Float) {
-      return new LiteralExpr(value, DataTypes.FloatType, "FLOAT64");
+      return new LiteralExpr(value, DataTypes.FloatType, "FLOAT32");
     }
     if (value instanceof BigDecimal) {
       return new LiteralExpr(value, DataTypes.createDecimalType(38, 9), "NUMERIC");

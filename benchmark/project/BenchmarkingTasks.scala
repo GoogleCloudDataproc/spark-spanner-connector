@@ -473,11 +473,11 @@ object BenchmarkingTasks {
         val gcloudCpBaseline = Seq("gcloud", "storage", "cp", baselineGcsPath, baselineFile.getAbsolutePath)
         val gcloudCpCurrent = Seq("gcloud", "storage", "cp", currentGcsPath, currentFile.getAbsolutePath)
 
-        if (gsutilCpBaseline.! != 0) {
+        if (gcloudCpBaseline.! != 0) {
           IO.delete(tempDir)
           sys.error(s"Failed to download baseline file from GCS: ${baselineGcsPath}")
         }
-        if (gsutilCpCurrent.! != 0) {
+        if (gcloudCpCurrent.! != 0) {
           IO.delete(tempDir)
           sys.error(s"Failed to download current result file from GCS: ${currentGcsPath}")
         }

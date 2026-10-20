@@ -53,7 +53,7 @@ export SPANNER_DATAPROC_BUCKET="<GCS_BUCKET>"
 ### Upload JAR to GCS
 
 ```bash
-gsutil cp "$CONNECTOR_JAR" "gs://${SPANNER_DATAPROC_BUCKET}/spark-spanner-connector.jar"
+gcloud storage cp "$CONNECTOR_JAR" "gs://${SPANNER_DATAPROC_BUCKET}/spark-spanner-connector.jar"
 ```
 
 ### Create a Dataproc Cluster with Jupyter Support
@@ -84,7 +84,7 @@ it to the same GCS bucket so the notebooks can install it at runtime:
 
 ```bash
 pip download sparksql-magic --no-deps -d .
-gsutil cp sparksql_magic*.whl "gs://${SPANNER_DATAPROC_BUCKET}/spark-sql/"
+gcloud storage cp sparksql_magic*.whl "gs://${SPANNER_DATAPROC_BUCKET}/spark-sql/"
 ```
 
 Each notebook's first code cell copies the wheel from GCS and runs

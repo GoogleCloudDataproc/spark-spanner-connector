@@ -441,7 +441,7 @@ object BenchmarkingTasks {
         println(s"--- Setting Baseline for ${benchmarkName} ---")
         println(s"Copying ${sourceGcsPath} to ${baselineGcsPath}")
 
-        val command = Seq("gsutil", "cp", sourceGcsPath, baselineGcsPath)
+        val command = Seq("gcloud", "storage", "cp", sourceGcsPath, baselineGcsPath)
         if (command.! != 0) {
           sys.error("Failed to set baseline.")
         }
@@ -470,14 +470,14 @@ object BenchmarkingTasks {
         val baselineFile = tempDir / "baseline.json"
         val currentFile = tempDir / "current.json"
 
-        val gsutilCpBaseline = Seq("gsutil", "cp", baselineGcsPath, baselineFile.getAbsolutePath)
-        val gsutilCpCurrent = Seq("gsutil", "cp", currentGcsPath, currentFile.getAbsolutePath)
+        val gcloudCpBaseline = Seq("gcloud", "storage", "cp", baselineGcsPath, baselineFile.getAbsolutePath)
+        val gcloudCpCurrent = Seq("gcloud", "storage", "cp", currentGcsPath, currentFile.getAbsolutePath)
 
-        if (gsutilCpBaseline.! != 0) {
+        if (gcloudCpBaseline.! != 0) {
           IO.delete(tempDir)
           sys.error(s"Failed to download baseline file from GCS: ${baselineGcsPath}")
         }
-        if (gsutilCpCurrent.! != 0) {
+        if (gcloudCpCurrent.! != 0) {
           IO.delete(tempDir)
           sys.error(s"Failed to download current result file from GCS: ${currentGcsPath}")
         }

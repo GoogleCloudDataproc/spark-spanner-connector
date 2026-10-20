@@ -76,7 +76,7 @@ You can create the results bucket using the `createResultsBucket` sbt task. You'
 
 ```bash
 # Create the Dataproc staging bucket
-gsutil mb -p your-gcp-project-id -l your-gcp-region gs://your-dataproc-staging-bucket/
+gcloud storage buckets create --project your-gcp-project-id --location your-gcp-region gs://your-dataproc-staging-bucket/
 
 # Create the GCS bucket for benchmark results
 sbt "createResultsBucket <environment_name>"

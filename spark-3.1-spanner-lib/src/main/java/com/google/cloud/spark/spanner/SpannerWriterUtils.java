@@ -134,9 +134,7 @@ public class SpannerWriterUtils {
     // Float
     ARRAY_TYPE_CONVERTERS.put(
         DataTypes.FloatType,
-        (row, i, type) -> {
-          return arrayConverter(row, i, ArrayData::getFloat, Value::float32Array);
-        });
+        (row, i, type) -> arrayConverter(row, i, ArrayData::getFloat, Value::float32Array));
 
     // Binary
     ARRAY_TYPE_CONVERTERS.put(

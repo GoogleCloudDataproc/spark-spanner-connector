@@ -389,7 +389,8 @@ class SpannerTestBase {
                 new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
                 new StructField("timestampcol", DataTypes.TimestampType, true, null),
                 new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()),
-                new StructField("uuidcol", DataTypes.StringType, true, null))
+                new StructField("uuidcol", DataTypes.StringType, true, null),
+                new StructField("realcol", DataTypes.FloatType, true, null))
             .toArray(new StructField[0]));
   }
 
@@ -452,8 +453,9 @@ class SpannerTestBase {
       String timewithzoneCol,
       String timestampCol,
       String jsonCol,
-      String uuidCol) {
-    GenericInternalRow row = new GenericInternalRow(19);
+      String uuidCol,
+      Float realCol) {
+    GenericInternalRow row = new GenericInternalRow(20);
     row.setLong(0, id);
     row.update(1, charvCol == null ? null : UTF8String.fromString(charvCol));
     row.update(2, textCol == null ? null : UTF8String.fromString(textCol));
@@ -521,6 +523,11 @@ class SpannerTestBase {
             : SpannerUtils.zonedDateTimeToSparkTimestamp(ZonedDateTime.parse(timestampCol)));
     row.update(17, jsonCol == null ? null : UTF8String.fromString(jsonCol));
     row.update(18, uuidCol == null ? null : UTF8String.fromString(uuidCol));
+    if (realCol == null) {
+      row.update(19, null);
+    } else {
+      row.setFloat(19, realCol);
+    }
     return row;
   }
 

@@ -2,7 +2,9 @@
 
 ## Next
 
-*   Add FLOAT32 data type support.
+*   Add FLOAT32 data type support:
+    *   Map Spanner `FLOAT32` (GoogleSQL) / `real` (PostgreSQL) and `ARRAY<FLOAT32>` / `real[]` columns to Spark `FloatType` and `ArrayType(FloatType)`.
+    *   **Breaking change**: Spark `FloatType` columns in Catalog `CREATE TABLE` DDL now create Spanner `FLOAT32` / `real` columns (previously `FLOAT64` / `float8`), and writing a Spark `FloatType` column to a Spanner `FLOAT64` / `float8` column with `enablePartialRowUpdates=true` now requires an explicit cast to `DoubleType`.
 
 ## 1.5.0 - 2026-09-02
 

@@ -26,11 +26,15 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.spark.spanner.TestData;
+import com.google.cloud.spark.spanner.scan.SpannerScanBuilder;
+import com.google.cloud.spark.spanner.scan.SpannerScanner;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -42,6 +46,17 @@ import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.connector.read.InputPartition;
+import org.apache.spark.sql.connector.read.PartitionReader;
+import org.apache.spark.sql.connector.read.PartitionReaderFactory;
+import org.apache.spark.sql.sources.And;
+import org.apache.spark.sql.sources.EqualNullSafe;
+import org.apache.spark.sql.sources.EqualTo;
+import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.sources.GreaterThanOrEqual;
+import org.apache.spark.sql.sources.In;
+import org.apache.spark.sql.sources.LessThanOrEqual;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -990,7 +1005,7 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
   }
 
   @Test
-  public void testFloat32WriteAndFilterPushdown() {
+  public void testFloat32WriteAndFilterPushdown() throws Exception {
     StructType schema =
         new StructType(
             new StructField[] {
@@ -1041,11 +1056,67 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
 
     // Filters on FLOAT32 columns are pushed down and must compare FLOAT32 (not FLOAT64) values.
     assertThat(idsMatching(df, "float32_col = CAST(-0.1 AS FLOAT)")).containsExactly(402L);
+    assertThat(idsMatching(df, "float32_col <=> CAST(-0.1 AS FLOAT)")).containsExactly(402L);
+    assertThat(idsMatching(df, "float32_col <=> CAST(NULL AS FLOAT)")).containsExactly(408L);
     assertThat(idsMatching(df, "float32_col = float('-inf')")).containsExactly(405L);
     assertThat(idsMatching(df, "float32_col IN (float('inf'), float('3.4028235E38'))"))
         .containsExactly(404L, 406L);
     assertThat(idsMatching(df, "float32_col = CAST(1.4E-45 AS FLOAT)")).containsExactly(407L);
     assertThat(idsMatching(df, "float32_col IS NULL")).containsExactly(408L);
+
+    // Also verify the enablePredicateSql=true query builder path on FLOAT32 columns.
+    Dataset<Row> predicateSqlDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(props)
+            .option("enablePredicateSql", "true")
+            .load()
+            .filter("long_col BETWEEN 401 AND 408");
+    assertThat(idsMatching(predicateSqlDf, "float32_col = CAST(-0.1 AS FLOAT)"))
+        .containsExactly(402L);
+    assertThat(idsMatching(predicateSqlDf, "float32_col <=> CAST(-0.1 AS FLOAT)"))
+        .containsExactly(402L);
+    assertThat(idsMatching(predicateSqlDf, "float32_col IN (float('inf'), float('3.4028235E38'))"))
+        .containsExactly(404L, 406L);
+
+    // Directly verify SpannerScanBuilder.pushFilters (bypassing Spark post-scan filtering) for
+    // both GoogleSQL and PostgreSQL dialects.
+    assertEquals(
+        Collections.singletonList(402L),
+        readWriteTableIdsWithPushedFilters(new EqualTo("float32_col", -0.1f)));
+    assertEquals(
+        Collections.singletonList(402L),
+        readWriteTableIdsWithPushedFilters(new EqualNullSafe("float32_col", -0.1f)));
+    // In GoogleSQL, NaN = NaN is false (IEEE 754); in PostgreSQL, NaN = NaN is true.
+    assertEquals(
+        usePostgresSql ? Arrays.asList(402L, 403L, 404L, 406L) : Arrays.asList(402L, 404L, 406L),
+        readWriteTableIdsWithPushedFilters(
+            new In(
+                "float32_col",
+                new Object[] {-0.1f, Float.NaN, Float.POSITIVE_INFINITY, Float.MAX_VALUE})));
+  }
+
+  private List<Long> readWriteTableIdsWithPushedFilters(Filter filter) throws Exception {
+    Map<String, String> props = getBaseProps();
+    SpannerScanBuilder scanBuilder = new SpannerScanBuilder(new SpannerTable(props));
+    Filter rangeFilter =
+        new And(new GreaterThanOrEqual("long_col", 401L), new LessThanOrEqual("long_col", 408L));
+    Filter combined = new And(rangeFilter, filter);
+    assertEquals(0, scanBuilder.pushFilters(new Filter[] {combined}).length);
+    scanBuilder.pruneColumns(new StructType().add("long_col", DataTypes.LongType, false));
+    SpannerScanner scanner = (SpannerScanner) scanBuilder.build();
+    PartitionReaderFactory readerFactory = scanner.createReaderFactory();
+    List<Long> ids = new ArrayList<>();
+    for (InputPartition partition : scanner.planInputPartitions()) {
+      try (PartitionReader<InternalRow> reader = readerFactory.createReader(partition)) {
+        while (reader.next()) {
+          ids.add(reader.get().getLong(0));
+        }
+      }
+    }
+    Collections.sort(ids);
+    return ids;
   }
 
   private static List<Long> idsMatching(Dataset<Row> df, String condition) {

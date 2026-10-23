@@ -150,4 +150,40 @@ public class SpannerTypeBinderTest {
     assertThat(value.getType().getCode()).isEqualTo(Type.Code.FLOAT64);
     assertThat(value.getFloat64()).isEqualTo(0.1d);
   }
+
+  @Test
+  public void bindsDoubleLiteralOnFloatColumnAsFloat64WithoutPrecisionLoss() {
+    LiteralExpr literal = new LiteralExpr(-0.1d, DataTypes.FloatType, "FLOAT32");
+    Statement.Builder builder = Statement.newBuilder("SELECT @p1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal);
+
+    Value value = builder.build().getParameters().get("p1");
+    assertThat(value.getType().getCode()).isEqualTo(Type.Code.FLOAT64);
+    assertThat(value.getFloat64()).isEqualTo(-0.1d);
+  }
+
+  @Test
+  public void bindsFloatLiteralOnDoubleColumnAsFloat64() {
+    LiteralExpr literal = new LiteralExpr(1.25f, DataTypes.DoubleType, "FLOAT64");
+    Statement.Builder builder = Statement.newBuilder("SELECT @p1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal);
+
+    Value value = builder.build().getParameters().get("p1");
+    assertThat(value.getType().getCode()).isEqualTo(Type.Code.FLOAT64);
+    assertThat(value.getFloat64()).isEqualTo(1.25d);
+  }
+
+  @Test
+  public void bindsIntegerLiteralOnLongColumnAsInt64() {
+    LiteralExpr literal = new LiteralExpr(42, DataTypes.LongType, "INT64");
+    Statement.Builder builder = Statement.newBuilder("SELECT @p1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal);
+
+    Value value = builder.build().getParameters().get("p1");
+    assertThat(value.getType().getCode()).isEqualTo(Type.Code.INT64);
+    assertThat(value.getInt64()).isEqualTo(42L);
+  }
 }

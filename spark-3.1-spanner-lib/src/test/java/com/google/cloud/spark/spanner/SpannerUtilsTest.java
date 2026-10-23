@@ -124,6 +124,26 @@ public class SpannerUtilsTest {
   }
 
   @Test
+  public void testValidateSchemaFloat32VsFloat64Mismatch() {
+    StructType spannerSchema =
+        new StructType(
+            new StructField[] {new StructField("score", DataTypes.FloatType, true, null)});
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {new StructField("score", DataTypes.DoubleType, true, null)});
+
+    SpannerConnectorException exception =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
+    assertTrue(exception.getMessage().contains("Data type mismatch for column 'score'"));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains("DataFrame has type double but Spanner table expects type float"));
+  }
+
+  @Test
   public void testValidateSchemaNumericScaleMismatch() {
     // Spanner GoogleSQL NUMERIC maps to DecimalType(38, 9)
     StructType spannerSchema =

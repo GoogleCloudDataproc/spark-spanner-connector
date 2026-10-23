@@ -394,12 +394,13 @@ public class SparkFilterUtils {
     } else if (value instanceof Double) {
       return "CAST(\"" + value + "\" AS FLOAT64)";
     }
-    // Floats must be compared as FLOAT32 values. A bare literal such as 0.1 is a FLOAT64
+    // Floats must be compared as FLOAT32/real values. A bare literal such as 0.1 is a FLOAT64
     // (GoogleSQL) or numeric (PostgreSQL) value that does not exactly match the FLOAT32 value 0.1f,
-    // and NaN or Infinity are not valid literals. In PostgreSQL, the untyped string literal takes
-    // the type of the compared real/float4 column.
+    // and NaN or Infinity are not valid literals. In PostgreSQL, an explicit CAST to real is
+    // required so that typed contexts (such as EqualNullSafe IS NULL checks) and operators resolve
+    // to real (float4) rather than text or float8.
     if (isPostgreSql && value instanceof Float) {
-      return "'" + value + "'";
+      return "CAST('" + value + "' AS real)";
     } else if (value instanceof Float) {
       return "CAST(\"" + value + "\" AS FLOAT32)";
     }

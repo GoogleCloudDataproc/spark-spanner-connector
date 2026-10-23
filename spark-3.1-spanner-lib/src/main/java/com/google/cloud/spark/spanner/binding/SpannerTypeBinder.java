@@ -55,21 +55,23 @@ public final class SpannerTypeBinder {
       }
     } else if (sparkType.sameType(DataTypes.StringType)) {
       builder.bind(parameter).to(value.toString());
-    } else if (sparkType.sameType(DataTypes.LongType)) {
-      builder.bind(parameter).to((Long) value);
+    } else if (sparkType.sameType(DataTypes.LongType)
+        || sparkType.sameType(DataTypes.IntegerType)
+        || sparkType.sameType(DataTypes.ShortType)
+        || sparkType.sameType(DataTypes.ByteType)) {
+      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.BooleanType)) {
       builder.bind(parameter).to((Boolean) value);
-    } else if (sparkType.sameType(DataTypes.IntegerType)) {
-      builder.bind(parameter).to(((Number) value).longValue());
-    } else if (sparkType.sameType(DataTypes.ShortType)) {
-      builder.bind(parameter).to(((Short) value).longValue());
-    } else if (sparkType.sameType(DataTypes.ByteType)) {
-      builder.bind(parameter).to(((Byte) value).longValue());
     } else if (sparkType.sameType(DataTypes.DoubleType)) {
-      builder.bind(parameter).to((Double) value);
+      builder.bind(parameter).to(((Number) value).doubleValue());
     } else if (sparkType.sameType(DataTypes.FloatType)) {
-      // Spark FloatType columns map to Spanner FLOAT32 columns.
-      builder.bind(parameter).to(((Number) value).floatValue());
+      // Spark FloatType columns map to Spanner FLOAT32 columns. Preserve a Double literal as
+      // FLOAT64 so mixed-precision predicates (e.g., float32_col = -0.1d) are not lossily narrowed.
+      if (value instanceof Double) {
+        builder.bind(parameter).to((Double) value);
+      } else {
+        builder.bind(parameter).to(((Number) value).floatValue());
+      }
     } else if (sparkType.sameType(DataTypes.TimestampType)) {
 
       if (value instanceof Instant) {

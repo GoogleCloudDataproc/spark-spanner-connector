@@ -357,6 +357,9 @@ public class SparkFilterUtilsTest {
   public void testFloatFilters() {
     String equalTo =
         SparkFilterUtils.compileFilter(EqualTo.apply("f", 0.1f), isPostgreSql, EMPTY_FIELDS, null);
+    String equalNullSafe =
+        SparkFilterUtils.compileFilter(
+            EqualNullSafe.apply("f", 0.1f), isPostgreSql, EMPTY_FIELDS, null);
     String greaterThan =
         SparkFilterUtils.compileFilter(
             GreaterThan.apply("f", -1.5f), isPostgreSql, EMPTY_FIELDS, null);
@@ -376,13 +379,24 @@ public class SparkFilterUtilsTest {
             null);
 
     if (isPostgreSql) {
-      assertThat(equalTo).isEqualTo("\"f\" = '0.1'");
-      assertThat(greaterThan).isEqualTo("\"f\" > '-1.5'");
+      assertThat(equalTo).isEqualTo("\"f\" = CAST('0.1' AS real)");
+      assertThat(equalNullSafe)
+          .isEqualTo(
+              "\"f\" IS NULL AND CAST('0.1' AS real) IS NULL OR \"f\" IS NOT NULL "
+                  + "AND CAST('0.1' AS real) IS NOT NULL AND \"f\" = CAST('0.1' AS real)");
+      assertThat(greaterThan).isEqualTo("\"f\" > CAST('-1.5' AS real)");
       assertThat(in)
-          .isEqualTo("\"f\" IN ('NaN', 'Infinity', '-Infinity', '3.4028235E38', '1.4E-45')");
+          .isEqualTo(
+              "\"f\" IN (CAST('NaN' AS real), CAST('Infinity' AS real), "
+                  + "CAST('-Infinity' AS real), CAST('3.4028235E38' AS real), "
+                  + "CAST('1.4E-45' AS real))");
     } else {
       // Floats must not be rendered as FLOAT64 literals: 0.1 (FLOAT64) != 0.1f (FLOAT32).
       assertThat(equalTo).isEqualTo("`f` = CAST(\"0.1\" AS FLOAT32)");
+      assertThat(equalNullSafe)
+          .isEqualTo(
+              "`f` IS NULL AND CAST(\"0.1\" AS FLOAT32) IS NULL OR `f` IS NOT NULL "
+                  + "AND CAST(\"0.1\" AS FLOAT32) IS NOT NULL AND `f` = CAST(\"0.1\" AS FLOAT32)");
       assertThat(greaterThan).isEqualTo("`f` > CAST(\"-1.5\" AS FLOAT32)");
       assertThat(in)
           .isEqualTo(

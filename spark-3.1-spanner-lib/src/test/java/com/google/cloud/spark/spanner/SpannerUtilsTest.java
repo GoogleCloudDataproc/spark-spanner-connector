@@ -124,6 +124,26 @@ public class SpannerUtilsTest {
   }
 
   @Test
+  public void testValidateSchemaFloat32VsFloat64Mismatch() {
+    StructType spannerSchema =
+        new StructType(
+            new StructField[] {new StructField("score", DataTypes.FloatType, true, null)});
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {new StructField("score", DataTypes.DoubleType, true, null)});
+
+    SpannerConnectorException exception =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
+    assertTrue(exception.getMessage().contains("Data type mismatch for column 'score'"));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains("DataFrame has type double but Spanner table expects type float"));
+  }
+
+  @Test
   public void testValidateSchemaNumericScaleMismatch() {
     // Spanner GoogleSQL NUMERIC maps to DecimalType(38, 9)
     StructType spannerSchema =
@@ -378,6 +398,8 @@ public class SpannerUtilsTest {
             .to(Value.float32(Float.MAX_VALUE))
             .set("min")
             .to(Value.float32(Float.MIN_VALUE))
+            .set("neg_zero")
+            .to(Value.float32(-0.0f))
             .set("null_value")
             .to(Value.float32(null))
             .build();
@@ -392,7 +414,8 @@ public class SpannerUtilsTest {
     assertEquals(Float.NEGATIVE_INFINITY, sparkRow.getFloat(4), 0.0f);
     assertEquals(Float.MAX_VALUE, sparkRow.getFloat(5), 0.0f);
     assertEquals(Float.MIN_VALUE, sparkRow.getFloat(6), 0.0f);
-    assertTrue(sparkRow.isNullAt(7));
+    assertEquals(Float.floatToRawIntBits(-0.0f), Float.floatToRawIntBits(sparkRow.getFloat(7)));
+    assertTrue(sparkRow.isNullAt(8));
   }
 
   @Test

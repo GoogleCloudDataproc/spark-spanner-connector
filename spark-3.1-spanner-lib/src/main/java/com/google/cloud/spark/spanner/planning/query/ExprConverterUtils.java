@@ -199,6 +199,30 @@ public class ExprConverterUtils {
           "Unexpected DecimalType literal value: " + value.getClass());
     }
 
+    if (type.sameType(DataTypes.BooleanType)) {
+      if (value instanceof Boolean) {
+        return value;
+      }
+      throw new IllegalArgumentException(
+          "Unexpected BooleanType literal value: " + value.getClass());
+    }
+
+    if (type.sameType(DataTypes.FloatType)
+        || type.sameType(DataTypes.DoubleType)
+        || type.sameType(DataTypes.LongType)
+        || type.sameType(DataTypes.IntegerType)
+        || type.sameType(DataTypes.ShortType)
+        || type.sameType(DataTypes.ByteType)) {
+      if (value instanceof Decimal) {
+        return ((Decimal) value).toJavaBigDecimal();
+      }
+      if (value instanceof Number) {
+        return value;
+      }
+      throw new IllegalArgumentException(
+          "Unexpected numeric literal value for " + type + ": " + value.getClass());
+    }
+
     return value;
   }
 }

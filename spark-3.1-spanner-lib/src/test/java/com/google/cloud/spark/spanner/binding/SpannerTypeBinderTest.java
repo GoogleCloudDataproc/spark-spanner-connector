@@ -27,6 +27,7 @@ import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import java.math.BigDecimal;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
 import org.junit.Test;
 
 public class SpannerTypeBinderTest {
@@ -203,7 +204,8 @@ public class SpannerTypeBinderTest {
 
   @Test
   public void bindsFloatSpecialValuesAsFloat32() {
-    for (float f : new float[] {Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) {
+    for (float f :
+        new float[] {Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, -0.0f}) {
       LiteralExpr literal = new LiteralExpr(f, DataTypes.FloatType, "FLOAT32");
       Statement.Builder builder = Statement.newBuilder("SELECT @p1");
 
@@ -211,7 +213,12 @@ public class SpannerTypeBinderTest {
 
       Value value = builder.build().getParameters().get("p1");
       assertThat(value.getType().getCode()).isEqualTo(Type.Code.FLOAT32);
-      assertThat(value.getFloat32()).isEqualTo(f);
+      if (Float.isNaN(f)) {
+        assertThat(value.getFloat32()).isNaN();
+      } else {
+        assertThat(Float.floatToRawIntBits(value.getFloat32()))
+            .isEqualTo(Float.floatToRawIntBits(f));
+      }
     }
   }
 
@@ -237,5 +244,89 @@ public class SpannerTypeBinderTest {
     Value value = builder.build().getParameters().get("p1");
     assertThat(value.getType().getCode()).isEqualTo(Type.Code.FLOAT64);
     assertThat(value.getFloat64()).isEqualTo(0.1d);
+  }
+
+  @Test
+  public void bindsDoubleLiteralOnFloatColumnAsFloat64WithoutPrecisionLoss() {
+    LiteralExpr literal = new LiteralExpr(-0.1d, DataTypes.FloatType, "FLOAT32");
+    Statement.Builder builder = Statement.newBuilder("SELECT @p1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal);
+
+    Value value = builder.build().getParameters().get("p1");
+    assertThat(value.getType().getCode()).isEqualTo(Type.Code.FLOAT64);
+    assertThat(value.getFloat64()).isEqualTo(-0.1d);
+  }
+
+  @Test
+  public void bindsFloatLiteralOnDoubleColumnAsFloat64() {
+    LiteralExpr literal = new LiteralExpr(1.25f, DataTypes.DoubleType, "FLOAT64");
+    Statement.Builder builder = Statement.newBuilder("SELECT @p1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal);
+
+    Value value = builder.build().getParameters().get("p1");
+    assertThat(value.getType().getCode()).isEqualTo(Type.Code.FLOAT64);
+    assertThat(value.getFloat64()).isEqualTo(1.25d);
+  }
+
+  @Test
+  public void bindsIntegerLiteralOnLongColumnAsInt64() {
+    LiteralExpr literal = new LiteralExpr(42, DataTypes.LongType, "INT64");
+    Statement.Builder builder = Statement.newBuilder("SELECT @p1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal);
+
+    Value value = builder.build().getParameters().get("p1");
+    assertThat(value.getType().getCode()).isEqualTo(Type.Code.INT64);
+    assertThat(value.getInt64()).isEqualTo(42L);
+  }
+
+  @Test
+  public void bindsDecimalAndWideIntegersOnFloatColumnWithoutPrecisionLoss() {
+    BigDecimal bd = new BigDecimal("-0.1");
+    LiteralExpr sparkDecimalOnFloat =
+        new LiteralExpr(Decimal.apply(bd), DataTypes.FloatType, "FLOAT32");
+    Statement.Builder gsqlDecBuilder = Statement.newBuilder("SELECT @p1");
+    SpannerTypeBinder.bind(gsqlDecBuilder, "p1", sparkDecimalOnFloat, Dialect.GOOGLE_STANDARD_SQL);
+    assertThat(gsqlDecBuilder.build().getParameters().get("p1")).isEqualTo(Value.numeric(bd));
+
+    Statement.Builder pgDecBuilder = Statement.newBuilder("SELECT $1");
+    SpannerTypeBinder.bind(pgDecBuilder, "p1", sparkDecimalOnFloat, Dialect.POSTGRESQL);
+    assertThat(pgDecBuilder.build().getParameters().get("p1")).isEqualTo(Value.pgNumeric("-0.1"));
+
+    // 2^24 (16_777_216) is exact in IEEE 754 binary32; 2^24 + 1 (16_777_217) is not and must stay
+    // INT64 rather than rounding to 16_777_216.0f.
+    LiteralExpr exactIntOnFloat = new LiteralExpr(16_777_216, DataTypes.FloatType, "FLOAT32");
+    Statement.Builder exactBuilder = Statement.newBuilder("SELECT @p1");
+    SpannerTypeBinder.bind(exactBuilder, "p1", exactIntOnFloat);
+    assertThat(exactBuilder.build().getParameters().get("p1"))
+        .isEqualTo(Value.float32(16_777_216.0f));
+
+    for (Object inexactInt : new Object[] {16_777_217, 16_777_217L, Long.MIN_VALUE}) {
+      LiteralExpr inexactOnFloat = new LiteralExpr(inexactInt, DataTypes.FloatType, "FLOAT32");
+      Statement.Builder inexactBuilder = Statement.newBuilder("SELECT @p1");
+      SpannerTypeBinder.bind(inexactBuilder, "p1", inexactOnFloat);
+      assertThat(inexactBuilder.build().getParameters().get("p1"))
+          .isEqualTo(Value.int64(((Number) inexactInt).longValue()));
+    }
+  }
+
+  @Test
+  public void preservesFractionalLiteralsOnIntegerColumnsAndRejectsInvalidTypes() {
+    LiteralExpr floatOnLong = new LiteralExpr(1.5f, DataTypes.LongType, "INT64");
+    Statement.Builder floatBuilder = Statement.newBuilder("SELECT @p1");
+    SpannerTypeBinder.bind(floatBuilder, "p1", floatOnLong);
+    assertThat(floatBuilder.build().getParameters().get("p1")).isEqualTo(Value.float32(1.5f));
+
+    LiteralExpr doubleOnInt = new LiteralExpr(1.5d, DataTypes.IntegerType, "INT64");
+    Statement.Builder doubleBuilder = Statement.newBuilder("SELECT @p1");
+    SpannerTypeBinder.bind(doubleBuilder, "p1", doubleOnInt);
+    assertThat(doubleBuilder.build().getParameters().get("p1")).isEqualTo(Value.float64(1.5d));
+
+    LiteralExpr invalidOnFloat = new LiteralExpr("not-a-number", DataTypes.FloatType, "FLOAT32");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SpannerTypeBinder.bind(Statement.newBuilder("SELECT @p1"), "p1", invalidOnFloat));
   }
 }

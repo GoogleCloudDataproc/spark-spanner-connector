@@ -25,6 +25,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collections;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -197,5 +198,17 @@ public class ExprConverterUtilsTest {
 
     LiteralExpr pgLiteral = ExprConverterUtils.toLiteral(highScale, decCol, true);
     assertEquals(highScale, pgLiteral.getValue());
+
+    ColumnResolution floatCol =
+        new ColumnResolution("f", "f", "t", DataTypes.FloatType, "FLOAT32", true);
+    LiteralExpr validDecOnFloat =
+        ExprConverterUtils.toLiteral(Decimal.apply(new BigDecimal("-0.1")), floatCol, false);
+    assertEquals(new BigDecimal("-0.1"), validDecOnFloat.getValue());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ExprConverterUtils.toLiteral(Decimal.apply(highScale), floatCol, false));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ExprConverterUtils.toLiteral("not-a-float", floatCol, false));
   }
 }

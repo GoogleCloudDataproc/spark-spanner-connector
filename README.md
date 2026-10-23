@@ -274,6 +274,7 @@ Spark Data Type|Spanner GoogleSql Type
 `StringType`|`STRING`
 `BooleanType`|`BOOL`
 `DoubleType`|`FLOAT64`
+`FloatType`|`FLOAT32`
 `BinaryType`|`BYTES`
 `TimestampType`|`TIMESTAMP`
 `DateType`|`DATE`
@@ -286,6 +287,7 @@ Spark Array Element Type|Spanner GoogleSql Array Type
 `StringType`|`ARRAY<STRING>`
 `BooleanType`|`ARRAY<BOOL>`
 `DoubleType`|`ARRAY<FLOAT64>`
+`FloatType`|`ARRAY<FLOAT32>`
 `BinaryType`|`ARRAY<BYTES>`
 `TimestampType`|`ARRAY<TIMESTAMP>`
 `DateType`|`ARRAY<DATE>`
@@ -298,6 +300,7 @@ Spark Data Type|Spanner PostgreSql Type
 `StringType`|`varchar`/`text`/`character varying`
 `BooleanType`|`bool`/`boolean`
 `DoubleType`|`double precision`/`float8`
+`FloatType`|`real`/`float4`
 `BinaryType`|`bytea`
 `TimestampType`|`timestamptz`/`timestamp with time zone`
 `DateType`|`date`
@@ -310,6 +313,7 @@ Spark Array Element Type|Spanner PostgreSql Array Type
 `StringType`|`varchar[]`/`text[]`/`character varying[]`
 `BooleanType`|`bool[]`/`boolean[]`
 `DoubleType`|`double precision[]`/`float8[]`
+`FloatType`|`real[]`/`float4[]`
 `BinaryType`|`bytea[]`
 `TimestampType`|`timestamptz[]`/`timestamp with time zone[]`
 `DateType`|`date[]`

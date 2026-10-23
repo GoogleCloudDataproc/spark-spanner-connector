@@ -18,6 +18,7 @@ CREATE TABLE composite_table (
   timestampCol timestamptz,
   jsonCol jsonb,
   uuidCol uuid,
+  realCol real,
   PRIMARY KEY(id)
 );
 

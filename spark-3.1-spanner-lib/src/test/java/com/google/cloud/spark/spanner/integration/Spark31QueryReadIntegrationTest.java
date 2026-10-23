@@ -60,6 +60,38 @@ public class Spark31QueryReadIntegrationTest extends SparkSpannerIntegrationTest
   }
 
   @Test
+  public void readsFloat32QueryResultsPg() {
+    Dataset<Row> dataframe =
+        readQuery(
+            "SELECT id, realcol, CAST('NaN' AS real) AS f32_nan,"
+                + " CAST('Infinity' AS real) AS f32_pos_inf,"
+                + " CAST('-Infinity' AS real) AS f32_neg_inf,"
+                + " ARRAY[realcol, CAST(NULL AS real), CAST('NaN' AS real)] AS f32_array"
+                + " FROM composite_table WHERE id IN (1, 2)",
+            /* usePostgreSql= */ true);
+
+    StructType schema = dataframe.schema();
+    assertThat(schema.apply("realcol").dataType()).isEqualTo(DataTypes.FloatType);
+    assertThat(schema.apply("f32_nan").dataType()).isEqualTo(DataTypes.FloatType);
+    assertThat(schema.apply("f32_array").dataType())
+        .isEqualTo(DataTypes.createArrayType(DataTypes.FloatType, true));
+
+    Map<Long, Row> rows = new HashMap<>();
+    dataframe.collectAsList().forEach(row -> rows.put(row.getLong(0), row));
+    assertThat(rows.keySet()).containsExactly(1L, 2L);
+
+    assertThat(rows.get(1L).isNullAt(1)).isTrue();
+    assertThat(rows.get(1L).getList(5)).containsExactly(null, null, Float.NaN).inOrder();
+
+    Row row = rows.get(2L);
+    assertThat(row.getFloat(1)).isEqualTo(-0.1f);
+    assertThat(row.getFloat(2)).isNaN();
+    assertThat(row.getFloat(3)).isPositiveInfinity();
+    assertThat(row.getFloat(4)).isNegativeInfinity();
+    assertThat(row.getList(5)).containsExactly(-0.1f, null, Float.NaN).inOrder();
+  }
+
+  @Test
   public void readsPartitionableQueryWithAliasesAndFilters() {
     Dataset<Row> dataframe = readQuery("SELECT A AS amount, B FROM ATable WHERE A >= 10");
 
@@ -102,7 +134,11 @@ public class Spark31QueryReadIntegrationTest extends SparkSpannerIntegrationTest
   }
 
   private Dataset<Row> readQuery(String query) {
-    Map<String, String> properties = new HashMap<>(connectionProperties());
+    return readQuery(query, /* usePostgreSql= */ false);
+  }
+
+  private Dataset<Row> readQuery(String query, boolean usePostgreSql) {
+    Map<String, String> properties = new HashMap<>(connectionProperties(usePostgreSql));
     properties.remove("table");
     return spark.read().format("cloud-spanner").options(properties).option("query", query).load();
   }

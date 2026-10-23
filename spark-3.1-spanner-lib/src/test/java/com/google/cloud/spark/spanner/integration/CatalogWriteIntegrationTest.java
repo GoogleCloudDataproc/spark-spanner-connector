@@ -84,33 +84,36 @@ public class CatalogWriteIntegrationTest extends SparkCatalogSpannerIntegrationT
   public void testCreateTableWithFloatColumns() {
     String tableName = TestData.WRITE_TABLE_NAME + "_FLOAT32_DDL";
     spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
+    try {
+      // 1. Create the table with FLOAT columns, which map to FLOAT32 (GoogleSQL) / float4 (PG).
+      spark.sql(
+          "CREATE TABLE spanner."
+              + tableName
+              + " (id BIGINT NOT NULL, float_col FLOAT, float_array ARRAY<FLOAT>) USING `cloud-spanner`"
+              + " TBLPROPERTIES('primaryKeys' = 'id')");
 
-    // 1. Create the table with FLOAT columns, which map to FLOAT32 (GoogleSQL) / float4 (PG).
-    spark.sql(
-        "CREATE TABLE spanner."
-            + tableName
-            + " (id BIGINT NOT NULL, float_col FLOAT, float_array ARRAY<FLOAT>) USING `cloud-spanner`"
-            + " TBLPROPERTIES('primaryKeys' = 'id')");
+      // 2. Insert data with float values.
+      spark.sql(
+          "INSERT INTO spanner."
+              + tableName
+              + " VALUES (1, CAST(-0.1 AS FLOAT),"
+              + " ARRAY(CAST(1.25 AS FLOAT), CAST('NaN' AS FLOAT), CAST(NULL AS FLOAT)))");
 
-    // 2. Insert data with float values.
-    spark.sql(
-        "INSERT INTO spanner."
-            + tableName
-            + " VALUES (1, CAST(-0.1 AS FLOAT),"
-            + " ARRAY(CAST(1.25 AS FLOAT), CAST('NaN' AS FLOAT), CAST(NULL AS FLOAT)))");
+      // 3. Verify that the columns are read back as FloatType with the same values.
+      Dataset<Row> readBack = spark.sql("SELECT * FROM spanner." + tableName).filter("id = 1");
+      assertEquals(DataTypes.FloatType, readBack.schema().apply("float_col").dataType());
+      assertEquals(
+          DataTypes.createArrayType(DataTypes.FloatType, true),
+          readBack.schema().apply("float_array").dataType());
+      assertEquals(1, readBack.count());
 
-    // 3. Verify that the columns are read back as FloatType with the same values.
-    Dataset<Row> readBack = spark.sql("SELECT * FROM spanner." + tableName).filter("id = 1");
-    assertEquals(DataTypes.FloatType, readBack.schema().apply("float_col").dataType());
-    assertEquals(
-        DataTypes.createArrayType(DataTypes.FloatType, true),
-        readBack.schema().apply("float_array").dataType());
-    assertEquals(1, readBack.count());
-
-    Row row = readBack.first();
-    assertThat(row.getLong(0)).isEqualTo(1L);
-    assertThat(row.getFloat(1)).isEqualTo(-0.1f);
-    assertThat(row.getList(2)).containsExactly(1.25f, Float.NaN, null).inOrder();
+      Row row = readBack.first();
+      assertThat(row.getLong(0)).isEqualTo(1L);
+      assertThat(row.getFloat(1)).isEqualTo(-0.1f);
+      assertThat(row.getList(2)).containsExactly(1.25f, Float.NaN, null).inOrder();
+    } finally {
+      spark.sql("DROP TABLE IF EXISTS spanner." + tableName);
+    }
   }
 
   @Test

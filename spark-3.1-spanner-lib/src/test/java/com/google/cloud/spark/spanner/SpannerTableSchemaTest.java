@@ -173,6 +173,9 @@ public class SpannerTableSchemaTest {
     assertEquals(
         DataTypes.createArrayType(DataTypes.FloatType, true),
         SpannerTableSchema.getSparkStructField("f", "real[]", true, true).dataType());
+    assertEquals(
+        DataTypes.createArrayType(DataTypes.FloatType, true),
+        SpannerTableSchema.getSparkStructField("f", "float4[]", true, true).dataType());
     // double precision must keep mapping to DoubleType.
     assertEquals(
         DataTypes.DoubleType,

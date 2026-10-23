@@ -77,32 +77,64 @@ public final class SpannerTypeBinder {
     }
 
     if (sparkType instanceof DecimalType) {
-      BigDecimal bd =
-          value instanceof Decimal ? ((Decimal) value).toJavaBigDecimal() : (BigDecimal) value;
-      if (dialect == Dialect.POSTGRESQL) {
-        builder.bind(parameter).to(Value.pgNumeric(bd.toPlainString()));
-      } else if (isValidGoogleSqlNumeric(bd)) {
-        builder.bind(parameter).to(bd);
-      } else {
-        throw new IllegalArgumentException("Decimal out of Spanner NUMERIC range: " + bd);
-      }
+      bindDecimal(builder, parameter, value, dialect);
     } else if (sparkType.sameType(DataTypes.StringType)) {
       builder.bind(parameter).to(value.toString());
-    } else if (sparkType.sameType(DataTypes.LongType)) {
-      builder.bind(parameter).to(((Number) value).longValue());
+    } else if (sparkType.sameType(DataTypes.LongType)
+        || sparkType.sameType(DataTypes.IntegerType)
+        || sparkType.sameType(DataTypes.ShortType)
+        || sparkType.sameType(DataTypes.ByteType)) {
+      if (value instanceof Long
+          || value instanceof Integer
+          || value instanceof Short
+          || value instanceof Byte) {
+        builder.bind(parameter).to(((Number) value).longValue());
+      } else if (value instanceof Float) {
+        builder.bind(parameter).to((Float) value);
+      } else if (value instanceof Double) {
+        builder.bind(parameter).to((Double) value);
+      } else if (value instanceof Decimal || value instanceof BigDecimal) {
+        bindDecimal(builder, parameter, value, dialect);
+      } else {
+        throw new IllegalArgumentException("Unexpected integer literal type: " + value.getClass());
+      }
     } else if (sparkType.sameType(DataTypes.BooleanType)) {
+      if (!(value instanceof Boolean)) {
+        throw new IllegalArgumentException("Unexpected boolean literal type: " + value.getClass());
+      }
       builder.bind(parameter).to((Boolean) value);
-    } else if (sparkType.sameType(DataTypes.IntegerType)) {
-      builder.bind(parameter).to(((Number) value).longValue());
-    } else if (sparkType.sameType(DataTypes.ShortType)) {
-      builder.bind(parameter).to(((Number) value).longValue());
-    } else if (sparkType.sameType(DataTypes.ByteType)) {
-      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.DoubleType)) {
-      builder.bind(parameter).to(((Number) value).doubleValue());
+      if (value instanceof Decimal || value instanceof BigDecimal) {
+        bindDecimal(builder, parameter, value, dialect);
+      } else if (value instanceof Long
+          && ((Long) value < -(1L << 53) || (Long) value > (1L << 53))) {
+        builder.bind(parameter).to((Long) value);
+      } else if (value instanceof Number) {
+        builder.bind(parameter).to(((Number) value).doubleValue());
+      } else {
+        throw new IllegalArgumentException("Unexpected double literal type: " + value.getClass());
+      }
     } else if (sparkType.sameType(DataTypes.FloatType)) {
-      // Spark FloatType columns map to Spanner FLOAT32 columns.
-      builder.bind(parameter).to(((Number) value).floatValue());
+      // Spark FloatType columns map to Spanner FLOAT32 columns. Preserve wider numeric literals
+      // (Double, BigDecimal/Decimal, and Long/Integer outside the exact 24-bit float32 integer
+      // range) so mixed-precision predicates (e.g., float32_col = -0.1d or 16777217L) are not
+      // lossily narrowed.
+      if (value instanceof Float || value instanceof Short || value instanceof Byte) {
+        builder.bind(parameter).to(((Number) value).floatValue());
+      } else if (value instanceof Double) {
+        builder.bind(parameter).to((Double) value);
+      } else if (value instanceof Decimal || value instanceof BigDecimal) {
+        bindDecimal(builder, parameter, value, dialect);
+      } else if (value instanceof Long || value instanceof Integer) {
+        long lv = ((Number) value).longValue();
+        if (lv >= -(1L << 24) && lv <= (1L << 24)) {
+          builder.bind(parameter).to((float) lv);
+        } else {
+          builder.bind(parameter).to(lv);
+        }
+      } else {
+        throw new IllegalArgumentException("Unexpected float literal type: " + value.getClass());
+      }
     } else if (sparkType.sameType(DataTypes.TimestampType)) {
       Instant instant;
       if (value instanceof Instant) {
@@ -243,6 +275,25 @@ public final class SpannerTypeBinder {
       default:
         throw new UnsupportedOperationException(
             "Unsupported Spanner type for null binding: " + mappedType);
+    }
+  }
+
+  private static void bindDecimal(
+      Statement.Builder builder, String parameter, Object value, Dialect dialect) {
+    BigDecimal bd;
+    if (value instanceof Decimal) {
+      bd = ((Decimal) value).toJavaBigDecimal();
+    } else if (value instanceof BigDecimal) {
+      bd = (BigDecimal) value;
+    } else {
+      throw new IllegalArgumentException("Unexpected decimal literal type: " + value.getClass());
+    }
+    if (dialect == Dialect.POSTGRESQL) {
+      builder.bind(parameter).to(Value.pgNumeric(bd.toPlainString()));
+    } else if (isValidGoogleSqlNumeric(bd)) {
+      builder.bind(parameter).to(bd);
+    } else {
+      throw new IllegalArgumentException("Decimal out of Spanner NUMERIC range: " + bd);
     }
   }
 

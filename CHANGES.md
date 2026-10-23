@@ -2,7 +2,7 @@
 
 ## Next
 
-*   Add FLOAT32 data type support.
+*   Add FLOAT32 data type support (`FLOAT32` / `ARRAY<FLOAT32>` in GoogleSQL and `real` / `float4` / `real[]` / `float4[]` in PostgreSQL, mapped to Spark `FloatType` and `ArrayType(FloatType)`).
 
 ## 1.6.0 - 2026-11-18
 

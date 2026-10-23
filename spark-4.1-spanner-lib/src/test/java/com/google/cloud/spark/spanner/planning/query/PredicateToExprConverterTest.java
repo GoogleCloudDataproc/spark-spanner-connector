@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.binding.SpannerTypeBinder;
 import com.google.cloud.spark.spanner.planning.expression.*;
 import com.google.cloud.spark.spanner.rendering.RenderResult;
@@ -46,6 +47,7 @@ import org.apache.spark.sql.connector.expressions.filter.Predicate;
 import org.apache.spark.sql.connector.join.JoinType;
 import org.apache.spark.sql.connector.read.SupportsPushDownJoin.ColumnWithAlias;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -62,7 +64,18 @@ public class PredicateToExprConverterTest {
         "uuid_col",
         new ColumnResolution("uuid_col", "uuid_col", "", DataTypes.StringType, "UUID", false),
         "string_col",
-        new ColumnResolution("string_col", "string_col", "", DataTypes.StringType, "STRING", true));
+        new ColumnResolution("string_col", "string_col", "", DataTypes.StringType, "STRING", true),
+        "float32_col",
+        new ColumnResolution(
+            "float32_col", "float32_col", "", DataTypes.FloatType, "FLOAT32", true));
+  }
+
+  private static NamedReference float32Column() {
+    return Expressions.column("float32_col");
+  }
+
+  private static Literal<Float> floatLiteral(float value) {
+    return Expressions.literal(value);
   }
 
   private static NamedReference uuidColumn() {
@@ -573,5 +586,80 @@ public class PredicateToExprConverterTest {
                 leftCols,
                 rightCols,
                 untypedNullPred));
+  }
+
+  @Test
+  public void float32ColumnEqualsLiteralGetsFloat32TargetType() {
+    Predicate predicate = equal(float32Column(), floatLiteral(-0.1f));
+
+    BoolExpr result = PredicateToExprConverter.translatePredicate(predicate, resolutionMap());
+
+    assertThat(result).isInstanceOf(EqExpr.class);
+    EqExpr eq = (EqExpr) result;
+    ColumnExpr column = (ColumnExpr) eq.getLeft();
+    LiteralExpr literal = (LiteralExpr) eq.getRight();
+
+    assertEquals("float32_col", column.getColumnName());
+    assertEquals(DataTypes.FloatType, column.getSparkType());
+    assertEquals(-0.1f, literal.getValue());
+    assertEquals(DataTypes.FloatType, literal.getSparkType());
+    assertEquals("FLOAT32", literal.getSpannerType());
+  }
+
+  @Test
+  public void float32ColumnInGetsFloat32TargetTypeForSpecialLiterals() {
+    Predicate predicate =
+        in(
+            float32Column(),
+            floatLiteral(-0.1f),
+            floatLiteral(Float.NaN),
+            floatLiteral(Float.POSITIVE_INFINITY));
+
+    BoolExpr result = PredicateToExprConverter.translatePredicate(predicate, resolutionMap());
+
+    assertThat(result).isInstanceOf(InExpr.class);
+    InExpr in = (InExpr) result;
+    assertEquals(3, in.getValues().size());
+
+    LiteralExpr first = (LiteralExpr) in.getValues().get(0);
+    LiteralExpr second = (LiteralExpr) in.getValues().get(1);
+    LiteralExpr third = (LiteralExpr) in.getValues().get(2);
+
+    assertEquals(-0.1f, first.getValue());
+    assertEquals(DataTypes.FloatType, first.getSparkType());
+    assertEquals("FLOAT32", first.getSpannerType());
+
+    assertTrue(Float.isNaN((Float) second.getValue()));
+    assertEquals(DataTypes.FloatType, second.getSparkType());
+    assertEquals("FLOAT32", second.getSpannerType());
+
+    assertEquals(Float.POSITIVE_INFINITY, third.getValue());
+    assertEquals(DataTypes.FloatType, third.getSparkType());
+    assertEquals("FLOAT32", third.getSpannerType());
+  }
+
+  @Test
+  public void float32JoinPredicateRendersAndBindsMixedPrecisionLiteralsWithoutCrash() {
+    Literal<Decimal> decimalLit =
+        LiteralValue.apply(
+            Decimal.apply(new BigDecimal("-0.1")), DataTypes.createDecimalType(38, 9));
+    Literal<Long> wideLongLit = LiteralValue.apply(16_777_217L, DataTypes.LongType);
+    Predicate predicate =
+        and(
+            equal(float32Column(), floatLiteral(-0.1f)),
+            and(equal(float32Column(), decimalLit), equal(float32Column(), wideLongLit)));
+
+    BoolExpr expr = PredicateToExprConverter.translatePredicate(predicate, resolutionMap());
+    RenderResult rendered = expr.accept(SqlExprVisitor.create(Dialect.GOOGLE_STANDARD_SQL));
+
+    Statement.Builder builder = Statement.newBuilder("SELECT 1 WHERE " + rendered.getSql());
+    for (Map.Entry<String, LiteralExpr> entry : rendered.getBindings().entrySet()) {
+      SpannerTypeBinder.bind(
+          builder, entry.getKey(), entry.getValue(), Dialect.GOOGLE_STANDARD_SQL);
+    }
+    Statement stmt = builder.build();
+    assertThat(stmt.getParameters().get("p1")).isEqualTo(Value.float32(-0.1f));
+    assertThat(stmt.getParameters().get("p2")).isEqualTo(Value.numeric(new BigDecimal("-0.1")));
+    assertThat(stmt.getParameters().get("p3")).isEqualTo(Value.int64(16_777_217L));
   }
 }

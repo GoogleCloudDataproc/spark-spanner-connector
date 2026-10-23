@@ -297,7 +297,8 @@ class SpannerTestBase {
                     "I", DataTypes.createArrayType(DataTypes.StringType, true), true, null),
                 new StructField("J", DataTypes.StringType, true, jsonMetaBuilder.build()),
                 new StructField("K", DataTypes.DoubleType, true, null),
-                new StructField("L", DataTypes.StringType, true, null))
+                new StructField("L", DataTypes.StringType, true, null),
+                new StructField("M", DataTypes.FloatType, true, null))
             .toArray(new StructField[0]));
   }
 
@@ -313,8 +314,9 @@ class SpannerTestBase {
       String[] I,
       String J,
       Double K,
-      String L) {
-    GenericInternalRow row = new GenericInternalRow(12);
+      String L,
+      Float M) {
+    GenericInternalRow row = new GenericInternalRow(13);
     row.setLong(0, A);
     row.update(1, UTF8String.fromString(B));
     row.update(2, C);
@@ -347,6 +349,11 @@ class SpannerTestBase {
       row.setDouble(10, K);
     }
     row.update(11, L == null ? null : UTF8String.fromString(L));
+    if (M == null) {
+      row.update(12, null);
+    } else {
+      row.setFloat(12, M);
+    }
     return row;
   }
 
@@ -382,7 +389,8 @@ class SpannerTestBase {
                 new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
                 new StructField("timestampcol", DataTypes.TimestampType, true, null),
                 new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()),
-                new StructField("uuidcol", DataTypes.StringType, true, null))
+                new StructField("uuidcol", DataTypes.StringType, true, null),
+                new StructField("realcol", DataTypes.FloatType, true, null))
             .toArray(new StructField[0]));
   }
 
@@ -445,8 +453,9 @@ class SpannerTestBase {
       String timewithzoneCol,
       String timestampCol,
       String jsonCol,
-      String uuidCol) {
-    GenericInternalRow row = new GenericInternalRow(19);
+      String uuidCol,
+      Float realCol) {
+    GenericInternalRow row = new GenericInternalRow(20);
     row.setLong(0, id);
     row.update(1, charvCol == null ? null : UTF8String.fromString(charvCol));
     row.update(2, textCol == null ? null : UTF8String.fromString(textCol));
@@ -514,6 +523,11 @@ class SpannerTestBase {
             : SpannerUtils.zonedDateTimeToSparkTimestamp(ZonedDateTime.parse(timestampCol)));
     row.update(17, jsonCol == null ? null : UTF8String.fromString(jsonCol));
     row.update(18, uuidCol == null ? null : UTF8String.fromString(uuidCol));
+    if (realCol == null) {
+      row.update(19, null);
+    } else {
+      row.setFloat(19, realCol);
+    }
     return row;
   }
 

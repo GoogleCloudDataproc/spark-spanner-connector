@@ -41,7 +41,18 @@ public class PredicateToExprConverterTest {
         "uuid_col",
         new ColumnResolution("uuid_col", "uuid_col", "", DataTypes.StringType, "UUID", false),
         "string_col",
-        new ColumnResolution("string_col", "string_col", "", DataTypes.StringType, "STRING", true));
+        new ColumnResolution("string_col", "string_col", "", DataTypes.StringType, "STRING", true),
+        "float32_col",
+        new ColumnResolution(
+            "float32_col", "float32_col", "", DataTypes.FloatType, "FLOAT32", true));
+  }
+
+  private static NamedReference float32Column() {
+    return Expressions.column("float32_col");
+  }
+
+  private static Literal<Float> floatLiteral(float value) {
+    return Expressions.literal(value);
   }
 
   private static NamedReference uuidColumn() {
@@ -228,5 +239,55 @@ public class PredicateToExprConverterTest {
     assertEquals(UUID1, stringLiteral.getValue());
     assertEquals(DataTypes.StringType, stringLiteral.getSparkType());
     assertEquals("STRING", stringLiteral.getSpannerType());
+  }
+
+  @Test
+  public void float32ColumnEqualsLiteralGetsFloat32TargetType() {
+    Predicate predicate = equal(float32Column(), floatLiteral(-0.1f));
+
+    BoolExpr result = PredicateToExprConverter.translatePredicate(predicate, resolutionMap());
+
+    assertThat(result).isInstanceOf(EqExpr.class);
+    EqExpr eq = (EqExpr) result;
+    ColumnExpr column = (ColumnExpr) eq.getLeft();
+    LiteralExpr literal = (LiteralExpr) eq.getRight();
+
+    assertEquals("float32_col", column.getColumnName());
+    assertEquals(DataTypes.FloatType, column.getSparkType());
+    assertEquals(-0.1f, literal.getValue());
+    assertEquals(DataTypes.FloatType, literal.getSparkType());
+    assertEquals("FLOAT32", literal.getSpannerType());
+  }
+
+  @Test
+  public void float32ColumnInGetsFloat32TargetTypeForSpecialLiterals() {
+    Predicate predicate =
+        in(
+            float32Column(),
+            floatLiteral(-0.1f),
+            floatLiteral(Float.NaN),
+            floatLiteral(Float.POSITIVE_INFINITY));
+
+    BoolExpr result = PredicateToExprConverter.translatePredicate(predicate, resolutionMap());
+
+    assertThat(result).isInstanceOf(InExpr.class);
+    InExpr in = (InExpr) result;
+    assertEquals(3, in.getValues().size());
+
+    LiteralExpr first = (LiteralExpr) in.getValues().get(0);
+    LiteralExpr second = (LiteralExpr) in.getValues().get(1);
+    LiteralExpr third = (LiteralExpr) in.getValues().get(2);
+
+    assertEquals(-0.1f, first.getValue());
+    assertEquals(DataTypes.FloatType, first.getSparkType());
+    assertEquals("FLOAT32", first.getSpannerType());
+
+    assertTrue(Float.isNaN((Float) second.getValue()));
+    assertEquals(DataTypes.FloatType, second.getSparkType());
+    assertEquals("FLOAT32", second.getSpannerType());
+
+    assertEquals(Float.POSITIVE_INFINITY, third.getValue());
+    assertEquals(DataTypes.FloatType, third.getSparkType());
+    assertEquals("FLOAT32", third.getSpannerType());
   }
 }

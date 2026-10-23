@@ -50,10 +50,11 @@ CREATE TABLE ATable(
   I ARRAY<STRING(MAX)>,
   J JSON,
   K FLOAT64,
-  L UUID
+  L UUID,
+  M FLOAT32
 ) PRIMARY KEY(A);
 
-CREATE INDEX ATableByB ON ATable (A, B) STORING (C, D, E, F, G, H, I, J, K, L);
+CREATE INDEX ATableByB ON ATable (A, B) STORING (C, D, E, F, G, H, I, J, K, L, M);
 
 CREATE TABLE AWriteTable (
   A INT64 NOT NULL,
@@ -65,7 +66,8 @@ CREATE TABLE AWriteTable (
   G FLOAT64,
   H DATE,
   I UUID,
-  J ARRAY<STRING(20)>
+  J ARRAY<STRING(20)>,
+  K FLOAT32
 ) PRIMARY KEY(A);
 
 CREATE TABLE compositeTable (
@@ -132,7 +134,8 @@ CREATE TABLE write_test_table (
     date_col DATE,
     bytes_col BYTES(MAX),
     numeric_col NUMERIC,
-    uuid_col UUID
+    uuid_col UUID,
+    float32_col FLOAT32
     ) PRIMARY KEY(long_col);
 
 CREATE TABLE write_struct_test_table (
@@ -145,6 +148,7 @@ CREATE TABLE write_struct_test_table (
     bytes_col BYTES(MAX),
     numeric_col NUMERIC,
     uuid_col UUID,
+    float32_col FLOAT32,
     struct_col JSON
     ) PRIMARY KEY(long_col);
 
@@ -165,7 +169,8 @@ CREATE TABLE write_array_test_table (
     date_array ARRAY<DATE>,
     binary_array ARRAY<BYTES(MAX)>,
     numeric_array ARRAY<NUMERIC>,
-    uuid_array ARRAY<UUID>
+    uuid_array ARRAY<UUID>,
+    float32_array ARRAY<FLOAT32>
     ) PRIMARY KEY(long_col);
 
 CREATE TABLE schema_test_table (

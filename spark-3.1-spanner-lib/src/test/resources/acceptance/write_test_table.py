@@ -17,7 +17,7 @@ import sys
 from datetime import datetime, date
 from decimal import Decimal
 from pyspark.sql import SparkSession, Row
-from pyspark.sql.types import StructType, StructField, StringType, LongType, BinaryType, TimestampType, DecimalType, BooleanType, DoubleType, DateType, ArrayType
+from pyspark.sql.types import StructType, StructField, StringType, LongType, BinaryType, TimestampType, DecimalType, BooleanType, DoubleType, FloatType, DateType, ArrayType
 
 def main():
     print("\n\nWrite Acceptance Test\n\n")
@@ -39,13 +39,14 @@ def main():
         StructField("H", DateType(), True),
         StructField("I", StringType(), True),
         StructField("J", ArrayType(StringType(), True), True),
+        StructField("K", FloatType(), True),
     ])
 
     # 2. Prepare Data as a list of tuples
     data = [
-        Row(A=1,  B="2",  C=None, D=datetime.fromisoformat("2023-08-22T12:22:00"), E=Decimal("1000.282111401"), F=True, G=123.0, H=date(2023, 12, 25), I="d30b9903-ba70-491f-ba55-42be7d42595e", J=None),
-        Row(A=10, B="20", C=None, D=datetime.fromisoformat("2023-08-22T12:23:00"), E=Decimal("10000.282111603"), F=False, G=987.0, H=date(2023, 12, 24), I=None, J=None),
-        Row(A=30, B="30", C=None, D=datetime.fromisoformat("2023-08-22T12:24:00"), E=Decimal("30000.282111805"), F=True, G=-2121.0, H=date(2023, 12, 23), I=None, J=["a", "b", "c"])
+        Row(A=1,  B="2",  C=None, D=datetime.fromisoformat("2023-08-22T12:22:00"), E=Decimal("1000.282111401"), F=True, G=123.0, H=date(2023, 12, 25), I="d30b9903-ba70-491f-ba55-42be7d42595e", J=None, K=-0.1),
+        Row(A=10, B="20", C=None, D=datetime.fromisoformat("2023-08-22T12:23:00"), E=Decimal("10000.282111603"), F=False, G=987.0, H=date(2023, 12, 24), I=None, J=None, K=None),
+        Row(A=30, B="30", C=None, D=datetime.fromisoformat("2023-08-22T12:24:00"), E=Decimal("30000.282111805"), F=True, G=-2121.0, H=date(2023, 12, 23), I=None, J=["a", "b", "c"], K=1.25)
     ]
 
     # 3. Create the DataFrame

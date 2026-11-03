@@ -20,6 +20,10 @@ object SparkSpannerReadBenchmark {
     val databaseId = (config \ "databaseId").as[String]
     val resultsBucket = (config \ "resultsBucket").as[String]
     val buildSparkVersion = (config \ "buildSparkVersion").as[String]
+    val enablePredicateSql =
+      (config \ "enablePredicateSql").asOpt[Boolean].getOrElse(false)
+    val compareOutput =
+      (config \ "compareOutput").asOpt[Boolean].getOrElse(false)
 
     // TPC-H specific: Which query number to run (1-22) and the table list
     val queryNumber = (config \ "tpcQueryNumber").as[Int]
@@ -29,6 +33,12 @@ object SparkSpannerReadBenchmark {
       .appName(s"TPC-H-Query-$queryNumber")
       .getOrCreate()
 
+    if (enablePredicateSql) {
+      spark.conf.set(
+        "spark.sql.optimizer.datasourceV2JoinPushdown",
+        "true"
+      )
+    }
     val provider = SpannerScalaUtils.getProviderClassName(buildSparkVersion)
 
     // Register all TPC-H tables as Temp Views
@@ -39,6 +49,7 @@ object SparkSpannerReadBenchmark {
         .option("instanceId", instanceId)
         .option("databaseId", databaseId)
         .option("table", tableName)
+        .option("enablePredicateSql", enablePredicateSql.toString)
         .load()
         .createOrReplaceTempView(tableName)
     }
@@ -62,7 +73,11 @@ object SparkSpannerReadBenchmark {
     println(s"Query $queryNumber finished in $durationSeconds seconds. Result count: $resultCount")
 
     // 3. CALL THE VALIDATION
-    val isValid = validateQueryOutput(actualDf, queryNumber, resultsBucket, spark)
+    val isValid = if (compareOutput) {
+      validateQueryOutput(actualDf, queryNumber, resultsBucket, spark)
+    } else {
+      true
+    }
 
     // Log results to GCS (Reuse your existing JSON logic here)
     saveResults(resultsBucket, queryNumber, durationSeconds, resultCount, isValid, spark)

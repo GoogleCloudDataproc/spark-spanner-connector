@@ -228,8 +228,40 @@ object BenchmarkingTasks {
         }
 
         // Merge configurations
-        resolvedSourceTable.foreach(s => tempConfig = tempConfig + ("sourceTable" -> Json.toJson(s)))
-        tempConfig = tempConfig + ("buildSparkVersion" -> Json.toJson(sys.props.get("spark.version").getOrElse("3.3")))
+        // Merge configurations
+        resolvedSourceTable.foreach { sourceTable =>
+          tempConfig = tempConfig + (
+            "sourceTable" -> Json.toJson(sourceTable)
+            )
+        }
+
+        // Record the Spark version used to build/run this benchmark.
+        val buildSparkVersion =
+          sys.props.get("spark.version").getOrElse("3.3")
+
+        tempConfig = tempConfig + (
+          "buildSparkVersion" -> Json.toJson(buildSparkVersion)
+          )
+
+        // Optionally enable Predicate SQL.
+        sys.props
+          .get("enablePredicateSql")
+          .map(_.toBoolean)
+          .foreach { enabled =>
+            tempConfig = tempConfig + (
+              "enablePredicateSql" -> Json.toJson(enabled)
+              )
+          }
+
+        // Optionally enable output result comparison.
+        sys.props
+          .get("compareOutput")
+          .map(_.toBoolean)
+          .foreach { enabled =>
+            tempConfig = tempConfig + (
+              "compareOutput" -> Json.toJson(enabled)
+              )
+          }
 
         val finalMergedConfig = tempConfig
         val configJsonString = Json.stringify(finalMergedConfig - "databricksToken") // Do not log Databricks token

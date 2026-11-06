@@ -18,6 +18,8 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.Date;
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type;
@@ -163,5 +165,27 @@ public class SpannerTypeBinderTest {
                 "p1",
                 overflowScale,
                 Dialect.GOOGLE_STANDARD_SQL));
+  }
+
+  @Test
+  public void bindsEpochMicrosTimestampAndEpochDaysDate() {
+    long micros = 1767225600123456L; // 2026-01-01T00:00:00.123456Z
+    LiteralExpr tsLiteral = new LiteralExpr(micros, DataTypes.TimestampType, "TIMESTAMP");
+    Statement.Builder tsBuilder = Statement.newBuilder("SELECT @p1");
+    SpannerTypeBinder.bind(tsBuilder, "p1", tsLiteral);
+    assertThat(tsBuilder.build().getParameters().get("p1"))
+        .isEqualTo(Value.timestamp(Timestamp.ofTimeSecondsAndNanos(1767225600L, 123456000)));
+
+    LiteralExpr preEpochTs = new LiteralExpr(-1L, DataTypes.TimestampType, "TIMESTAMP");
+    Statement.Builder preEpochBuilder = Statement.newBuilder("SELECT @p1");
+    SpannerTypeBinder.bind(preEpochBuilder, "p1", preEpochTs);
+    assertThat(preEpochBuilder.build().getParameters().get("p1"))
+        .isEqualTo(Value.timestamp(Timestamp.ofTimeSecondsAndNanos(-1L, 999999000)));
+
+    LiteralExpr dateLiteral = new LiteralExpr(20454, DataTypes.DateType, "DATE"); // 2026-01-01
+    Statement.Builder dateBuilder = Statement.newBuilder("SELECT @p1");
+    SpannerTypeBinder.bind(dateBuilder, "p1", dateLiteral);
+    assertThat(dateBuilder.build().getParameters().get("p1"))
+        .isEqualTo(Value.date(Date.fromYearMonthDay(2026, 1, 1)));
   }
 }

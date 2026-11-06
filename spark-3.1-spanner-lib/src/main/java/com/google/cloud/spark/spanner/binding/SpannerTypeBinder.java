@@ -37,6 +37,24 @@ public final class SpannerTypeBinder {
     return stripped.scale() <= 9 && (stripped.precision() - stripped.scale()) <= 29;
   }
 
+  public static boolean isSupportedSparkType(DataType type) {
+    if (type == null) {
+      return false;
+    }
+    return type instanceof DecimalType
+        || type.sameType(DataTypes.StringType)
+        || type.sameType(DataTypes.LongType)
+        || type.sameType(DataTypes.IntegerType)
+        || type.sameType(DataTypes.ShortType)
+        || type.sameType(DataTypes.ByteType)
+        || type.sameType(DataTypes.BooleanType)
+        || type.sameType(DataTypes.DoubleType)
+        || type.sameType(DataTypes.FloatType)
+        || type.sameType(DataTypes.TimestampType)
+        || type.sameType(DataTypes.DateType)
+        || type.sameType(DataTypes.BinaryType);
+  }
+
   public static void bind(Statement.Builder builder, String parameter, LiteralExpr literal) {
     bind(builder, parameter, literal, Dialect.GOOGLE_STANDARD_SQL);
   }
@@ -85,34 +103,33 @@ public final class SpannerTypeBinder {
     } else if (sparkType.sameType(DataTypes.FloatType)) {
       builder.bind(parameter).to(((Number) value).doubleValue());
     } else if (sparkType.sameType(DataTypes.TimestampType)) {
-
+      Instant instant;
       if (value instanceof Instant) {
-        Instant instant = (Instant) value;
-        builder
-            .bind(parameter)
-            .to(
-                com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
-                    instant.getEpochSecond(), instant.getNano()));
-
+        instant = (Instant) value;
       } else if (value instanceof java.sql.Timestamp) {
-        java.sql.Timestamp ts = (java.sql.Timestamp) value;
-        Instant instant = ts.toInstant();
-        builder
-            .bind(parameter)
-            .to(
-                com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
-                    instant.getEpochSecond(), instant.getNano()));
-
+        instant = ((java.sql.Timestamp) value).toInstant();
+      } else if (value instanceof Number) {
+        long micros = ((Number) value).longValue();
+        instant =
+            Instant.ofEpochSecond(
+                Math.floorDiv(micros, 1_000_000L), Math.floorMod(micros, 1_000_000L) * 1_000L);
       } else {
         throw new IllegalArgumentException(
             "Unexpected timestamp literal type: " + value.getClass());
       }
+      builder
+          .bind(parameter)
+          .to(
+              com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
+                  instant.getEpochSecond(), instant.getNano()));
     } else if (sparkType.sameType(DataTypes.DateType)) {
       LocalDate localDate;
       if (value instanceof LocalDate) {
         localDate = (LocalDate) value;
       } else if (value instanceof java.sql.Date) {
         localDate = ((java.sql.Date) value).toLocalDate();
+      } else if (value instanceof Number) {
+        localDate = LocalDate.ofEpochDay(((Number) value).longValue());
       } else {
         throw new IllegalArgumentException("Unexpected date literal type: " + value.getClass());
       }

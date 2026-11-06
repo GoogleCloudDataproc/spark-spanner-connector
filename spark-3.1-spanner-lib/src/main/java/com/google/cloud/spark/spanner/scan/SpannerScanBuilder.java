@@ -193,6 +193,10 @@ public class SpannerScanBuilder
     return spannerTable.getSpannerTypes();
   }
 
+  public boolean isPostgreSql() {
+    return spannerTable.isPostgreSql();
+  }
+
   public TableRelation createTableRelation() {
     // Join pushdown currently supports only interleaved parent/child tables.
     // Self-joins are rejected by isOtherSideCompatibleForJoin(), so using the

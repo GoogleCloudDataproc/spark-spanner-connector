@@ -118,7 +118,9 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       logger.debug("predicate class = {}", predicate.getClass());
       logger.debug("predicate = {}", predicate);
 
-      BoolExpr condition = PredicateToExprConverter.translatePredicate(predicate, resolutionMap);
+      BoolExpr condition =
+          PredicateToExprConverter.translatePredicate(
+              predicate, resolutionMap, this.isPostgreSql());
 
       JoinRelation joinRelation =
           new JoinRelation(

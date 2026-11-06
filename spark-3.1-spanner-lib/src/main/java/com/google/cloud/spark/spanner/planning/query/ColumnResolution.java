@@ -84,4 +84,12 @@ public final class ColumnResolution {
   public static boolean isUuid(String spannerType) {
     return spannerType != null && "UUID".equalsIgnoreCase(spannerType.trim());
   }
+
+  public static boolean isJson(String spannerType) {
+    return spannerType != null && "JSON".equalsIgnoreCase(spannerType.trim());
+  }
+
+  public static boolean isJsonb(String spannerType) {
+    return spannerType != null && "JSONB".equalsIgnoreCase(spannerType.trim());
+  }
 }

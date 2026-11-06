@@ -15,12 +15,19 @@
 package com.google.cloud.spark.spanner.planning.query;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Collections;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
 public class ExprConverterUtilsTest {
@@ -111,5 +118,84 @@ public class ExprConverterUtilsTest {
     } catch (IllegalArgumentException expected) {
       // Expected.
     }
+  }
+
+  @Test
+  public void timestampLiteralsNormalizeToInstant() {
+    Instant expected = Instant.parse("2026-01-01T00:00:00.123456Z");
+    long epochMicros = expected.getEpochSecond() * 1_000_000L + 123_456L;
+
+    assertEquals(
+        expected, ExprConverterUtils.normalizeLiteral(epochMicros, DataTypes.TimestampType));
+    assertEquals(
+        expected,
+        ExprConverterUtils.normalizeLiteral(Timestamp.from(expected), DataTypes.TimestampType));
+    assertEquals(expected, ExprConverterUtils.normalizeLiteral(expected, DataTypes.TimestampType));
+    assertEquals(
+        Instant.ofEpochSecond(-1L, 999_999_000L),
+        ExprConverterUtils.normalizeLiteral(-1L, DataTypes.TimestampType));
+  }
+
+  @Test
+  public void nullTypeAndUnsupportedLiteralTypesAreRejected() {
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> ExprConverterUtils.normalizeLiteral(null, DataTypes.NullType));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () ->
+            ExprConverterUtils.normalizeLiteral(
+                new int[] {1}, DataTypes.createArrayType(DataTypes.IntegerType)));
+  }
+
+  @Test
+  public void toColumnThrowsIllegalArgumentOnMissingResolutionAndRejectsUnsupportedTypes() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ExprConverterUtils.toColumn("missing", Collections.emptyMap()));
+    assertThrows(
+        IllegalArgumentException.class, () -> ExprConverterUtils.toColumn("missing", null));
+
+    StructType structType =
+        new StructType(
+            new StructField[] {
+              new StructField("sub", DataTypes.StringType, true, Metadata.empty())
+            });
+    ColumnResolution structCol =
+        new ColumnResolution("s", "s", "t", structType, "STRUCT<sub STRING>", true);
+    ColumnResolution arrayCol =
+        new ColumnResolution(
+            "a", "a", "t", DataTypes.createArrayType(DataTypes.StringType), "ARRAY<STRING>", true);
+    ColumnResolution jsonCol =
+        new ColumnResolution("j", "j", "t", DataTypes.StringType, "JSON", true);
+    ColumnResolution jsonbCol =
+        new ColumnResolution("jb", "jb", "t", DataTypes.StringType, "jsonb", true);
+
+    for (ColumnResolution unsupported :
+        new ColumnResolution[] {structCol, arrayCol, jsonCol, jsonbCol}) {
+      assertThrows(
+          UnsupportedOperationException.class,
+          () ->
+              ExprConverterUtils.toColumn(
+                  unsupported.getOutputName(),
+                  Collections.singletonMap(unsupported.getOutputName(), unsupported)));
+      assertThrows(
+          UnsupportedOperationException.class,
+          () -> ExprConverterUtils.toLiteral("val", unsupported));
+    }
+  }
+
+  @Test
+  public void toLiteralEnforcesGoogleSqlNumericBoundsOnlyOnGoogleSql() {
+    ColumnResolution decCol =
+        new ColumnResolution("d", "d", "t", DataTypes.createDecimalType(38, 12), "NUMERIC", true);
+    BigDecimal highScale = new BigDecimal("0.0000000001");
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ExprConverterUtils.toLiteral(highScale, decCol, false));
+
+    LiteralExpr pgLiteral = ExprConverterUtils.toLiteral(highScale, decCol, true);
+    assertEquals(highScale, pgLiteral.getValue());
   }
 }

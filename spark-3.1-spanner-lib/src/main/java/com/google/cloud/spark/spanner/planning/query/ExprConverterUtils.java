@@ -13,18 +13,21 @@
 // limitations under the License.
 package com.google.cloud.spark.spanner.planning.query;
 
-import com.google.cloud.spark.spanner.SpannerConnectorException;
-import com.google.cloud.spark.spanner.SpannerErrorCode;
+import com.google.cloud.spark.spanner.binding.SpannerTypeBinder;
 import com.google.cloud.spark.spanner.planning.expression.*;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.apache.spark.sql.sources.*;
+import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
+import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +37,16 @@ public class ExprConverterUtils {
   public static ColumnExpr toColumn(String name, Map<String, ColumnResolution> resolutionMap) {
     logger.debug("Looking up column '{}' in resolutionMap {}", name, resolutionMap);
 
+    if (resolutionMap == null) {
+      throw new IllegalArgumentException("No column resolution found for column: " + name);
+    }
+
     ColumnResolution columnResolution = resolutionMap.get(name);
+    if (columnResolution == null) {
+      throw new IllegalArgumentException("No column resolution found for column: " + name);
+    }
+
+    validateSupportedColumn(columnResolution);
 
     return new ColumnExpr(
         columnResolution.getTableAlias(),
@@ -45,7 +57,19 @@ public class ExprConverterUtils {
 
   public static LiteralExpr toLiteral(
       Object value, Map<String, ColumnResolution> resolutionMap, String columnName) {
+    return toLiteral(value, resolutionMap, columnName, false);
+  }
+
+  public static LiteralExpr toLiteral(
+      Object value,
+      Map<String, ColumnResolution> resolutionMap,
+      String columnName,
+      boolean isPostgreSql) {
     logger.debug("Looking up literal column '{}' in resolutionMap {}", columnName, resolutionMap);
+
+    if (resolutionMap == null) {
+      throw new IllegalArgumentException("No column resolution found for column: " + columnName);
+    }
 
     ColumnResolution columnResolution = resolutionMap.get(columnName);
 
@@ -53,12 +77,18 @@ public class ExprConverterUtils {
       throw new IllegalArgumentException("No column resolution found for column: " + columnName);
     }
 
-    return toLiteral(value, columnResolution);
+    return toLiteral(value, columnResolution, isPostgreSql);
   }
 
   public static LiteralExpr toLiteral(Object value, ColumnResolution columnResolution) {
+    return toLiteral(value, columnResolution, false);
+  }
+
+  public static LiteralExpr toLiteral(
+      Object value, ColumnResolution columnResolution, boolean isPostgreSql) {
 
     Objects.requireNonNull(columnResolution, "columnResolution cannot be null");
+    validateSupportedColumn(columnResolution);
 
     Object normalizedValue = normalizeLiteral(value, columnResolution.getSparkType());
 
@@ -66,8 +96,32 @@ public class ExprConverterUtils {
       validateUuid(normalizedValue);
     }
 
+    if (!isPostgreSql
+        && normalizedValue instanceof BigDecimal
+        && !SpannerTypeBinder.isValidGoogleSqlNumeric((BigDecimal) normalizedValue)) {
+      throw new IllegalArgumentException(
+          "Decimal out of Spanner NUMERIC range: " + normalizedValue);
+    }
+
     return new LiteralExpr(
         normalizedValue, columnResolution.getSparkType(), columnResolution.getSpannerType());
+  }
+
+  public static void validateSupportedColumn(ColumnResolution columnResolution) {
+    DataType sparkType = columnResolution.getSparkType();
+    String spannerType = columnResolution.getSpannerType();
+    if (sparkType == null
+        || sparkType.sameType(DataTypes.NullType)
+        || sparkType instanceof StructType
+        || sparkType instanceof ArrayType
+        || !SpannerTypeBinder.isSupportedSparkType(sparkType)) {
+      throw new UnsupportedOperationException(
+          "Unsupported Spark column type for predicate pushdown: " + sparkType);
+    }
+    if (ColumnResolution.isJson(spannerType) || ColumnResolution.isJsonb(spannerType)) {
+      throw new UnsupportedOperationException(
+          "Unsupported Spanner column type for predicate pushdown: " + spannerType);
+    }
   }
 
   private static void validateUuid(Object value) {
@@ -86,6 +140,11 @@ public class ExprConverterUtils {
   }
 
   public static Object normalizeLiteral(Object value, DataType type) {
+    if (!SpannerTypeBinder.isSupportedSparkType(type)) {
+      throw new UnsupportedOperationException(
+          "Unsupported literal type for predicate pushdown: " + type);
+    }
+
     if (value == null) {
       return null;
     }
@@ -107,16 +166,37 @@ public class ExprConverterUtils {
         return LocalDate.ofEpochDay(((Number) value).longValue());
       }
 
-      throw new SpannerConnectorException(
-          SpannerErrorCode.UNSUPPORTED_DATATYPE,
-          "Unexpected DateType literal value: " + value.getClass());
+      throw new IllegalArgumentException("Unexpected DateType literal value: " + value.getClass());
+    }
+
+    if (type.sameType(DataTypes.TimestampType)) {
+      if (value instanceof Instant) {
+        return value;
+      }
+
+      if (value instanceof java.sql.Timestamp) {
+        return ((java.sql.Timestamp) value).toInstant();
+      }
+
+      if (value instanceof Number) {
+        long micros = ((Number) value).longValue();
+        return Instant.ofEpochSecond(
+            Math.floorDiv(micros, 1_000_000L), Math.floorMod(micros, 1_000_000L) * 1_000L);
+      }
+
+      throw new IllegalArgumentException(
+          "Unexpected TimestampType literal value: " + value.getClass());
     }
 
     if (type instanceof DecimalType) {
-      if (value instanceof java.math.BigDecimal) {
+      if (value instanceof BigDecimal) {
         return value;
       }
-      return ((Decimal) value).toJavaBigDecimal();
+      if (value instanceof Decimal) {
+        return ((Decimal) value).toJavaBigDecimal();
+      }
+      throw new IllegalArgumentException(
+          "Unexpected DecimalType literal value: " + value.getClass());
     }
 
     return value;

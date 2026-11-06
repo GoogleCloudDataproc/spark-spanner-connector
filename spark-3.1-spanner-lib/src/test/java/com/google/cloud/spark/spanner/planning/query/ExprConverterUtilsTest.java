@@ -88,4 +88,28 @@ public class ExprConverterUtilsTest {
       // Expected.
     }
   }
+
+  @Test
+  public void nonCanonicalUuidStringsWithUuidColumnAreRejected() {
+    ColumnResolution resolution =
+        new ColumnResolution("uuid_col", "uuid_col", "", DataTypes.StringType, "UUID", false);
+
+    try {
+      ExprConverterUtils.toLiteral(
+          UUID_VALUE.toUpperCase(), Collections.singletonMap("uuid_col", resolution), "uuid_col");
+      fail("Expected IllegalArgumentException for uppercase UUID");
+    } catch (IllegalArgumentException expected) {
+      // Expected.
+    }
+
+    try {
+      ExprConverterUtils.toLiteral(
+          UUID_VALUE.substring(0, 35),
+          Collections.singletonMap("uuid_col", resolution),
+          "uuid_col");
+      fail("Expected IllegalArgumentException for 35-char UUID");
+    } catch (IllegalArgumentException expected) {
+      // Expected.
+    }
+  }
 }

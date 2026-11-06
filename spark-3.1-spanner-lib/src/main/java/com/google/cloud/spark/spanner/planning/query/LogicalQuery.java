@@ -39,6 +39,7 @@ public final class LogicalQuery {
   // Filters are kept separate on joins so they can be qualified with a table prefix.
   private final Filter[] pushedFiltersOther;
   private final Map<String, StructField> fields;
+  private final Map<String, StructField> fieldsOther;
   private final StructType joinSchema;
   private final Map<String, ColumnResolution> resolutionMap;
 
@@ -52,6 +53,7 @@ public final class LogicalQuery {
     this.pushedFiltersOther =
         builder.pushedFiltersOther != null ? builder.pushedFiltersOther.clone() : new Filter[0];
     this.fields = builder.fields != null ? builder.fields : Collections.emptyMap();
+    this.fieldsOther = builder.fieldsOther != null ? builder.fieldsOther : this.fields;
     this.joinSchema = builder.joinSchema != null ? builder.joinSchema : null;
     this.resolutionMap = builder.resolutionMap;
   }
@@ -217,6 +219,10 @@ public final class LogicalQuery {
     return this.fields;
   }
 
+  public Map<String, StructField> getFieldsOther() {
+    return this.fieldsOther;
+  }
+
   public StructType schema() {
     if (sourceIsTable()) {
       return ((TableRelation) this.source).getTableSchema();
@@ -240,6 +246,7 @@ public final class LogicalQuery {
     // Filters are kept separate on joins so they can be qualified with a table prefix.
     private Filter[] pushedFiltersOther = new Filter[0];
     private Map<String, StructField> fields = java.util.Collections.emptyMap();
+    private Map<String, StructField> fieldsOther = null;
     private StructType joinSchema;
     private Map<String, ColumnResolution> resolutionMap;
 
@@ -267,6 +274,11 @@ public final class LogicalQuery {
 
     public Builder fields(Map<String, StructField> fields) {
       this.fields = fields;
+      return this;
+    }
+
+    public Builder fieldsOther(Map<String, StructField> fieldsOther) {
+      this.fieldsOther = fieldsOther;
       return this;
     }
 

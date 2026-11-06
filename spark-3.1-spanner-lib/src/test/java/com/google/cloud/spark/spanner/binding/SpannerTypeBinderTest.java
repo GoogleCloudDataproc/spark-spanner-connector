@@ -15,12 +15,15 @@
 package com.google.cloud.spark.spanner.binding;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
+import java.math.BigDecimal;
 import org.apache.spark.sql.types.DataTypes;
 import org.junit.Test;
 
@@ -99,5 +102,66 @@ public class SpannerTypeBinderTest {
 
     Statement statement = builder.build();
     assertThat(statement.getParameters().get("p1").isNull()).isTrue();
+  }
+
+  @Test
+  public void bindsPostgresDecimalAsPgNumeric() {
+    BigDecimal highPrecision = new BigDecimal("1000000000000000000000000000000.123456789012");
+    LiteralExpr literal =
+        new LiteralExpr(highPrecision, DataTypes.createDecimalType(38, 12), "NUMERIC");
+    Statement.Builder builder = Statement.newBuilder("SELECT $1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal, Dialect.POSTGRESQL);
+
+    Statement statement = builder.build();
+    assertThat(statement.getParameters().get("p1"))
+        .isEqualTo(Value.pgNumeric(highPrecision.toPlainString()));
+  }
+
+  @Test
+  public void bindsPostgresNullDecimalAsPgNumericNull() {
+    LiteralExpr literal = new LiteralExpr(null, DataTypes.createDecimalType(38, 9), "NUMERIC");
+    Statement.Builder builder = Statement.newBuilder("SELECT $1");
+
+    SpannerTypeBinder.bind(builder, "p1", literal, Dialect.POSTGRESQL);
+
+    Statement statement = builder.build();
+    assertThat(statement.getParameters().get("p1")).isEqualTo(Value.pgNumeric(null));
+  }
+
+  @Test
+  public void googleSqlAcceptsTrailingZerosWithinNumericRangeAndRejectsOverflow() {
+    BigDecimal trailingZeros = new BigDecimal("1.2300000000");
+    LiteralExpr validLiteral =
+        new LiteralExpr(trailingZeros, DataTypes.createDecimalType(38, 10), "NUMERIC");
+    Statement.Builder builder = Statement.newBuilder("SELECT @p1");
+    SpannerTypeBinder.bind(builder, "p1", validLiteral, Dialect.GOOGLE_STANDARD_SQL);
+    assertThat(builder.build().getParameters().get("p1")).isEqualTo(Value.numeric(trailingZeros));
+
+    LiteralExpr overflowIntDigits =
+        new LiteralExpr(
+            new BigDecimal("100000000000000000000000000000"),
+            DataTypes.createDecimalType(38, 0),
+            "NUMERIC");
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            SpannerTypeBinder.bind(
+                Statement.newBuilder("SELECT @p1"),
+                "p1",
+                overflowIntDigits,
+                Dialect.GOOGLE_STANDARD_SQL));
+
+    LiteralExpr overflowScale =
+        new LiteralExpr(
+            new BigDecimal("0.0000000001"), DataTypes.createDecimalType(38, 10), "NUMERIC");
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            SpannerTypeBinder.bind(
+                Statement.newBuilder("SELECT @p1"),
+                "p1",
+                overflowScale,
+                Dialect.GOOGLE_STANDARD_SQL));
   }
 }

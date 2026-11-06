@@ -136,7 +136,7 @@ public class SpannerQueryBuilder {
                 true,
                 Optional.empty(),
                 isPostgreSql,
-                this.logicalQuery.getFields(),
+                this.logicalQuery.getFieldsOther(),
                 aliasOther,
                 parameterRegistry,
                 this.logicalQuery.getFilterOther());
@@ -172,7 +172,7 @@ public class SpannerQueryBuilder {
     Map<String, LiteralExpr> bindings = renderResult.getBindings();
     if (bindings != null) {
       for (Map.Entry<String, LiteralExpr> entry : bindings.entrySet()) {
-        SpannerTypeBinder.bind(builder, entry.getKey(), entry.getValue());
+        SpannerTypeBinder.bind(builder, entry.getKey(), entry.getValue(), this.dialect);
       }
     }
     return builder.build();
@@ -224,12 +224,8 @@ public class SpannerQueryBuilder {
         SparkFilterUtils.quoteIdentifier(tableRelation.getTableName(), isPostgreSql);
     String sqlStmt = selectPrefix + " FROM " + quotedTableName;
 
-    final String indexHint = tableRelation.getIndexHint();
-    if (indexHint != null) {
-      final String hint =
-          isPostgreSql
-              ? "/*@ FORCE_INDEX=" + indexHint + " */"
-              : "@{FORCE_INDEX=" + indexHint + "}";
+    final String hint = tableRelation.formatIndexHint(isPostgreSql);
+    if (hint != null) {
       sqlStmt += " " + hint; // Add safe whitespace
     }
 
@@ -247,7 +243,7 @@ public class SpannerQueryBuilder {
     }
     Statement.Builder builder = Statement.newBuilder(sqlStmt);
     for (Map.Entry<String, LiteralExpr> entry : bindings.entrySet()) {
-      SpannerTypeBinder.bind(builder, entry.getKey(), entry.getValue());
+      SpannerTypeBinder.bind(builder, entry.getKey(), entry.getValue(), this.dialect);
     }
     return builder.build();
   }

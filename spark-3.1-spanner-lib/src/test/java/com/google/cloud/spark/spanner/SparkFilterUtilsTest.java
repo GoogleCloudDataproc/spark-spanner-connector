@@ -19,6 +19,7 @@ package com.google.cloud.spark.spanner;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.ByteArray;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.binding.SpannerTypeBinder;
@@ -41,8 +42,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.apache.spark.sql.sources.*;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.junit.Test;
@@ -69,10 +72,11 @@ public class SparkFilterUtilsTest {
     return MessageFormat.format(s, getQuotedSplitter());
   }
 
-  private static Statement toStatement(RenderResult result) {
+  private Statement toStatement(RenderResult result) {
+    Dialect dialect = isPostgreSql ? Dialect.POSTGRESQL : Dialect.GOOGLE_STANDARD_SQL;
     Statement.Builder builder = Statement.newBuilder(result.getSql());
     for (Map.Entry<String, LiteralExpr> entry : result.getBindings().entrySet()) {
-      SpannerTypeBinder.bind(builder, entry.getKey(), entry.getValue());
+      SpannerTypeBinder.bind(builder, entry.getKey(), entry.getValue(), dialect);
     }
     return builder.build();
   }
@@ -266,7 +270,8 @@ public class SparkFilterUtilsTest {
 
     RenderResult eqNull =
         SparkFilterUtils.compileFilter(EqualNullSafe.apply("foo", null), isPostgreSql, null, null);
-    assertThat(toStatement(eqNull).getParameters().get("p1")).isEqualTo(Value.string(null));
+    assertThat(eqNull.getSql()).isEqualTo(parseQuotedSplitter("({0}foo{0} IS NULL)"));
+    assertThat(eqNull.getBindings()).isEmpty();
 
     assertThat(SparkFilterUtils.isUuid(null, "foo")).isFalse();
     assertThat(SparkFilterUtils.isJson((Map<String, StructField>) null, "foo")).isFalse();
@@ -345,12 +350,13 @@ public class SparkFilterUtilsTest {
     assertThat(eqNullSafe.getSql())
         .isEqualTo(
             parseQuotedSplitter(
-                "{0}foo{0} IS NULL AND "
+                "(({0}foo{0} IS NULL AND "
                     + param(1)
-                    + " IS NULL OR {0}foo{0} IS NOT NULL AND "
+                    + " IS NULL) OR ({0}foo{0} IS NOT NULL AND "
                     + param(1)
                     + " IS NOT NULL AND {0}foo{0} = "
-                    + param(1)));
+                    + param(1)
+                    + "))"));
     assertThat(toStatement(eqNullSafe).getParameters().get("p1")).isEqualTo(Value.int64(1));
 
     RenderResult gt =
@@ -480,7 +486,8 @@ public class SparkFilterUtilsTest {
             In.apply("datefield", new Object[] {bd}), isPostgreSql, EMPTY_FIELDS, null);
     assertThat(result.getSql())
         .isEqualTo(parseQuotedSplitter("{0}datefield{0} IN (" + param(1) + ")"));
-    assertThat(toStatement(result).getParameters().get("p1")).isEqualTo(Value.numeric(bd));
+    assertThat(toStatement(result).getParameters().get("p1"))
+        .isEqualTo(isPostgreSql ? Value.pgNumeric(bd.toPlainString()) : Value.numeric(bd));
   }
 
   @Test
@@ -683,5 +690,155 @@ public class SparkFilterUtilsTest {
         part1,
         part2,
         part3);
+  }
+
+  @Test
+  public void testEqualNullSafeCombinedWithAndCannotBypassConjunct() {
+    RenderResult nullEqAndTenant =
+        SparkFilterUtils.getCompiledFilter(
+            pushAllFilters,
+            Optional.empty(),
+            isPostgreSql,
+            EMPTY_FIELDS,
+            EqualNullSafe.apply("deleted_at", null),
+            EqualTo.apply("tenant_id", "tenant_A"));
+    assertThat(nullEqAndTenant.getSql())
+        .isEqualTo(
+            parseQuotedSplitter(
+                "(({0}deleted_at{0} IS NULL) AND {0}tenant_id{0} = " + param(1) + ")"));
+    assertThat(toStatement(nullEqAndTenant).getParameters().get("p1"))
+        .isEqualTo(Value.string("tenant_A"));
+
+    RenderResult valEqAndTenant =
+        SparkFilterUtils.getCompiledFilter(
+            pushAllFilters,
+            Optional.empty(),
+            isPostgreSql,
+            EMPTY_FIELDS,
+            EqualNullSafe.apply("deleted_at", 1),
+            EqualTo.apply("tenant_id", "tenant_A"));
+    assertThat(valEqAndTenant.getSql())
+        .isEqualTo(
+            parseQuotedSplitter(
+                "((({0}deleted_at{0} IS NULL AND "
+                    + param(1)
+                    + " IS NULL) OR ({0}deleted_at{0} IS NOT NULL AND "
+                    + param(1)
+                    + " IS NOT NULL AND {0}deleted_at{0} = "
+                    + param(1)
+                    + ")) AND {0}tenant_id{0} = "
+                    + param(2)
+                    + ")"));
+    Statement stmt = toStatement(valEqAndTenant);
+    assertThat(stmt.getParameters().get("p1")).isEqualTo(Value.int64(1));
+    assertThat(stmt.getParameters().get("p2")).isEqualTo(Value.string("tenant_A"));
+  }
+
+  @Test
+  public void testDecimalFilterBoundsHandledPerDialect() {
+    BigDecimal tooLargeForGsql = new BigDecimal("1E+29");
+    BigDecimal tooFineScaleForGsql = new BigDecimal("0.0000000001");
+    BigDecimal trailingZerosValid = new BigDecimal("1.2300000000");
+
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, EqualTo.apply("dec", tooLargeForGsql), EMPTY_FIELDS, isPostgreSql))
+        .isEqualTo(isPostgreSql);
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, EqualTo.apply("dec", tooFineScaleForGsql), EMPTY_FIELDS, isPostgreSql))
+        .isEqualTo(isPostgreSql);
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, EqualTo.apply("dec", trailingZerosValid), EMPTY_FIELDS, isPostgreSql))
+        .isTrue();
+  }
+
+  @Test
+  public void testEmptyInCompilesToFalse() {
+    RenderResult emptyIn =
+        SparkFilterUtils.compileFilter(
+            In.apply("foo", new Object[0]), isPostgreSql, EMPTY_FIELDS, null);
+    assertThat(emptyIn.getSql()).isEqualTo("FALSE");
+    assertThat(emptyIn.getBindings()).isEmpty();
+  }
+
+  @Test
+  public void testUuidFiltersValidation() {
+    MetadataBuilder uuidMeta = new MetadataBuilder();
+    uuidMeta.putString(SpannerUtils.COLUMN_TYPE, "uuid");
+    Map<String, StructField> uuidFields =
+        ImmutableMap.of("id", new StructField("id", DataTypes.StringType, true, uuidMeta.build()));
+    String validUuid = "550e8400-e29b-41d4-a716-446655440000";
+
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, StringStartsWith.apply("id", "550e"), uuidFields, isPostgreSql))
+        .isFalse();
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, StringEndsWith.apply("id", "0000"), uuidFields, isPostgreSql))
+        .isFalse();
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, StringContains.apply("id", "e29b"), uuidFields, isPostgreSql))
+        .isFalse();
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, EqualTo.apply("id", "not-a-uuid"), uuidFields, isPostgreSql))
+        .isFalse();
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, EqualTo.apply("id", validUuid.toUpperCase()), uuidFields, isPostgreSql))
+        .isFalse();
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, EqualTo.apply("id", validUuid.substring(0, 35)), uuidFields, isPostgreSql))
+        .isFalse();
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false,
+                In.apply("id", new Object[] {validUuid, "BAD-UUID"}),
+                uuidFields,
+                isPostgreSql))
+        .isFalse();
+
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, EqualTo.apply("id", validUuid), uuidFields, isPostgreSql))
+        .isTrue();
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, EqualNullSafe.apply("id", null), uuidFields, isPostgreSql))
+        .isTrue();
+    assertThat(
+            SparkFilterUtils.isTopLevelFieldHandled(
+                false, In.apply("id", new Object[] {validUuid, null}), uuidFields, isPostgreSql))
+        .isTrue();
+
+    RenderResult compiledIn =
+        SparkFilterUtils.compileFilter(
+            In.apply("id", new Object[] {validUuid, null}), isPostgreSql, uuidFields, null);
+    Statement stmt = toStatement(compiledIn);
+    assertThat(stmt.getParameters().get("p1")).isEqualTo(Value.uuid(UUID.fromString(validUuid)));
+    assertThat(stmt.getParameters().get("p2")).isEqualTo(Value.uuid(null));
+  }
+
+  @Test
+  public void testCaseInsensitiveFieldLookupAndNullInTypeInference() {
+    Map<String, StructField> mixedCaseFields =
+        ImmutableMap.of(
+            "IntCol", new StructField("IntCol", DataTypes.LongType, true, Metadata.empty()));
+    RenderResult eqNull =
+        SparkFilterUtils.compileFilter(
+            EqualTo.apply("intcol", null), isPostgreSql, mixedCaseFields, null);
+    assertThat(toStatement(eqNull).getParameters().get("p1")).isEqualTo(Value.int64(null));
+
+    RenderResult inWithNullAndEmptyFields =
+        SparkFilterUtils.compileFilter(
+            In.apply("int_col", new Object[] {1L, null}), isPostgreSql, EMPTY_FIELDS, null);
+    Statement inStmt = toStatement(inWithNullAndEmptyFields);
+    assertThat(inStmt.getParameters().get("p1")).isEqualTo(Value.int64(1L));
+    assertThat(inStmt.getParameters().get("p2")).isEqualTo(Value.int64(null));
   }
 }

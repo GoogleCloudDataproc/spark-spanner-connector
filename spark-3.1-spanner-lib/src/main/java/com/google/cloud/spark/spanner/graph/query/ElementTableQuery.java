@@ -4,6 +4,7 @@ import com.google.cloud.Tuple;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spark.spanner.SpannerRowConverter;
 import com.google.cloud.spark.spanner.SpannerTableSchema;
+import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.cloud.spark.spanner.graph.PropertyGraph;
 import com.google.cloud.spark.spanner.graph.PropertyGraph.GraphElementTable;
 import com.google.cloud.spark.spanner.graph.PropertyGraph.GraphPropertyDefinition;
@@ -65,17 +66,20 @@ public abstract class ElementTableQuery implements GraphSubQuery {
       String idColumnName, int tableId, List<String> keyColumns) {
     String elementKeysString;
     if (keyColumns.size() == 1) {
-      elementKeysString = String.format("CAST(%s AS STRING)", keyColumns.get(0));
+      elementKeysString =
+          String.format(
+              "CAST(%s AS STRING)", SparkFilterUtils.quoteIdentifier(keyColumns.get(0), false));
     } else {
       elementKeysString =
           keyColumns.stream()
               .sorted()
+              .map(c -> SparkFilterUtils.quoteIdentifier(c, false))
               .map(c -> String.format("CAST(%s AS STRING)", c))
               .map(c -> String.format("REPLACE(%s, \"\\\\\", \"\\\\\\\\\")", c))
               .map(c -> String.format("REPLACE(%s, \"|\", \"\\\\|\")", c))
               .collect(Collectors.joining(", \"|\", "));
     }
-    return new SelectField(
+    return SelectField.expressionWithAlias(
         String.format("CONCAT(\"%d@\", %s)", tableId, elementKeysString), idColumnName);
   }
 
@@ -102,6 +106,7 @@ public abstract class ElementTableQuery implements GraphSubQuery {
         .filter(Objects::nonNull)
         .map(String::trim)
         .filter(f -> !f.isEmpty())
+        .map(f -> "(" + f + ")")
         .collect(Collectors.joining(" OR "));
   }
 
@@ -138,7 +143,10 @@ public abstract class ElementTableQuery implements GraphSubQuery {
     prunedOuterSelects = fixEmptySelectFields(prunedOuterSelects);
 
     String innerQuery =
-        String.format("SELECT %s FROM %s", SelectField.join(innerSelects), baseTableSchema.name);
+        String.format(
+            "SELECT %s FROM %s",
+            SelectField.join(innerSelects),
+            SparkFilterUtils.quoteIdentifier(baseTableSchema.name, false));
     String outerQuery =
         String.format("SELECT %s FROM (%s)", SelectField.join(prunedOuterSelects), innerQuery);
     if (whereClause != null && !whereClause.isEmpty()) {
@@ -218,8 +226,8 @@ public abstract class ElementTableQuery implements GraphSubQuery {
 
   protected void addDirectField(String inputColumn, String outputColumn) {
     String internalName = getInternalNameForId(outputColumn);
-    innerSelects.add(new SelectField(inputColumn, internalName));
-    outerSelects.add(new SelectField(internalName, outputColumn));
+    innerSelects.add(SelectField.columnWithAlias(inputColumn, internalName));
+    outerSelects.add(SelectField.columnWithAlias(internalName, outputColumn));
     DataType sparkType = baseTableSchema.getStructFieldForColumn(inputColumn).dataType();
     outputSparkFields.add(new StructField(outputColumn, sparkType, false, Metadata.empty()));
   }
@@ -238,8 +246,8 @@ public abstract class ElementTableQuery implements GraphSubQuery {
     }
     for (int i = 0; i < inputColumns.size(); i++) {
       String outputName = getInternalNameForKeyColumn(outputColumns.get(i), type);
-      innerSelects.add(new SelectField(inputColumns.get(i), outputName));
-      outerSelects.add(new SelectField(outputName));
+      innerSelects.add(SelectField.columnWithAlias(inputColumns.get(i), outputName));
+      outerSelects.add(SelectField.column(outputName));
       DataType sparkType = baseTableSchema.getStructFieldForColumn(inputColumns.get(i)).dataType();
       outputSparkFields.add(new StructField(outputName, sparkType, true, Metadata.empty()));
     }
@@ -248,13 +256,14 @@ public abstract class ElementTableQuery implements GraphSubQuery {
   protected void addCombinedId(String idType, int tableId, List<String> keyColumns) {
     String internalIdName = getInternalNameForId(idType);
     innerSelects.add(buildSelectFieldForId(internalIdName, tableId, keyColumns));
-    outerSelects.add(new SelectField(internalIdName, idType));
+    outerSelects.add(SelectField.columnWithAlias(internalIdName, idType));
     outputSparkFields.add(new StructField(idType, DataTypes.StringType, false, Metadata.empty()));
   }
 
   protected void addInnerProperties(List<GraphPropertyDefinition> propertyDefinitions) {
     for (GraphPropertyDefinition gpd : propertyDefinitions) {
-      innerSelects.add(new SelectField(gpd.valueExpressionSql, gpd.propertyDeclarationName));
+      innerSelects.add(
+          SelectField.expressionWithAlias(gpd.valueExpressionSql, gpd.propertyDeclarationName));
     }
   }
 
@@ -263,7 +272,7 @@ public abstract class ElementTableQuery implements GraphSubQuery {
       String typeCode = graphSchema.getPropertyType(property);
       DataType dataType = SpannerTable.ofSpannerStrType(typeCode, true);
       String renamedProperty = getNameForProperty(property);
-      outerSelects.add(new SelectField(property, renamedProperty));
+      outerSelects.add(SelectField.columnWithAlias(property, renamedProperty));
       outputSparkFields.add(new StructField(renamedProperty, dataType, true, Metadata.empty()));
     }
   }
@@ -274,7 +283,7 @@ public abstract class ElementTableQuery implements GraphSubQuery {
    */
   private static List<SelectField> fixEmptySelectFields(List<SelectField> selectFields) {
     if (selectFields.isEmpty()) {
-      return ImmutableList.of(new SelectField("null"));
+      return ImmutableList.of(SelectField.literal("null"));
     }
     return selectFields;
   }

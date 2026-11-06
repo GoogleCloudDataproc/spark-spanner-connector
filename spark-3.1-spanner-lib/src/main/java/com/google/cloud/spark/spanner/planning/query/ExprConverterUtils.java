@@ -71,8 +71,15 @@ public class ExprConverterUtils {
   }
 
   private static void validateUuid(Object value) {
+    String str = value.toString();
+    if (str.length() != 36) {
+      throw new IllegalArgumentException("Invalid UUID value for Spanner UUID column: " + value);
+    }
     try {
-      UUID.fromString(value.toString());
+      if (!UUID.fromString(str).toString().equals(str)) {
+        throw new IllegalArgumentException(
+            "Non-canonical UUID value for Spanner UUID column: " + value);
+      }
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException("Invalid UUID value for Spanner UUID column: " + value, e);
     }
@@ -106,6 +113,9 @@ public class ExprConverterUtils {
     }
 
     if (type instanceof DecimalType) {
+      if (value instanceof java.math.BigDecimal) {
+        return value;
+      }
       return ((Decimal) value).toJavaBigDecimal();
     }
 

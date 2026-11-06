@@ -20,6 +20,7 @@ import com.google.cloud.spark.spanner.rendering.RenderResult;
 import com.google.cloud.spark.spanner.rendering.SqlExprVisitor;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import org.apache.spark.sql.types.DataTypes;
 import org.junit.Test;
 
@@ -116,5 +117,41 @@ public class SpannerExprTest {
         .isEqualTo(
             "\"ATable\".\"Name\" LIKE ('%' || REPLACE(REPLACE(REPLACE($1, '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%')");
     assertThat(containsResult.getBindings().get("p1")).isEqualTo(pattern);
+  }
+
+  @Test
+  public void testEqNullSafeInsideAndExprWrapsDisjunctionInParentheses() {
+    ColumnExpr deletedAt = new ColumnExpr("ATable", "DeletedAt", DataTypes.LongType, true);
+    ColumnExpr tenantId = new ColumnExpr("ATable", "TenantId", DataTypes.StringType, false);
+    LiteralExpr nullLong = new LiteralExpr(null, DataTypes.LongType, "INT64");
+    LiteralExpr tenantVal = new LiteralExpr("tenant_A", DataTypes.StringType, "STRING");
+
+    SpannerExpr expr =
+        new AndExpr(new EqNullSafeExpr(deletedAt, nullLong), new EqExpr(tenantId, tenantVal));
+    RenderResult result = expr.accept(SqlExprVisitor.create(Dialect.GOOGLE_STANDARD_SQL));
+    assertThat(result.getSql())
+        .isEqualTo(
+            "(((`ATable`.`DeletedAt` IS NULL AND @p1 IS NULL) OR (`ATable`.`DeletedAt` = @p1)) AND `ATable`.`TenantId` = @p2)");
+  }
+
+  @Test
+  public void testEmptyInExprRendersFalse() {
+    ColumnExpr col = new ColumnExpr("ATable", "SingerId", DataTypes.LongType, false);
+    RenderResult result =
+        new InExpr(col, Collections.emptyList())
+            .accept(SqlExprVisitor.create(Dialect.GOOGLE_STANDARD_SQL));
+    assertThat(result.getSql()).isEqualTo("FALSE");
+    assertThat(result.getBindings()).isEmpty();
+  }
+
+  @Test
+  public void testColumnExprWithEmptyOrNullTableAliasOmitsPrefix() {
+    ColumnExpr emptyAliasCol = new ColumnExpr("", "SingerId", DataTypes.LongType, false);
+    ColumnExpr nullAliasCol = new ColumnExpr(null, "SingerId", DataTypes.LongType, false);
+
+    assertThat(emptyAliasCol.accept(SqlExprVisitor.create(Dialect.GOOGLE_STANDARD_SQL)).getSql())
+        .isEqualTo("`SingerId`");
+    assertThat(nullAliasCol.accept(SqlExprVisitor.create(Dialect.POSTGRESQL)).getSql())
+        .isEqualTo("\"SingerId\"");
   }
 }

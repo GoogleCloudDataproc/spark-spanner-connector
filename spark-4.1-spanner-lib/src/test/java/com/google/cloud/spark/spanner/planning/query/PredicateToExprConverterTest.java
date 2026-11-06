@@ -16,11 +16,16 @@ package com.google.cloud.spark.spanner.planning.query;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.spark.spanner.planning.expression.*;
+import com.google.cloud.spark.spanner.scan.InterleaveTableMetadata;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
+import com.google.cloud.spark.spanner.scan.Spark41SpannerScanBuilder;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.spark.sql.connector.expressions.Expression;
@@ -28,7 +33,13 @@ import org.apache.spark.sql.connector.expressions.Expressions;
 import org.apache.spark.sql.connector.expressions.Literal;
 import org.apache.spark.sql.connector.expressions.NamedReference;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
+import org.apache.spark.sql.connector.join.JoinType;
+import org.apache.spark.sql.connector.read.SupportsPushDownJoin.ColumnWithAlias;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.junit.Test;
 
 public class PredicateToExprConverterTest {
@@ -228,5 +239,75 @@ public class PredicateToExprConverterTest {
     assertEquals(UUID1, stringLiteral.getValue());
     assertEquals(DataTypes.StringType, stringLiteral.getSparkType());
     assertEquals("STRING", stringLiteral.getSpannerType());
+  }
+
+  @Test
+  public void stringPatternPredicatesAreRejectedOnUuidColumn() {
+    for (String op : new String[] {"STARTS_WITH", "ENDS_WITH", "CONTAINS"}) {
+      Predicate uuidPattern =
+          new Predicate(op, new Expression[] {uuidColumn(), stringLiteral("550e")});
+      assertThrows(
+          UnsupportedOperationException.class,
+          () -> PredicateToExprConverter.translatePredicate(uuidPattern, resolutionMap()));
+
+      Predicate stringPattern =
+          new Predicate(op, new Expression[] {stringColumn(), stringLiteral("550e")});
+      assertThat(PredicateToExprConverter.translatePredicate(stringPattern, resolutionMap()))
+          .isNotNull();
+    }
+  }
+
+  @Test
+  public void pushDownJoinReturnsFalseOnInvalidUuidLiteralOrPatternPredicate() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.StringType, false, Metadata.empty())
+            });
+    Map<String, String> spannerTypes = Map.of("id", "UUID");
+    CaseInsensitiveStringMap props =
+        new CaseInsensitiveStringMap(Map.of("enablePredicateSql", "true"));
+
+    SpannerTable parentTable = mock(SpannerTable.class);
+    InterleaveTableMetadata parentMeta = mock(InterleaveTableMetadata.class);
+    when(parentMeta.getTableName()).thenReturn("Parent");
+    when(parentMeta.getParentTable()).thenReturn(null);
+    when(parentTable.name()).thenReturn("Parent");
+    when(parentTable.schema()).thenReturn(schema);
+    when(parentTable.properties()).thenReturn(props);
+    when(parentTable.getSpannerTypes()).thenReturn(spannerTypes);
+    when(parentTable.getInterleavedTableMetadata()).thenReturn(parentMeta);
+
+    SpannerTable childTable = mock(SpannerTable.class);
+    InterleaveTableMetadata childMeta = mock(InterleaveTableMetadata.class);
+    when(childMeta.getTableName()).thenReturn("Child");
+    when(childMeta.getParentTable()).thenReturn("Parent");
+    when(childTable.name()).thenReturn("Child");
+    when(childTable.schema()).thenReturn(schema);
+    when(childTable.properties()).thenReturn(props);
+    when(childTable.getSpannerTypes()).thenReturn(spannerTypes);
+    when(childTable.getInterleavedTableMetadata()).thenReturn(childMeta);
+
+    Spark41SpannerScanBuilder leftBuilder = new Spark41SpannerScanBuilder(parentTable);
+    Spark41SpannerScanBuilder rightBuilder = new Spark41SpannerScanBuilder(childTable);
+
+    ColumnWithAlias[] leftCols = new ColumnWithAlias[] {new ColumnWithAlias("id", "p_id")};
+    ColumnWithAlias[] rightCols = new ColumnWithAlias[] {new ColumnWithAlias("id", "c_id")};
+
+    Predicate invalidUuidPred =
+        and(
+            equal(Expressions.column("p_id"), Expressions.column("c_id")),
+            equal(Expressions.column("p_id"), stringLiteral("not-a-uuid")));
+    assertFalse(
+        leftBuilder.pushDownJoin(
+            rightBuilder, JoinType.INNER_JOIN, leftCols, rightCols, invalidUuidPred));
+
+    Predicate uppercaseUuidPred =
+        and(
+            equal(Expressions.column("p_id"), Expressions.column("c_id")),
+            equal(Expressions.column("p_id"), stringLiteral(UUID1.toUpperCase())));
+    assertFalse(
+        leftBuilder.pushDownJoin(
+            rightBuilder, JoinType.INNER_JOIN, leftCols, rightCols, uppercaseUuidPred));
   }
 }

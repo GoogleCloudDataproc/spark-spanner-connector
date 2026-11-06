@@ -16,8 +16,10 @@ package com.google.cloud.spark.spanner.binding;
 import static com.google.cloud.spark.spanner.planning.query.ColumnResolution.isUuid;
 
 import com.google.cloud.ByteArray;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -30,14 +32,24 @@ import org.apache.spark.sql.types.DecimalType;
 
 public final class SpannerTypeBinder {
 
+  public static boolean isValidGoogleSqlNumeric(BigDecimal bd) {
+    BigDecimal stripped = bd.stripTrailingZeros();
+    return stripped.scale() <= 9 && (stripped.precision() - stripped.scale()) <= 29;
+  }
+
   public static void bind(Statement.Builder builder, String parameter, LiteralExpr literal) {
+    bind(builder, parameter, literal, Dialect.GOOGLE_STANDARD_SQL);
+  }
+
+  public static void bind(
+      Statement.Builder builder, String parameter, LiteralExpr literal, Dialect dialect) {
 
     Object value = literal.getValue();
     DataType sparkType = literal.getSparkType();
     String spannerType = literal.getSpannerType();
 
     if (value == null) {
-      bindNull(builder, parameter, sparkType, spannerType);
+      bindNull(builder, parameter, sparkType, spannerType, dialect);
       return;
     }
 
@@ -49,11 +61,12 @@ public final class SpannerTypeBinder {
     if (sparkType instanceof DecimalType) {
       BigDecimal bd =
           value instanceof Decimal ? ((Decimal) value).toJavaBigDecimal() : (BigDecimal) value;
-      // Spanner NUMERIC validation: precision <= 38, scale <= 9
-      if (bd.precision() <= 38 && bd.scale() <= 9) {
+      if (dialect == Dialect.POSTGRESQL) {
+        builder.bind(parameter).to(Value.pgNumeric(bd.toPlainString()));
+      } else if (isValidGoogleSqlNumeric(bd)) {
         builder.bind(parameter).to(bd);
       } else {
-        throw new IllegalArgumentException("Decimal out of Spanner NUMERIC range");
+        throw new IllegalArgumentException("Decimal out of Spanner NUMERIC range: " + bd);
       }
     } else if (sparkType.sameType(DataTypes.StringType)) {
       builder.bind(parameter).to(value.toString());
@@ -154,7 +167,11 @@ public final class SpannerTypeBinder {
   }
 
   private static void bindNull(
-      Statement.Builder builder, String parameter, DataType sparkType, String spannerType) {
+      Statement.Builder builder,
+      String parameter,
+      DataType sparkType,
+      String spannerType,
+      Dialect dialect) {
     if (isUuid(spannerType)) {
       builder.bind(parameter).to((UUID) null);
       return;
@@ -180,7 +197,11 @@ public final class SpannerTypeBinder {
         break;
 
       case NUMERIC:
-        builder.bind(parameter).to((BigDecimal) null);
+        if (dialect == Dialect.POSTGRESQL) {
+          builder.bind(parameter).to(Value.pgNumeric(null));
+        } else {
+          builder.bind(parameter).to((BigDecimal) null);
+        }
         break;
 
       case TIMESTAMP:

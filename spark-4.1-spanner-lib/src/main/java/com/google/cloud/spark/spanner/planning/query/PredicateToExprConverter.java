@@ -171,17 +171,33 @@ public final class PredicateToExprConverter {
 
   private static BoolExpr startsWith(
       Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    rejectUuidColumnForStringPattern(predicate, resolutionMap);
     return binary(predicate, resolutionMap, StartsWithExpr::new);
   }
 
   private static BoolExpr endsWith(
       Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    rejectUuidColumnForStringPattern(predicate, resolutionMap);
     return binary(predicate, resolutionMap, EndsWithExpr::new);
   }
 
   private static BoolExpr contains(
       Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    rejectUuidColumnForStringPattern(predicate, resolutionMap);
     return binary(predicate, resolutionMap, ContainsExpr::new);
+  }
+
+  private static void rejectUuidColumnForStringPattern(
+      Predicate predicate, Map<String, ColumnResolution> resolutionMap) {
+    for (Expression child : predicate.children()) {
+      if (child instanceof NamedReference) {
+        ColumnResolution resolution = resolutionMap.get(((NamedReference) child).fieldNames()[0]);
+        if (resolution != null && ColumnResolution.isUuid(resolution.getSpannerType())) {
+          throw new UnsupportedOperationException(
+              "String pattern predicate " + predicate.name() + " is not supported on UUID column");
+        }
+      }
+    }
   }
 
   private static BoolExpr translateIn(

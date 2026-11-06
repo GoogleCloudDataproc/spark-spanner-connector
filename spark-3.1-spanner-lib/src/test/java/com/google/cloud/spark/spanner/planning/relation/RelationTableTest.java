@@ -86,4 +86,37 @@ public class RelationTableTest {
             "`ATable` @{FORCE_INDEX=my_index} AS `a` INNER JOIN `BTable` @{FORCE_INDEX=my_index} AS `b` ON `a`.`aCol` = @p1");
     assertThat(result.getBindings().get("p1")).isEqualTo(aStringLiteral);
   }
+
+  @Test
+  public void testNestedJoinRelationPreservesChildJoinBindings() {
+    when(mockSpannerTable.properties()).thenReturn(mockProperties);
+    when(mockProperties.get("indexHint")).thenReturn(null);
+
+    LiteralExpr innerLiteral = new LiteralExpr("inner_val", DataTypes.StringType, "STRING");
+    LiteralExpr outerLiteral = new LiteralExpr("outer_val", DataTypes.StringType, "STRING");
+
+    Relation tableA = new TableRelation("ATable", "a", mockSpannerTable);
+    Relation tableB = new TableRelation("BTable", "b", mockSpannerTable);
+    Relation tableC = new TableRelation("CTable", "c", mockSpannerTable);
+
+    Relation innerJoin =
+        new JoinRelation(
+            tableA,
+            tableB,
+            JoinType.INNER,
+            new EqExpr(new ColumnExpr("a", "aCol", DataTypes.StringType, false), innerLiteral));
+    Relation outerJoin =
+        new JoinRelation(
+            innerJoin,
+            tableC,
+            JoinType.LEFT_OUTER,
+            new EqExpr(new ColumnExpr("b", "bCol", DataTypes.StringType, false), outerLiteral));
+
+    RenderResult result = outerJoin.accept(new SqlRelationVisitor(GOOGLE_STANDARD_SQL));
+    assertThat(result.getSql())
+        .isEqualTo(
+            "`ATable` AS `a` INNER JOIN `BTable` AS `b` ON `a`.`aCol` = @p1 LEFT OUTER JOIN `CTable` AS `c` ON `b`.`bCol` = @p2");
+    assertThat(result.getBindings().get("p1")).isEqualTo(innerLiteral);
+    assertThat(result.getBindings().get("p2")).isEqualTo(outerLiteral);
+  }
 }

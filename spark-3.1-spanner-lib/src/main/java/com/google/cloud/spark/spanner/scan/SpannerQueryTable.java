@@ -89,6 +89,8 @@ public class SpannerQueryTable implements Table, SupportsRead {
       metadata.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
     } else if (type.getCode() == com.google.spanner.v1.TypeCode.JSON) {
       metadata.putString(SpannerUtils.COLUMN_TYPE, "json");
+    } else if (type.getCode() == com.google.spanner.v1.TypeCode.UUID) {
+      metadata.putString(SpannerUtils.COLUMN_TYPE, "uuid");
     }
     return new StructField(field.getName(), toSparkDataType(type), true, metadata.build());
   }

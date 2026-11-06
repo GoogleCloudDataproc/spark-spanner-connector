@@ -56,6 +56,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
   private final String databaseId;
 
   private final String projectId;
+  private final boolean isPostgreSql;
   private final SpannerTableSchema dbSchema;
   private final @Nullable StructType dfSchema;
   private static final ImmutableSet<TableCapability> tableCapabilities =
@@ -114,7 +115,7 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
     try (Connection conn =
         SpannerUtils.connectionFromProperties(
             projectId, instanceId, databaseId, properties.get("emulatorHost"))) {
-      boolean isPostgreSql = checkIsPostgreSql(conn);
+      this.isPostgreSql = checkIsPostgreSql(conn);
 
       this.tableName = tableNameOption;
       this.projectId = projectId;
@@ -378,6 +379,10 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   public String getProjectId() {
     return projectId;
+  }
+
+  public boolean isPostgreSql() {
+    return isPostgreSql;
   }
 
   public InterleaveTableMetadata getInterleavedTableMetadata() {

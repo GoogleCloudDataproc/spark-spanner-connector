@@ -69,11 +69,14 @@ public class SpannerScanBuilder
     if (this.join != null) {
       logger.info("building join");
       builder.source(this.join).joinSchema(this.joinSchema).resolutionMap(this.resolutionMap);
-      // Assume that in a join this will be between two tables. Combine schema of tables.
-      for (StructField field :
-          ((TableRelation) this.join.getRight()).getTable().schema().fields()) {
-        this.fields.put(field.name(), field);
+      Map<String, StructField> rightFields = new LinkedHashMap<>();
+      SpannerTable rightTable = ((TableRelation) this.join.getRight()).getTable();
+      if (rightTable != null && rightTable.schema() != null) {
+        for (StructField field : rightTable.schema().fields()) {
+          rightFields.put(field.name(), field);
+        }
       }
+      builder.fieldsOther(rightFields);
     } else if (this.spannerTable != null) {
       logger.info("building spanner table");
       builder.source(createTableRelation());
@@ -126,7 +129,8 @@ public class SpannerScanBuilder
     List<Filter> handledFilters = new ArrayList<>();
     List<Filter> unhandledFilters = new ArrayList<>();
     for (Filter filter : filters) {
-      if (SparkFilterUtils.isTopLevelFieldHandled(false, filter, this.fields)) {
+      if (SparkFilterUtils.isTopLevelFieldHandled(
+          false, filter, this.fields, this.spannerTable.isPostgreSql())) {
         handledFilters.add(filter);
       } else {
         unhandledFilters.add(filter);
@@ -187,6 +191,10 @@ public class SpannerScanBuilder
 
   public Map<String, String> getSpannerTypes() {
     return spannerTable.getSpannerTypes();
+  }
+
+  public boolean isPostgreSql() {
+    return spannerTable.isPostgreSql();
   }
 
   public TableRelation createTableRelation() {

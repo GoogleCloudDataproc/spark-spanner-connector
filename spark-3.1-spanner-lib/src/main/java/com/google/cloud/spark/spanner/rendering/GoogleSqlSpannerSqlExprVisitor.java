@@ -23,9 +23,11 @@ import java.util.Collections;
 public class GoogleSqlSpannerSqlExprVisitor extends SqlExprVisitor {
 
   public GoogleSqlSpannerSqlExprVisitor() {
-    super(
-        SpannerInformationSchema.create(Dialect.GOOGLE_STANDARD_SQL),
-        ParameterRegistry.create(Dialect.GOOGLE_STANDARD_SQL));
+    this(ParameterRegistry.create(Dialect.GOOGLE_STANDARD_SQL));
+  }
+
+  public GoogleSqlSpannerSqlExprVisitor(ParameterRegistry parameterRegistry) {
+    super(SpannerInformationSchema.create(Dialect.GOOGLE_STANDARD_SQL), parameterRegistry);
   }
 
   @Override

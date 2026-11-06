@@ -97,6 +97,14 @@ public class SpannerTableSchemaTest {
   }
 
   @Test
+  public void testIsUuid() {
+    assertTrue(SpannerTableSchema.isUuid("UUID"));
+    assertTrue(SpannerTableSchema.isUuid("uuid"));
+    assertTrue(SpannerTableSchema.isUuid(" uuid "));
+    assertFalse(SpannerTableSchema.isUuid("STRING"));
+  }
+
+  @Test
   public void testGetSparkStructField_basic() {
     StructField field = SpannerTableSchema.getSparkStructField("col", "INT64", true, false);
     assertEquals("col", field.name());
@@ -131,7 +139,11 @@ public class SpannerTableSchemaTest {
   public void testGetSparkStructField_uuid() {
     StructField gsqlField = SpannerTableSchema.getSparkStructField("id", "UUID", true, false);
     assertEquals(DataTypes.StringType, gsqlField.dataType());
+    assertTrue(gsqlField.metadata().contains(SpannerUtils.COLUMN_TYPE));
+    assertEquals("uuid", gsqlField.metadata().getString(SpannerUtils.COLUMN_TYPE));
     StructField pgField = SpannerTableSchema.getSparkStructField("id", "uuid", true, true);
     assertEquals(DataTypes.StringType, pgField.dataType());
+    assertTrue(pgField.metadata().contains(SpannerUtils.COLUMN_TYPE));
+    assertEquals("uuid", pgField.metadata().getString(SpannerUtils.COLUMN_TYPE));
   }
 }

@@ -23,9 +23,11 @@ import java.util.Collections;
 public class PostgresSpannerSqlExprVisitor extends SqlExprVisitor {
 
   public PostgresSpannerSqlExprVisitor() {
-    super(
-        SpannerInformationSchema.create(Dialect.POSTGRESQL),
-        ParameterRegistry.create(Dialect.POSTGRESQL));
+    this(ParameterRegistry.create(Dialect.POSTGRESQL));
+  }
+
+  public PostgresSpannerSqlExprVisitor(ParameterRegistry parameterRegistry) {
+    super(SpannerInformationSchema.create(Dialect.POSTGRESQL), parameterRegistry);
   }
 
   @Override
@@ -38,16 +40,20 @@ public class PostgresSpannerSqlExprVisitor extends SqlExprVisitor {
 
   @Override
   public String renderStartsWith(String left, String right) {
-    return left + " LIKE (" + right + " || '%')";
+    return left + " LIKE (" + escapeLikeExpr(right) + " || '%')";
   }
 
   @Override
   public String renderEndsWith(String left, String right) {
-    return left + " LIKE ('%' || " + right + ")";
+    return left + " LIKE ('%' || " + escapeLikeExpr(right) + ")";
   }
 
   @Override
   public String renderContains(String left, String right) {
-    return left + " LIKE ('%' || " + right + " || '%')";
+    return left + " LIKE ('%' || " + escapeLikeExpr(right) + " || '%')";
+  }
+
+  private static String escapeLikeExpr(String expr) {
+    return "REPLACE(REPLACE(REPLACE(" + expr + ", '\\', '\\\\'), '%', '\\%'), '_', '\\_')";
   }
 }

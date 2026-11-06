@@ -53,7 +53,13 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
   public Dataset<Row> readFromTable(String table) {
 
     Map<String, String> props = connectionProperties();
-    DataFrameReader reader = spark.read().format("cloud-spanner");
+    DataFrameReader reader =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .option("projectId", props.get("projectId"))
+            .option("instanceId", props.get("instanceId"))
+            .option("databaseId", props.get("databaseId"));
     String emulatorHost = props.get("emulatorHost");
     if (emulatorHost != null) {
       reader = reader.option("emulatorHost", props.get("emulatorHost"));
@@ -390,6 +396,25 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     results = toString(row);
     assertThat(results)
         .isEqualTo("id3 null null null null null null null null null 6465616462656566 null");
+  }
+
+  @Test
+  public void testStringFilterInjectionAndLikeWildcardEscaping() {
+    Dataset<Row> df = readFromTable("compositeTable");
+    assertThat(df.filter(df.col("C").equalTo("\\' OR TRUE --")).count()).isEqualTo(0);
+    assertThat(df.filter(df.col("C").equalTo("' OR '1'='1")).count()).isEqualTo(0);
+
+    assertThat(df.filter(df.col("C").startsWith("foo")).count()).isEqualTo(1);
+    assertThat(df.filter(df.col("C").startsWith("foo%")).count()).isEqualTo(0);
+    assertThat(df.filter(df.col("C").startsWith("foo_")).count()).isEqualTo(0);
+
+    assertThat(df.filter(df.col("C").endsWith("bar")).count()).isEqualTo(1);
+    assertThat(df.filter(df.col("C").endsWith("%bar")).count()).isEqualTo(0);
+    assertThat(df.filter(df.col("C").endsWith("_bar")).count()).isEqualTo(0);
+
+    assertThat(df.filter(df.col("C").contains("ooba")).count()).isEqualTo(1);
+    assertThat(df.filter(df.col("C").contains("o%a")).count()).isEqualTo(0);
+    assertThat(df.filter(df.col("C").contains("o_b")).count()).isEqualTo(0);
   }
 
   Timestamp asSparkTimestamp(String s) {

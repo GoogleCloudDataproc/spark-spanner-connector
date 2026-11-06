@@ -18,9 +18,13 @@ import com.google.cloud.spark.spanner.SpannerConnectorException;
 import com.google.cloud.spark.spanner.SpannerErrorCode;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import org.apache.spark.sql.types.StructType;
 
 public final class TableRelation implements Relation {
+  private static final Pattern VALID_INDEX_HINT_PATTERN =
+      Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?$");
+
   private final String tableName;
   private final String alias;
   private final SpannerTable table;
@@ -56,7 +60,25 @@ public final class TableRelation implements Relation {
     if (cleanHint.isEmpty()) {
       throw new SpannerConnectorException(SpannerErrorCode.INVALID_ARGUMENT, "Missing indexHint");
     }
+    if (!VALID_INDEX_HINT_PATTERN.matcher(cleanHint).matches()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.INVALID_ARGUMENT, "Invalid indexHint: " + cleanHint);
+    }
     return cleanHint;
+  }
+
+  public String formatIndexHint(boolean isPostgreSql) {
+    final String indexHint = getIndexHint();
+    if (indexHint == null) {
+      return null;
+    }
+    if (isPostgreSql) {
+      return "/*@ FORCE_INDEX=" + indexHint + " */";
+    }
+    if (indexHint.contains(".")) {
+      return "@{FORCE_INDEX=\"" + indexHint + "\"}";
+    }
+    return "@{FORCE_INDEX=" + indexHint + "}";
   }
 
   @Override

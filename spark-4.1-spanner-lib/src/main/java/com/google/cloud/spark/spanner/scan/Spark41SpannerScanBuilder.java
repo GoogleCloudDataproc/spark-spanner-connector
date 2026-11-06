@@ -118,7 +118,9 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       logger.debug("predicate class = {}", predicate.getClass());
       logger.debug("predicate = {}", predicate);
 
-      BoolExpr condition = PredicateToExprConverter.translatePredicate(predicate, resolutionMap);
+      BoolExpr condition =
+          PredicateToExprConverter.translatePredicate(
+              predicate, resolutionMap, this.isPostgreSql());
 
       JoinRelation joinRelation =
           new JoinRelation(
@@ -131,9 +133,9 @@ public class Spark41SpannerScanBuilder extends SpannerScanBuilder implements Sup
       // by Spark.
       // Keep both tables in the join so complete SQL rendering can be done in a single object.
       setJoin(joinRelation, joinSchema, resolutionMap, right);
-    } catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException | IllegalArgumentException e) {
       // If predicate conversion fails, fall back to Spark-side execution.
-      logger.error("pushDownJoin: predicate conversion fails");
+      logger.error("pushDownJoin: predicate conversion fails", e);
       return false;
     }
 

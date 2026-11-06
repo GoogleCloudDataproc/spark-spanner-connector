@@ -100,10 +100,14 @@ public class SpannerQueryTableTest {
             .build();
     StructType schema =
         SpannerQueryTable.resultSetMetadataToSchema(
-            metadata(field("json", type(TypeCode.JSON)), field("jsonb", jsonbType)));
+            metadata(
+                field("json", type(TypeCode.JSON)),
+                field("jsonb", jsonbType),
+                field("uuid", type(TypeCode.UUID))));
 
     assertEquals("json", schema.apply("json").metadata().getString(SpannerUtils.COLUMN_TYPE));
     assertEquals("jsonb", schema.apply("jsonb").metadata().getString(SpannerUtils.COLUMN_TYPE));
+    assertEquals("uuid", schema.apply("uuid").metadata().getString(SpannerUtils.COLUMN_TYPE));
   }
 
   @Test

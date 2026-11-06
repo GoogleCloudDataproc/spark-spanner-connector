@@ -8,6 +8,7 @@ import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spark.spanner.SpannerRowConverter;
 import com.google.cloud.spark.spanner.SpannerRowConverterDirect;
 import com.google.cloud.spark.spanner.SpannerTableSchema;
+import com.google.cloud.spark.spanner.SparkFilterUtils;
 import com.google.common.collect.ImmutableSet;
 import com.google.spanner.v1.ResultSetMetadata;
 import java.util.ArrayList;
@@ -69,7 +70,7 @@ public class DirectGraphQuery implements GraphSubQuery {
     } else {
       String selectedColumnNames =
           Arrays.stream(dataframeSchema.fields())
-              .map(StructField::name)
+              .map(field -> SparkFilterUtils.quoteIdentifier(field.name(), false))
               .collect(Collectors.joining(", "));
       if (selectedColumnNames.isEmpty()) {
         selectedColumnNames = "null";

@@ -21,10 +21,15 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Value;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -116,6 +121,26 @@ public class SpannerUtilsTest {
         exception
             .getMessage()
             .contains("DataFrame has type string but Spanner table expects type bigint"));
+  }
+
+  @Test
+  public void testValidateSchemaFloat32VsFloat64Mismatch() {
+    StructType spannerSchema =
+        new StructType(
+            new StructField[] {new StructField("score", DataTypes.FloatType, true, null)});
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {new StructField("score", DataTypes.DoubleType, true, null)});
+
+    SpannerConnectorException exception =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME));
+    assertTrue(exception.getMessage().contains("Data type mismatch for column 'score'"));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains("DataFrame has type double but Spanner table expects type float"));
   }
 
   @Test
@@ -353,5 +378,68 @@ public class SpannerUtilsTest {
     StructType actualSchema = pruneSchema(originalSchema, requiredColumns);
 
     assertArrayEquals(expectedSchema.fields(), actualSchema.fields());
+  }
+
+  @Test
+  public void testConvertFloat32Values() {
+    Struct spannerRow =
+        Struct.newBuilder()
+            .set("value")
+            .to(Value.float32(1.25f))
+            .set("inexact")
+            .to(Value.float32(-0.1f))
+            .set("nan")
+            .to(Value.float32(Float.NaN))
+            .set("pos_inf")
+            .to(Value.float32(Float.POSITIVE_INFINITY))
+            .set("neg_inf")
+            .to(Value.float32(Float.NEGATIVE_INFINITY))
+            .set("max")
+            .to(Value.float32(Float.MAX_VALUE))
+            .set("min")
+            .to(Value.float32(Float.MIN_VALUE))
+            .set("null_value")
+            .to(Value.float32(null))
+            .build();
+
+    InternalRow sparkRow = SpannerUtils.spannerStructToInternalRow(spannerRow);
+
+    // FloatType values must be stored as floats, not doubles, for InternalRow.getFloat to work.
+    assertEquals(1.25f, sparkRow.getFloat(0), 0.0f);
+    assertEquals(-0.1f, sparkRow.getFloat(1), 0.0f);
+    assertTrue(Float.isNaN(sparkRow.getFloat(2)));
+    assertEquals(Float.POSITIVE_INFINITY, sparkRow.getFloat(3), 0.0f);
+    assertEquals(Float.NEGATIVE_INFINITY, sparkRow.getFloat(4), 0.0f);
+    assertEquals(Float.MAX_VALUE, sparkRow.getFloat(5), 0.0f);
+    assertEquals(Float.MIN_VALUE, sparkRow.getFloat(6), 0.0f);
+    assertTrue(sparkRow.isNullAt(7));
+  }
+
+  @Test
+  public void testConvertFloat32ArrayValues() {
+    Struct spannerRow =
+        Struct.newBuilder()
+            .set("values")
+            .to(
+                Value.float32Array(
+                    Arrays.asList(
+                        1.25f, null, Float.NaN, Float.NEGATIVE_INFINITY, Float.MAX_VALUE)))
+            .set("empty")
+            .to(Value.float32Array(new float[0]))
+            .set("null_array")
+            .to(Value.float32Array((float[]) null))
+            .build();
+
+    InternalRow sparkRow = SpannerUtils.spannerStructToInternalRow(spannerRow);
+
+    ArrayData values = sparkRow.getArray(0);
+    assertEquals(5, values.numElements());
+    assertEquals(1.25f, values.getFloat(0), 0.0f);
+    assertTrue(values.isNullAt(1));
+    assertTrue(Float.isNaN(values.getFloat(2)));
+    assertEquals(Float.NEGATIVE_INFINITY, values.getFloat(3), 0.0f);
+    assertEquals(Float.MAX_VALUE, values.getFloat(4), 0.0f);
+    assertEquals(0, sparkRow.getArray(1).numElements());
+    assertTrue(sparkRow.isNullAt(2));
   }
 }

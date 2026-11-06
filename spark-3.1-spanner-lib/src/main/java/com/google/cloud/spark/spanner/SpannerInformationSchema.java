@@ -129,6 +129,9 @@ class GoogleSqlSpannerInformationSchema implements SpannerInformationSchema {
     if (field.dataType().equals(DataTypes.DoubleType)) {
       return "FLOAT64";
     }
+    if (field.dataType().equals(DataTypes.FloatType)) {
+      return "FLOAT32";
+    }
     if (field.dataType().equals(DataTypes.BinaryType)) {
       return "BYTES(MAX)";
     }
@@ -201,6 +204,9 @@ class PostgresSpannerInformationSchema implements SpannerInformationSchema {
     }
     if (field.dataType().equals(DataTypes.DoubleType)) {
       return "float8";
+    }
+    if (field.dataType().equals(DataTypes.FloatType)) {
+      return "float4";
     }
     if (field.dataType().equals(DataTypes.BinaryType)) {
       return "bytea";

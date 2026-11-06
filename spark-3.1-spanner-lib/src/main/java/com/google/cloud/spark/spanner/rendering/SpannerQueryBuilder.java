@@ -150,8 +150,8 @@ public class SpannerQueryBuilder {
       logger.debug(
           "bindings: Key: {}, Value type: {}: {}",
           entry.getKey(),
-          entry.getValue().getSparkType().toString(),
-          entry.getValue().getValue().toString());
+          entry.getValue().getSparkType(),
+          entry.getValue().getValue());
     }
 
     return new RenderResult(query, bindings);

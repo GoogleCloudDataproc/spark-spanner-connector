@@ -63,6 +63,7 @@ def run_schema_tests(df, issues):
         StructField('J', StringType(), True),
         StructField('K', DoubleType(), True),
         StructField('L', StringType(), True),
+        StructField('M', FloatType(), True),
     ])
 
     schemas_equivalent(df.schema, expected_schema, issues)
@@ -116,6 +117,9 @@ def run_type_mapping_tests(df, issues):
     if row.L != "d30b9903-ba70-491f-ba55-42be7d42595e":
         issues.append(f"L expected d30b9903-ba70-491f-ba55-42be7d42595e but found {row.L}")
 
+    if row.M != 1.25:
+        issues.append(f"M expected 1.25 but found {row.M}")
+
     # Verify types
     if not isinstance(row.A, int):
         issues.append(f"A expected int but found {type(row.A)}")
@@ -134,6 +138,9 @@ def run_type_mapping_tests(df, issues):
 
     if not isinstance(row.L, str):
         issues.append(f"L expected str but found {type(row.L)}")
+
+    if not isinstance(row.M, float):
+        issues.append(f"M expected float but found {type(row.M)}")
 
 
 def run_null_tests(df, issues):
@@ -173,6 +180,9 @@ def run_null_tests(df, issues):
 
     if row.L is not None:
         issues.append("L expected NULL")
+
+    if row.M is not None:
+        issues.append("M expected NULL")
 
 
 def run_json_tests(df, issues):

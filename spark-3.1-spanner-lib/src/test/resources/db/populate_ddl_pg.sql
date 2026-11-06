@@ -18,6 +18,7 @@ CREATE TABLE composite_table (
   timestampCol timestamptz,
   jsonCol jsonb,
   uuidCol uuid,
+  realCol real,
   PRIMARY KEY(id)
 );
 
@@ -91,6 +92,7 @@ CREATE TABLE write_test_table (
   bytes_col BYTEA,
   numeric_col NUMERIC,
   uuid_col UUID,
+  float32_col REAL,
   PRIMARY KEY(long_col)
 );
 
@@ -104,6 +106,7 @@ CREATE TABLE write_struct_test_table (
     bytes_col BYTEA,
     numeric_col NUMERIC,
     uuid_col UUID,
+    float32_col REAL,
     struct_col jsonb,
     PRIMARY KEY(long_col)
 );
@@ -126,6 +129,7 @@ CREATE TABLE write_array_test_table (
   binary_array BYTEA ARRAY,
   numeric_array NUMERIC ARRAY,
   uuid_array UUID ARRAY,
+  float32_array REAL ARRAY,
   PRIMARY KEY(long_col)
 );
 

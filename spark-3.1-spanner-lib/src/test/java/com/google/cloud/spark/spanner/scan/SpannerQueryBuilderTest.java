@@ -20,9 +20,12 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.SpannerConnectorException;
 import com.google.cloud.spark.spanner.planning.expression.ColumnExpr;
 import com.google.cloud.spark.spanner.planning.expression.EqExpr;
+import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
@@ -183,5 +186,37 @@ public class SpannerQueryBuilderTest {
     Statement statement = spannerQueryBuilder.buildStatement();
     String stmt = statement.toString();
     assertThat(stmt).contains(expectedIndexHint);
+  }
+
+  @Test
+  public void testBuildStatement_nullLiteralBinding_new_builder() {
+    CaseInsensitiveStringMap mockProperties = Mockito.mock(CaseInsensitiveStringMap.class);
+    SpannerTable mockSpannerTable = Mockito.mock(SpannerTable.class);
+    when(mockSpannerTable.name()).thenReturn("mockSpannerTable");
+    when(mockSpannerTable.properties()).thenReturn(mockProperties);
+    when(mockProperties.containsKey("indexHint")).thenReturn(Boolean.FALSE);
+    Map<String, ColumnResolution> columnResolution = new HashMap<>();
+    columnResolution.put(
+        "M",
+        new ColumnResolution("M", "M", "mockSpannerTable", DataTypes.FloatType, "FLOAT32", true));
+    LogicalQuery logicalQuery =
+        LogicalQuery.builder()
+            .source(
+                new JoinRelation(
+                    new TableRelation("mockLeftSpannerTable", null, mockSpannerTable),
+                    new TableRelation("mockRightSpannerTable", null, mockSpannerTable),
+                    JoinType.INNER,
+                    new EqExpr(
+                        new ColumnExpr("mockLeftSpannerTable", "M", DataTypes.FloatType, true),
+                        new LiteralExpr(null, DataTypes.FloatType, "FLOAT32"))))
+            .resolutionMap(columnResolution)
+            .build();
+    SpannerQueryBuilder spannerQueryBuilder =
+        SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.GOOGLE_STANDARD_SQL, true);
+    Statement statement = spannerQueryBuilder.buildStatement();
+    assertThat(statement.getParameters()).isNotEmpty();
+    Value boundValue = statement.getParameters().values().iterator().next();
+    assertThat(boundValue.isNull()).isTrue();
+    assertThat(boundValue.getType().getCode()).isEqualTo(Type.Code.FLOAT32);
   }
 }

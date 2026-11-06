@@ -134,4 +134,36 @@ public class SpannerTableSchemaTest {
     StructField pgField = SpannerTableSchema.getSparkStructField("id", "uuid", true, true);
     assertEquals(DataTypes.StringType, pgField.dataType());
   }
+
+  @Test
+  public void testGetSparkStructField_float32() {
+    assertEquals(
+        DataTypes.FloatType,
+        SpannerTableSchema.getSparkStructField("f", "FLOAT32", true, false).dataType());
+    assertEquals(
+        DataTypes.createArrayType(DataTypes.FloatType, true),
+        SpannerTableSchema.getSparkStructField("f", "ARRAY<FLOAT32>", true, false).dataType());
+    // FLOAT64 must keep mapping to DoubleType.
+    assertEquals(
+        DataTypes.DoubleType,
+        SpannerTableSchema.getSparkStructField("d", "FLOAT64", true, false).dataType());
+  }
+
+  @Test
+  public void testGetSparkStructField_float32Pg() {
+    // INFORMATION_SCHEMA.COLUMNS.SPANNER_TYPE reports both real and float4 columns as "real".
+    assertEquals(
+        DataTypes.FloatType,
+        SpannerTableSchema.getSparkStructField("f", "real", true, true).dataType());
+    assertEquals(
+        DataTypes.FloatType,
+        SpannerTableSchema.getSparkStructField("f", "float4", true, true).dataType());
+    assertEquals(
+        DataTypes.createArrayType(DataTypes.FloatType, true),
+        SpannerTableSchema.getSparkStructField("f", "real[]", true, true).dataType());
+    // double precision must keep mapping to DoubleType.
+    assertEquals(
+        DataTypes.DoubleType,
+        SpannerTableSchema.getSparkStructField("d", "double precision", true, true).dataType());
+  }
 }

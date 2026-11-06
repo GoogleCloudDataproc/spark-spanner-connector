@@ -277,6 +277,7 @@ Spark Data Type|Spanner GoogleSql Type
 `StringType`|`STRING`
 `BooleanType`|`BOOL`
 `DoubleType`|`FLOAT64`
+`FloatType`|`FLOAT32`
 `BinaryType`|`BYTES`
 `TimestampType`|`TIMESTAMP`
 `DateType`|`DATE`
@@ -289,6 +290,7 @@ Spark Array Element Type|Spanner GoogleSql Array Type
 `StringType`|`ARRAY<STRING>`
 `BooleanType`|`ARRAY<BOOL>`
 `DoubleType`|`ARRAY<FLOAT64>`
+`FloatType`|`ARRAY<FLOAT32>`
 `BinaryType`|`ARRAY<BYTES>`
 `TimestampType`|`ARRAY<TIMESTAMP>`
 `DateType`|`ARRAY<DATE>`
@@ -301,6 +303,7 @@ Spark Data Type|Spanner PostgreSql Type
 `StringType`|`varchar`/`text`/`character varying`
 `BooleanType`|`bool`/`boolean`
 `DoubleType`|`double precision`/`float8`
+`FloatType`|`real`/`float4`
 `BinaryType`|`bytea`
 `TimestampType`|`timestamptz`/`timestamp with time zone`
 `DateType`|`date`
@@ -313,6 +316,7 @@ Spark Array Element Type|Spanner PostgreSql Array Type
 `StringType`|`varchar[]`/`text[]`/`character varying[]`
 `BooleanType`|`bool[]`/`boolean[]`
 `DoubleType`|`double precision[]`/`float8[]`
+`FloatType`|`real[]`/`float4[]`
 `BinaryType`|`bytea[]`
 `TimestampType`|`timestamptz[]`/`timestamp with time zone[]`
 `DateType`|`date[]`
@@ -580,6 +584,7 @@ ARRAY    | ArrayType     | Nested ARRAY is not supported, e.g. ARRAY<ARRAY<BOOL>
 BOOL     | BooleanType   |
 BYTES    | BinaryType    |
 DATE     | DateType      | The date range is [1700-01-01, 9999-12-31].
+FLOAT32  | FloatType     |
 FLOAT64  | DoubleType    |
 INT64    | LongType      | The supported integer range is [-9,223,372,036,854,775,808, 9,223,372,036,854,775,807]
 JSON     | StringType    | Spark has no JSON type. The values are read as String.
@@ -629,6 +634,7 @@ bool / boolean                       |BooleanType  |
 bytea                                |BinaryType   |
 date                                 |DateType     | The date range is [1700-01-01, 9999-12-31].
 double precision / float8            |DoubleType   |
+real / float4                        |FloatType    |
 int8 / bigint                        |LongType     | The supported integer range is [-9,223,372,036,854,775,808, 9,223,372,036,854,775,807]
 jsonb                                |StringType   | Spark has no JSON type. The values are read as String.
 numeric / decimal                    |DecimalType  | The NUMERIC will be converted to DecimalType with 38 precision and 9 scale, which is the same as the Spanner definition.

@@ -36,6 +36,10 @@ import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
+import org.apache.spark.sql.sources.EqualTo;
+import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.sources.GreaterThan;
+import org.apache.spark.sql.sources.In;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.Test;
@@ -164,7 +168,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     null,
                     null,
                     -0.1,
-                    "4d2e278e-58ed-40cc-96ec-329c5b8eea6b"),
+                    "4d2e278e-58ed-40cc-96ec-329c5b8eea6b",
+                    -0.1f),
                 makeATableInternalRow(
                     10,
                     "20",
@@ -177,7 +182,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     null,
                     null,
                     null,
-                    "7a89d8cd-057f-41ee-b7f0-217614a1d53e"),
+                    "7a89d8cd-057f-41ee-b7f0-217614a1d53e",
+                    null),
                 makeATableInternalRow(
                     30,
                     "30",
@@ -190,7 +196,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     null,
                     null,
                     -0.1,
-                    "d30b9903-ba70-491f-ba55-42be7d42595e"),
+                    "d30b9903-ba70-491f-ba55-42be7d42595e",
+                    0.1f),
                 makeATableInternalRow(
                     40,
                     "40",
@@ -203,12 +210,48 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     new String[] {"a", "b", "c"},
                     "{\"name\":\"john\"}",
                     null,
-                    "d30b9903-ba70-491f-ba55-42be7d42595e"),
+                    "d30b9903-ba70-491f-ba55-42be7d42595e",
+                    1.25f),
                 makeATableInternalRow(
-                    50, null, null, null, null, null, null, null, null, null, null, null)));
+                    50, null, null, null, null, null, null, null, null, null, null, null, null)));
 
     planInputPartitionsShouldSuccessInSpannerScanBuilderBase(
         "ATable", false, expectRows, SpannerTestBase.getATableSchema());
+  }
+
+  @Test
+  public void pushedFloat32FiltersShouldCompareFloat32Values() throws Exception {
+    // -0.1 has no exact FLOAT32 representation, so the pushed filter must compare FLOAT32 values
+    // rather than the FLOAT64 value -0.1.
+    assertEquals(
+        Collections.singletonList(1L), readATableIdsWithPushedFilters(new EqualTo("M", -0.1f)));
+    assertEquals(
+        Arrays.asList(30L, 40L), readATableIdsWithPushedFilters(new GreaterThan("M", 0.0f)));
+    // NaN, infinities and the largest finite FLOAT32 value must render as valid SQL.
+    assertEquals(
+        Arrays.asList(1L, 40L),
+        readATableIdsWithPushedFilters(
+            new In(
+                "M",
+                new Object[] {-0.1f, 1.25f, Float.NaN, Float.POSITIVE_INFINITY, Float.MAX_VALUE})));
+  }
+
+  private List<Long> readATableIdsWithPushedFilters(Filter... filters) throws Exception {
+    SpannerScanBuilder spannerScanBuilder = createSpannerScanBuilder("ATable", false);
+    assertEquals(0, spannerScanBuilder.pushFilters(filters).length);
+    spannerScanBuilder.pruneColumns(new StructType().add("A", DataTypes.LongType, false));
+    SpannerScanner scanner = (SpannerScanner) spannerScanBuilder.build();
+    PartitionReaderFactory readerFactory = scanner.createReaderFactory();
+    List<Long> ids = new ArrayList<>();
+    for (InputPartition partition : scanner.planInputPartitions()) {
+      try (PartitionReader<InternalRow> reader = readerFactory.createReader(partition)) {
+        while (reader.next()) {
+          ids.add(reader.get().getLong(0));
+        }
+      }
+    }
+    Collections.sort(ids);
+    return ids;
   }
 
   @Test
@@ -226,7 +269,7 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
             Arrays.asList(
                 makeCompositeTableRowPg(
                     1, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null),
+                    null, null, null, null, null, null),
                 makeCompositeTableRowPg(
                     2,
                     "charvcol",
@@ -246,7 +289,8 @@ public abstract class SpannerScanBuilderIntegrationTestBase extends SpannerTestB
                     "2003-04-12T11:05:06Z",
                     "2003-04-12T12:05:06Z",
                     "{\"tags\": [\"multi-cuisine\", \"open-seating\"], \"rating\": 4.5}",
-                    "4d2e278e-58ed-40cc-96ec-329c5b8eea6b")));
+                    "4d2e278e-58ed-40cc-96ec-329c5b8eea6b",
+                    -0.1f)));
 
     planInputPartitionsShouldSuccessInSpannerScanBuilderBase(
         "composite_table", true, expectRows, SpannerTestBase.getCompositeTableSchema());

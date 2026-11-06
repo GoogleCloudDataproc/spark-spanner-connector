@@ -14,7 +14,8 @@
 # limitations under the License.
 
 from pyspark.sql import SparkSession, Row
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, lit
+from pyspark.sql.types import FloatType
 import sys
 
 
@@ -60,6 +61,8 @@ def run_tests(df):
         ("Filter starts with", col("B").startswith("3"), 1),
         ("Filter ends with", col("B").endswith("0"), 3),
         ("Filter contains", col("B").contains("2"), 2),
+        ("Filter float32 equals", col("M") == lit(-0.1).cast(FloatType()), 1),
+        ("Filter float32 greater than", col("M") > lit(0.0).cast(FloatType()), 2),
    ]
 
     issues = []

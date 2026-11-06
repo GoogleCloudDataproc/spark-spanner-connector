@@ -299,6 +299,33 @@ public class SpannerCatalogTest {
   }
 
   @Test
+  public void testToDdlWithFloatColumns() {
+    Identifier ident = Identifier.of(new String[] {"p", "i", "d"}, "float_table");
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, SpannerCatalog.PRIMARY_KEY_METADATA),
+              new StructField("score", DataTypes.FloatType, true, Metadata.empty()),
+              new StructField(
+                  "scores", DataTypes.createArrayType(DataTypes.FloatType), true, Metadata.empty()),
+            });
+
+    String ddl = SpannerInformationSchema.create(dialect).createTableDdl(ident, schema);
+
+    if (dialect == Dialect.POSTGRESQL) {
+      assertEquals(
+          "CREATE TABLE \"float_table\" (\"id\" bigint NOT NULL, \"score\" float4, "
+              + "\"scores\" float4[], PRIMARY KEY (\"id\"))",
+          ddl);
+    } else {
+      assertEquals(
+          "CREATE TABLE `float_table` (`id` INT64 NOT NULL, `score` FLOAT32, "
+              + "`scores` ARRAY<FLOAT32>, PRIMARY KEY (`id`))",
+          ddl);
+    }
+  }
+
+  @Test
   public void enrichSchemaWithPrimaryKeysShouldAddMetadata() {
     StructType schema =
         new StructType(

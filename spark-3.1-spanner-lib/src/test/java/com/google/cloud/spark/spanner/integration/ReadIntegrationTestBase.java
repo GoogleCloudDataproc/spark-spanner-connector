@@ -685,10 +685,14 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     }
     if (dataType == DataTypes.LongType) {
       return String.valueOf(row.getLong(index));
+    } else if (dataType == DataTypes.IntegerType) {
+      return String.valueOf(row.getInt(index));
     } else if (dataType == DataTypes.StringType) {
       return String.valueOf(row.getString(index));
     } else if (dataType == DataTypes.BooleanType) {
       return String.valueOf(row.getBoolean(index));
+    } else if (dataType == DataTypes.FloatType) {
+      return String.valueOf(row.getFloat(index));
     } else if (dataType == DataTypes.DoubleType) {
       return String.valueOf(row.getDouble(index));
     } else if (dataType == DataTypes.BinaryType) {
@@ -707,6 +711,7 @@ public class ReadIntegrationTestBase extends SparkSpannerIntegrationTestBase {
     } else if (dataType.equals(DataTypes.createArrayType(DataTypes.LongType))
         || dataType.equals(DataTypes.createArrayType(DataTypes.StringType))
         || dataType.equals(DataTypes.createArrayType(DataTypes.BooleanType))
+        || dataType.equals(DataTypes.createArrayType(DataTypes.FloatType))
         || dataType.equals(DataTypes.createArrayType(DataTypes.DoubleType))
         || dataType.equals(DataTypes.createArrayType(DataTypes.DateType))
         || dataType.equals(DataTypes.createArrayType(DataTypes.TimestampType))

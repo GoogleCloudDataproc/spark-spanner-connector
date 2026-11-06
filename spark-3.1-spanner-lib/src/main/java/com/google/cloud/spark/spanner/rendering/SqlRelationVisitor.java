@@ -15,6 +15,7 @@ package com.google.cloud.spark.spanner.rendering;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spark.spanner.SpannerInformationSchema;
+import com.google.cloud.spark.spanner.binding.ParameterRegistry;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
 import com.google.cloud.spark.spanner.planning.relation.JoinType;
 import com.google.cloud.spark.spanner.planning.relation.RelationVisitor;
@@ -28,8 +29,12 @@ public class SqlRelationVisitor implements RelationVisitor<RenderResult> {
   boolean isPostgreSql;
 
   public SqlRelationVisitor(Dialect dialect) {
+    this(dialect, ParameterRegistry.create(dialect));
+  }
+
+  public SqlRelationVisitor(Dialect dialect, ParameterRegistry parameterRegistry) {
     this.infoSchema = SpannerInformationSchema.create(dialect);
-    this.sqlExprVisitor = SqlExprVisitor.create(dialect);
+    this.sqlExprVisitor = SqlExprVisitor.create(dialect, parameterRegistry);
     this.isPostgreSql = (dialect == Dialect.POSTGRESQL);
   }
 

@@ -90,4 +90,31 @@ public class SpannerExprTest {
     assertThat(result.getBindings().get("p2")).isEqualTo(a47Literal);
     assertThat(result.getBindings().get("p3")).isEqualTo(a45Literal);
   }
+
+  @Test
+  public void testPostgresLikeExpressionsEscapeWildcards() {
+    ColumnExpr col = new ColumnExpr("ATable", "Name", DataTypes.StringType, false);
+    LiteralExpr pattern = new LiteralExpr("foo%_\\bar", DataTypes.StringType, "STRING");
+
+    SqlExprVisitor startsWithVisitor = SqlExprVisitor.create(Dialect.POSTGRESQL);
+    RenderResult startsWithResult = new StartsWithExpr(col, pattern).accept(startsWithVisitor);
+    assertThat(startsWithResult.getSql())
+        .isEqualTo(
+            "\"ATable\".\"Name\" LIKE (REPLACE(REPLACE(REPLACE($1, '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%')");
+    assertThat(startsWithResult.getBindings().get("p1")).isEqualTo(pattern);
+
+    SqlExprVisitor endsWithVisitor = SqlExprVisitor.create(Dialect.POSTGRESQL);
+    RenderResult endsWithResult = new EndsWithExpr(col, pattern).accept(endsWithVisitor);
+    assertThat(endsWithResult.getSql())
+        .isEqualTo(
+            "\"ATable\".\"Name\" LIKE ('%' || REPLACE(REPLACE(REPLACE($1, '\\', '\\\\'), '%', '\\%'), '_', '\\_'))");
+    assertThat(endsWithResult.getBindings().get("p1")).isEqualTo(pattern);
+
+    SqlExprVisitor containsVisitor = SqlExprVisitor.create(Dialect.POSTGRESQL);
+    RenderResult containsResult = new ContainsExpr(col, pattern).accept(containsVisitor);
+    assertThat(containsResult.getSql())
+        .isEqualTo(
+            "\"ATable\".\"Name\" LIKE ('%' || REPLACE(REPLACE(REPLACE($1, '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%')");
+    assertThat(containsResult.getBindings().get("p1")).isEqualTo(pattern);
+  }
 }

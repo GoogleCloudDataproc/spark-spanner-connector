@@ -31,11 +31,15 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
   }
 
   public static SqlExprVisitor create(Dialect dialect) {
+    return create(dialect, ParameterRegistry.create(dialect));
+  }
+
+  public static SqlExprVisitor create(Dialect dialect, ParameterRegistry parameterRegistry) {
     switch (dialect) {
       case POSTGRESQL:
-        return new PostgresSpannerSqlExprVisitor();
+        return new PostgresSpannerSqlExprVisitor(parameterRegistry);
       case GOOGLE_STANDARD_SQL:
-        return new GoogleSqlSpannerSqlExprVisitor();
+        return new GoogleSqlSpannerSqlExprVisitor(parameterRegistry);
     }
     throw new IllegalArgumentException("Unsupported dialect: " + dialect);
   }

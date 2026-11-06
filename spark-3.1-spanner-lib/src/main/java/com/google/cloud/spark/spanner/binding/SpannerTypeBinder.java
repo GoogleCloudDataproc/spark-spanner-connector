@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
 
 public final class SpannerTypeBinder {
@@ -46,7 +47,8 @@ public final class SpannerTypeBinder {
     }
 
     if (sparkType instanceof DecimalType) {
-      BigDecimal bd = (BigDecimal) value;
+      BigDecimal bd =
+          value instanceof Decimal ? ((Decimal) value).toJavaBigDecimal() : (BigDecimal) value;
       // Spanner NUMERIC validation: precision <= 38, scale <= 9
       if (bd.precision() <= 38 && bd.scale() <= 9) {
         builder.bind(parameter).to(bd);
@@ -56,19 +58,19 @@ public final class SpannerTypeBinder {
     } else if (sparkType.sameType(DataTypes.StringType)) {
       builder.bind(parameter).to(value.toString());
     } else if (sparkType.sameType(DataTypes.LongType)) {
-      builder.bind(parameter).to((Long) value);
+      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.BooleanType)) {
       builder.bind(parameter).to((Boolean) value);
     } else if (sparkType.sameType(DataTypes.IntegerType)) {
       builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.ShortType)) {
-      builder.bind(parameter).to(((Short) value).longValue());
+      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.ByteType)) {
-      builder.bind(parameter).to(((Byte) value).longValue());
+      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.DoubleType)) {
-      builder.bind(parameter).to((Double) value);
+      builder.bind(parameter).to(((Number) value).doubleValue());
     } else if (sparkType.sameType(DataTypes.FloatType)) {
-      builder.bind(parameter).to(((Float) value).doubleValue());
+      builder.bind(parameter).to(((Number) value).doubleValue());
     } else if (sparkType.sameType(DataTypes.TimestampType)) {
 
       if (value instanceof Instant) {
@@ -93,15 +95,33 @@ public final class SpannerTypeBinder {
             "Unexpected timestamp literal type: " + value.getClass());
       }
     } else if (sparkType.sameType(DataTypes.DateType)) {
-      // Spark predicate dates will have been normalized to LocalDate.
-      LocalDate localDate = (LocalDate) value;
+      LocalDate localDate;
+      if (value instanceof LocalDate) {
+        localDate = (LocalDate) value;
+      } else if (value instanceof java.sql.Date) {
+        localDate = ((java.sql.Date) value).toLocalDate();
+      } else {
+        throw new IllegalArgumentException("Unexpected date literal type: " + value.getClass());
+      }
       builder
           .bind(parameter)
           .to(
               com.google.cloud.Date.fromYearMonthDay(
                   localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
     } else if (sparkType.sameType(DataTypes.BinaryType)) {
-      builder.bind(parameter).to(ByteArray.copyFrom((byte[]) value));
+      byte[] bytes;
+      if (value instanceof byte[]) {
+        bytes = (byte[]) value;
+      } else if (value instanceof Byte[]) {
+        Byte[] boxed = (Byte[]) value;
+        bytes = new byte[boxed.length];
+        for (int i = 0; i < boxed.length; i++) {
+          bytes[i] = boxed[i];
+        }
+      } else {
+        throw new IllegalArgumentException("Unexpected binary literal type: " + value.getClass());
+      }
+      builder.bind(parameter).to(ByteArray.copyFrom(bytes));
     } else {
       throw new UnsupportedOperationException("Unsupported type: " + sparkType);
     }

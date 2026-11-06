@@ -20,9 +20,11 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.SpannerConnectorException;
 import com.google.cloud.spark.spanner.planning.expression.ColumnExpr;
 import com.google.cloud.spark.spanner.planning.expression.EqExpr;
+import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import com.google.cloud.spark.spanner.planning.query.ColumnResolution;
 import com.google.cloud.spark.spanner.planning.query.LogicalQuery;
 import com.google.cloud.spark.spanner.planning.relation.JoinRelation;
@@ -30,7 +32,12 @@ import com.google.cloud.spark.spanner.planning.relation.JoinType;
 import com.google.cloud.spark.spanner.planning.relation.TableRelation;
 import com.google.cloud.spark.spanner.rendering.SpannerQueryBuilder;
 import java.util.*;
+import org.apache.spark.sql.sources.EqualTo;
+import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.sources.StringStartsWith;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -183,5 +190,116 @@ public class SpannerQueryBuilderTest {
     Statement statement = spannerQueryBuilder.buildStatement();
     String stmt = statement.toString();
     assertThat(stmt).contains(expectedIndexHint);
+  }
+
+  @Test
+  public void testBuildColumnsWithTablePrefix_escapesIdentifierDelimiters() {
+    String gsqlResult =
+        SpannerQueryBuilder.buildColumnsWithTablePrefix(
+            "my`table", Arrays.asList("col`1", "col2"), false);
+    assertThat(gsqlResult).isEqualTo("`my``table`.`col``1`, `my``table`.`col2`");
+
+    String pgResult =
+        SpannerQueryBuilder.buildColumnsWithTablePrefix(
+            "my\"table", Arrays.asList("col\"1", "col2"), true);
+    assertThat(pgResult).isEqualTo("\"my\"\"table\".\"col\"\"1\", \"my\"\"table\".\"col2\"");
+  }
+
+  @Test
+  public void testBuildStatement_legacyBuilder_bindsFilterParameters_googleSql() {
+    CaseInsensitiveStringMap mockProperties = Mockito.mock(CaseInsensitiveStringMap.class);
+    SpannerTable mockSpannerTable = Mockito.mock(SpannerTable.class);
+    when(mockSpannerTable.name()).thenReturn("users");
+    when(mockSpannerTable.properties()).thenReturn(mockProperties);
+    Map<String, StructField> fields = new HashMap<>();
+    fields.put("name", new StructField("name", DataTypes.StringType, true, Metadata.empty()));
+    Filter[] filters =
+        new Filter[] {
+          new EqualTo("name", "\\' OR TRUE --"), new StringStartsWith("name", "foo%_\\")
+        };
+    LogicalQuery logicalQuery =
+        LogicalQuery.builder()
+            .source(new TableRelation("users", null, mockSpannerTable))
+            .pushedFilters(filters)
+            .fields(fields)
+            .build();
+    Statement statement =
+        SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.GOOGLE_STANDARD_SQL, false)
+            .buildStatement();
+    assertThat(statement.getSql())
+        .isEqualTo("SELECT * FROM `users` WHERE (`name` = @p1 AND `name` LIKE @p2)");
+    assertThat(statement.getParameters().get("p1")).isEqualTo(Value.string("\\' OR TRUE --"));
+    assertThat(statement.getParameters().get("p2")).isEqualTo(Value.string("foo\\%\\_\\\\%"));
+  }
+
+  @Test
+  public void testBuildStatement_legacyBuilder_bindsFilterParameters_postgresql() {
+    CaseInsensitiveStringMap mockProperties = Mockito.mock(CaseInsensitiveStringMap.class);
+    SpannerTable mockSpannerTable = Mockito.mock(SpannerTable.class);
+    when(mockSpannerTable.name()).thenReturn("users");
+    when(mockSpannerTable.properties()).thenReturn(mockProperties);
+    Map<String, StructField> fields = new HashMap<>();
+    fields.put("name", new StructField("name", DataTypes.StringType, true, Metadata.empty()));
+    Filter[] filters =
+        new Filter[] {new EqualTo("name", "' OR '1'='1"), new StringStartsWith("name", "foo%_\\")};
+    LogicalQuery logicalQuery =
+        LogicalQuery.builder()
+            .source(new TableRelation("users", null, mockSpannerTable))
+            .pushedFilters(filters)
+            .fields(fields)
+            .build();
+    Statement statement =
+        SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.POSTGRESQL, false).buildStatement();
+    assertThat(statement.getSql())
+        .isEqualTo("SELECT * FROM \"users\" WHERE (\"name\" = $1 AND \"name\" LIKE $2)");
+    assertThat(statement.getParameters().get("p1")).isEqualTo(Value.string("' OR '1'='1"));
+    assertThat(statement.getParameters().get("p2")).isEqualTo(Value.string("foo\\%\\_\\\\%"));
+  }
+
+  @Test
+  public void testBuildStatement_newBuilder_sharesParameterRegistryBetweenJoinAndFilters() {
+    CaseInsensitiveStringMap mockProperties = Mockito.mock(CaseInsensitiveStringMap.class);
+    SpannerTable mockSpannerTable = Mockito.mock(SpannerTable.class);
+    when(mockSpannerTable.name()).thenReturn("mockSpannerTable");
+    when(mockSpannerTable.properties()).thenReturn(mockProperties);
+    Map<String, ColumnResolution> columnResolution = new HashMap<>();
+    columnResolution.put(
+        "A",
+        new ColumnResolution(
+            "A", "A", "mockLeftSpannerTable", DataTypes.StringType, "STRING", true));
+    columnResolution.put(
+        "B",
+        new ColumnResolution(
+            "B", "B", "mockRightSpannerTable", DataTypes.StringType, "STRING", true));
+
+    Map<String, StructField> fields = new HashMap<>();
+    fields.put("A", new StructField("A", DataTypes.StringType, true, Metadata.empty()));
+    fields.put("B", new StructField("B", DataTypes.StringType, true, Metadata.empty()));
+
+    LogicalQuery logicalQuery =
+        LogicalQuery.builder()
+            .source(
+                new JoinRelation(
+                    new TableRelation("mockLeftSpannerTable", "leftAlias", mockSpannerTable),
+                    new TableRelation("mockRightSpannerTable", "rightAlias", mockSpannerTable),
+                    JoinType.INNER,
+                    new EqExpr(
+                        new ColumnExpr("leftAlias", "A", DataTypes.StringType, false),
+                        new LiteralExpr("join_val", DataTypes.StringType, "STRING"))))
+            .resolutionMap(columnResolution)
+            .pushedFilters(new Filter[] {new EqualTo("A", "left_filter_val")})
+            .pushedFiltersOther(new Filter[] {new EqualTo("B", "right_filter_val")})
+            .fields(fields)
+            .build();
+
+    Statement statement =
+        SpannerQueryBuilder.newBuilder(logicalQuery, Dialect.GOOGLE_STANDARD_SQL, true)
+            .buildStatement();
+    assertThat(statement.getSql()).contains("ON `leftAlias`.`A` = @p1");
+    assertThat(statement.getSql())
+        .contains("WHERE (`leftAlias`.`A` = @p2) AND (`rightAlias`.`B` = @p3)");
+    assertThat(statement.getParameters().get("p1")).isEqualTo(Value.string("join_val"));
+    assertThat(statement.getParameters().get("p2")).isEqualTo(Value.string("left_filter_val"));
+    assertThat(statement.getParameters().get("p3")).isEqualTo(Value.string("right_filter_val"));
   }
 }

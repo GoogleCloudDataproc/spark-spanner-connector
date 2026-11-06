@@ -54,7 +54,7 @@ public class SparkFilterUtils {
 
   // Structs are not handled
   public static boolean isTopLevelFieldHandled(
-      boolean pushAllFilters, Filter filter, Map<String, StructField> fields) {
+      boolean pushAllFilters, Filter filter, @Nullable Map<String, StructField> fields) {
     if (pushAllFilters) {
       return true;
     }
@@ -131,11 +131,14 @@ public class SparkFilterUtils {
   }
 
   static boolean isFilterWithNamedFieldHandled(
-      boolean pushAllFilters, Filter filter, Map<String, StructField> fields, String fieldName) {
+      boolean pushAllFilters,
+      Filter filter,
+      @Nullable Map<String, StructField> fields,
+      String fieldName) {
     // For the Jsonb type in PostgreSql, the in filter will be translated to the
     // format CAST("jsoncol" AS VARCHAR) in ('', 'tags'), which is not allowed in
     // the Spanner.
-    return Optional.ofNullable(fields.get(fieldName))
+    return Optional.ofNullable(fields == null ? null : fields.get(fieldName))
         .filter(
             field ->
                 ((field.dataType() instanceof StructType)
@@ -202,7 +205,7 @@ public class SparkFilterUtils {
       boolean pushAllFilters,
       Optional<String> configFilter,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       Filter... pushedFilters) {
     return getCompiledFilter(
         pushAllFilters, configFilter, isPostgreSql, fields, null, pushedFilters);
@@ -212,7 +215,7 @@ public class SparkFilterUtils {
       boolean pushAllFilters,
       Optional<String> configFilter,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       @Nullable String tableQualifier,
       Filter... pushedFilters) {
     return getCompiledFilter(
@@ -229,7 +232,7 @@ public class SparkFilterUtils {
       boolean pushAllFilters,
       Optional<String> configFilter,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       @Nullable String tableQualifier,
       ParameterRegistry parameterRegistry,
       Filter... pushedFilters) {
@@ -256,7 +259,7 @@ public class SparkFilterUtils {
   public static RenderResult compileFilter(
       Filter filter,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       @Nullable String tableQualifier) {
     return compileFilter(
         filter,
@@ -269,7 +272,7 @@ public class SparkFilterUtils {
   public static RenderResult compileFilter(
       Filter filter,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       @Nullable String tableQualifier,
       ParameterRegistry parameterRegistry) {
     if (filter instanceof EqualTo) {
@@ -419,6 +422,8 @@ public class SparkFilterUtils {
           compileFilter(not.child(), isPostgreSql, fields, tableQualifier, parameterRegistry);
       return new RenderResult(format("(NOT (%s))", child.getSql()), child.getBindings());
     }
+    // Both Spanner GoogleSQL and PostgreSQL use '\' as the default LIKE escape character
+    // (and GoogleSQL does not support an explicit ESCAPE clause).
     if (filter instanceof StringStartsWith) {
       StringStartsWith stringStartsWith = (StringStartsWith) filter;
       ParameterRef ref = parameterRegistry.nextParameter();
@@ -462,7 +467,7 @@ public class SparkFilterUtils {
   public static RenderResult compileFilters(
       Iterable<Filter> filters,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       @Nullable String tableQualifier) {
     return compileFilters(
         filters,
@@ -475,7 +480,7 @@ public class SparkFilterUtils {
   public static RenderResult compileFilters(
       Iterable<Filter> filters,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       @Nullable String tableQualifier,
       ParameterRegistry parameterRegistry) {
     List<String> sqlParts = new ArrayList<>();
@@ -494,8 +499,8 @@ public class SparkFilterUtils {
   }
 
   static LiteralExpr toLiteralExpr(
-      String attribute, @Nullable Object value, Map<String, StructField> fields) {
-    String spannerType = isUuid(fields, attribute) ? "UUID" : null;
+      String attribute, @Nullable Object value, @Nullable Map<String, StructField> fields) {
+    String spannerType = (fields != null && isUuid(fields, attribute)) ? "UUID" : null;
     if (value == null) {
       DataType sparkType = DataTypes.StringType;
       if (fields != null && fields.containsKey(attribute)) {
@@ -565,7 +570,7 @@ public class SparkFilterUtils {
   static String quote(
       String value,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       @Nullable String tableQualifier) {
     return quote(value, isPostgreSql, fields, /* isNullCheck= */ false, tableQualifier);
   }
@@ -573,7 +578,7 @@ public class SparkFilterUtils {
   static String quote(
       String value,
       boolean isPostgreSql,
-      Map<String, StructField> fields,
+      @Nullable Map<String, StructField> fields,
       boolean isNullCheck,
       @Nullable String tableQualifier) {
     final String quotedIdentifier =
@@ -591,32 +596,33 @@ public class SparkFilterUtils {
     return quotedIdentifier;
   }
 
-  static boolean isJson(Map<String, StructField> fields, String fieldName) {
-    return isJson(fields, fieldName, "json");
+  static boolean isJson(@Nullable Map<String, StructField> fields, String fieldName) {
+    return fields != null && isJson(fields, fieldName, "json");
   }
 
-  static boolean isJsonb(Map<String, StructField> fields, String fieldName) {
-    return isJson(fields, fieldName, "jsonb");
+  static boolean isJsonb(@Nullable Map<String, StructField> fields, String fieldName) {
+    return fields != null && isJson(fields, fieldName, "jsonb");
   }
 
-  static boolean isUuid(Map<String, StructField> fields, String fieldName) {
-    return isJson(fields, fieldName, "uuid");
+  static boolean isUuid(@Nullable Map<String, StructField> fields, String fieldName) {
+    return fields != null && isJson(fields, fieldName, "uuid");
   }
 
-  static boolean isJsonb(StructField field) {
+  static boolean isJsonb(@Nullable StructField field) {
     return isJson(field, "jsonb");
   }
 
   static boolean isJson(
-      Map<String, StructField> fields, String fieldName, String fieldLikeMetadataType) {
-    if (fields.containsKey(fieldName)) {
+      @Nullable Map<String, StructField> fields, String fieldName, String fieldLikeMetadataType) {
+    if (fields != null && fields.containsKey(fieldName)) {
       return isJson(fields.get(fieldName), fieldLikeMetadataType);
     }
     return false;
   }
 
-  static boolean isJson(StructField field, String fieldLikeMetadataType) {
-    return field.dataType() == DataTypes.StringType
+  static boolean isJson(@Nullable StructField field, String fieldLikeMetadataType) {
+    return field != null
+        && field.dataType() == DataTypes.StringType
         && field.metadata() != null
         && field.metadata().contains(SpannerUtils.COLUMN_TYPE)
         && fieldLikeMetadataType.equals(field.metadata().getString(SpannerUtils.COLUMN_TYPE));

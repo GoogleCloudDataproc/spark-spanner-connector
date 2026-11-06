@@ -258,6 +258,25 @@ public class SparkFilterUtilsTest {
   }
 
   @Test
+  public void testCompileFilterWithNullFields() {
+    RenderResult eqString =
+        SparkFilterUtils.compileFilter(EqualTo.apply("foo", "bar"), isPostgreSql, null, null);
+    assertThat(eqString.getSql()).isEqualTo(parseQuotedSplitter("{0}foo{0} = " + param(1)));
+    assertThat(toStatement(eqString).getParameters().get("p1")).isEqualTo(Value.string("bar"));
+
+    RenderResult eqNull =
+        SparkFilterUtils.compileFilter(EqualNullSafe.apply("foo", null), isPostgreSql, null, null);
+    assertThat(toStatement(eqNull).getParameters().get("p1")).isEqualTo(Value.string(null));
+
+    assertThat(SparkFilterUtils.isUuid(null, "foo")).isFalse();
+    assertThat(SparkFilterUtils.isJson((Map<String, StructField>) null, "foo")).isFalse();
+    assertThat(SparkFilterUtils.isJson((StructField) null, "json")).isFalse();
+    assertThat(SparkFilterUtils.isJsonb((Map<String, StructField>) null, "foo")).isFalse();
+    assertThat(SparkFilterUtils.isTopLevelFieldHandled(false, EqualTo.apply("foo", "bar"), null))
+        .isTrue();
+  }
+
+  @Test
   public void testQuoteEscapesIdentifierDelimiters() {
     if (isPostgreSql) {
       assertThat(SparkFilterUtils.quote("a\"b", true, EMPTY_FIELDS, null)).isEqualTo("\"a\"\"b\"");

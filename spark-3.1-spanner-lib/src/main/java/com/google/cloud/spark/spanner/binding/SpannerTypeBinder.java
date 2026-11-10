@@ -16,8 +16,10 @@ package com.google.cloud.spark.spanner.binding;
 import static com.google.cloud.spark.spanner.planning.query.ColumnResolution.isUuid;
 
 import com.google.cloud.ByteArray;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import com.google.cloud.spark.spanner.planning.expression.LiteralExpr;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -25,18 +27,47 @@ import java.time.LocalDate;
 import java.util.UUID;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
 
 public final class SpannerTypeBinder {
 
+  public static boolean isValidGoogleSqlNumeric(BigDecimal bd) {
+    BigDecimal stripped = bd.stripTrailingZeros();
+    return stripped.scale() <= 9 && (stripped.precision() - stripped.scale()) <= 29;
+  }
+
+  public static boolean isSupportedSparkType(DataType type) {
+    if (type == null) {
+      return false;
+    }
+    return type instanceof DecimalType
+        || type.sameType(DataTypes.StringType)
+        || type.sameType(DataTypes.LongType)
+        || type.sameType(DataTypes.IntegerType)
+        || type.sameType(DataTypes.ShortType)
+        || type.sameType(DataTypes.ByteType)
+        || type.sameType(DataTypes.BooleanType)
+        || type.sameType(DataTypes.DoubleType)
+        || type.sameType(DataTypes.FloatType)
+        || type.sameType(DataTypes.TimestampType)
+        || type.sameType(DataTypes.DateType)
+        || type.sameType(DataTypes.BinaryType);
+  }
+
   public static void bind(Statement.Builder builder, String parameter, LiteralExpr literal) {
+    bind(builder, parameter, literal, Dialect.GOOGLE_STANDARD_SQL);
+  }
+
+  public static void bind(
+      Statement.Builder builder, String parameter, LiteralExpr literal, Dialect dialect) {
 
     Object value = literal.getValue();
     DataType sparkType = literal.getSparkType();
     String spannerType = literal.getSpannerType();
 
     if (value == null) {
-      bindNull(builder, parameter, sparkType, spannerType);
+      bindNull(builder, parameter, sparkType, spannerType, dialect);
       return;
     }
 
@@ -46,62 +77,81 @@ public final class SpannerTypeBinder {
     }
 
     if (sparkType instanceof DecimalType) {
-      BigDecimal bd = (BigDecimal) value;
-      // Spanner NUMERIC validation: precision <= 38, scale <= 9
-      if (bd.precision() <= 38 && bd.scale() <= 9) {
+      BigDecimal bd =
+          value instanceof Decimal ? ((Decimal) value).toJavaBigDecimal() : (BigDecimal) value;
+      if (dialect == Dialect.POSTGRESQL) {
+        builder.bind(parameter).to(Value.pgNumeric(bd.toPlainString()));
+      } else if (isValidGoogleSqlNumeric(bd)) {
         builder.bind(parameter).to(bd);
       } else {
-        throw new IllegalArgumentException("Decimal out of Spanner NUMERIC range");
+        throw new IllegalArgumentException("Decimal out of Spanner NUMERIC range: " + bd);
       }
     } else if (sparkType.sameType(DataTypes.StringType)) {
       builder.bind(parameter).to(value.toString());
     } else if (sparkType.sameType(DataTypes.LongType)) {
-      builder.bind(parameter).to((Long) value);
+      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.BooleanType)) {
       builder.bind(parameter).to((Boolean) value);
     } else if (sparkType.sameType(DataTypes.IntegerType)) {
       builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.ShortType)) {
-      builder.bind(parameter).to(((Short) value).longValue());
+      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.ByteType)) {
-      builder.bind(parameter).to(((Byte) value).longValue());
+      builder.bind(parameter).to(((Number) value).longValue());
     } else if (sparkType.sameType(DataTypes.DoubleType)) {
-      builder.bind(parameter).to((Double) value);
+      builder.bind(parameter).to(((Number) value).doubleValue());
     } else if (sparkType.sameType(DataTypes.FloatType)) {
-      builder.bind(parameter).to(((Float) value).doubleValue());
+      builder.bind(parameter).to(((Number) value).doubleValue());
     } else if (sparkType.sameType(DataTypes.TimestampType)) {
-
+      Instant instant;
       if (value instanceof Instant) {
-        Instant instant = (Instant) value;
-        builder
-            .bind(parameter)
-            .to(
-                com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
-                    instant.getEpochSecond(), instant.getNano()));
-
+        instant = (Instant) value;
       } else if (value instanceof java.sql.Timestamp) {
-        java.sql.Timestamp ts = (java.sql.Timestamp) value;
-        Instant instant = ts.toInstant();
-        builder
-            .bind(parameter)
-            .to(
-                com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
-                    instant.getEpochSecond(), instant.getNano()));
-
+        instant = ((java.sql.Timestamp) value).toInstant();
+      } else if (value instanceof Number) {
+        long micros = ((Number) value).longValue();
+        instant =
+            Instant.ofEpochSecond(
+                Math.floorDiv(micros, 1_000_000L), Math.floorMod(micros, 1_000_000L) * 1_000L);
       } else {
         throw new IllegalArgumentException(
             "Unexpected timestamp literal type: " + value.getClass());
       }
+      builder
+          .bind(parameter)
+          .to(
+              com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
+                  instant.getEpochSecond(), instant.getNano()));
     } else if (sparkType.sameType(DataTypes.DateType)) {
-      // Spark predicate dates will have been normalized to LocalDate.
-      LocalDate localDate = (LocalDate) value;
+      LocalDate localDate;
+      if (value instanceof LocalDate) {
+        localDate = (LocalDate) value;
+      } else if (value instanceof java.sql.Date) {
+        localDate = ((java.sql.Date) value).toLocalDate();
+      } else if (value instanceof Number) {
+        localDate = LocalDate.ofEpochDay(((Number) value).longValue());
+      } else {
+        throw new IllegalArgumentException("Unexpected date literal type: " + value.getClass());
+      }
       builder
           .bind(parameter)
           .to(
               com.google.cloud.Date.fromYearMonthDay(
                   localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()));
     } else if (sparkType.sameType(DataTypes.BinaryType)) {
-      builder.bind(parameter).to(ByteArray.copyFrom((byte[]) value));
+      byte[] bytes;
+      if (value instanceof byte[]) {
+        bytes = (byte[]) value;
+      } else if (value instanceof Byte[]) {
+        Byte[] boxed = (Byte[]) value;
+        bytes = new byte[boxed.length];
+        for (int i = 0; i < boxed.length; i++) {
+          bytes[i] = boxed[i];
+        }
+      } else {
+        throw new IllegalArgumentException("Unexpected binary literal type: " + value.getClass());
+      }
+      builder.bind(parameter).to(ByteArray.copyFrom(bytes));
     } else {
       throw new UnsupportedOperationException("Unsupported type: " + sparkType);
     }
@@ -134,7 +184,11 @@ public final class SpannerTypeBinder {
   }
 
   private static void bindNull(
-      Statement.Builder builder, String parameter, DataType sparkType, String spannerType) {
+      Statement.Builder builder,
+      String parameter,
+      DataType sparkType,
+      String spannerType,
+      Dialect dialect) {
     if (isUuid(spannerType)) {
       builder.bind(parameter).to((UUID) null);
       return;
@@ -160,7 +214,11 @@ public final class SpannerTypeBinder {
         break;
 
       case NUMERIC:
-        builder.bind(parameter).to((BigDecimal) null);
+        if (dialect == Dialect.POSTGRESQL) {
+          builder.bind(parameter).to(Value.pgNumeric(null));
+        } else {
+          builder.bind(parameter).to((BigDecimal) null);
+        }
         break;
 
       case TIMESTAMP:

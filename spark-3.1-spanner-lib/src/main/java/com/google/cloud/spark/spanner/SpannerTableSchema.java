@@ -140,6 +140,8 @@ public class SpannerTableSchema {
       metadataBuilder.putString(SpannerUtils.COLUMN_TYPE, "json");
     } else if (isJsonb(spannerType)) {
       metadataBuilder.putString(SpannerUtils.COLUMN_TYPE, "jsonb");
+    } else if (isUuid(spannerType)) {
+      metadataBuilder.putString(SpannerUtils.COLUMN_TYPE, "uuid");
     }
     if (isPrimaryKey) {
       metadataBuilder.putBoolean(SpannerUtils.PRIMARY_KEY_TAG, true);
@@ -161,5 +163,9 @@ public class SpannerTableSchema {
 
   public static boolean isJsonb(String spannerStrType) {
     return "jsonb".equalsIgnoreCase(spannerStrType.trim());
+  }
+
+  public static boolean isUuid(String spannerStrType) {
+    return "uuid".equalsIgnoreCase(spannerStrType.trim());
   }
 }

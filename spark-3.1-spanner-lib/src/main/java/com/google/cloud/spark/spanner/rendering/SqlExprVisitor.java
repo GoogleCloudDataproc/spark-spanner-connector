@@ -31,11 +31,15 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
   }
 
   public static SqlExprVisitor create(Dialect dialect) {
+    return create(dialect, ParameterRegistry.create(dialect));
+  }
+
+  public static SqlExprVisitor create(Dialect dialect, ParameterRegistry parameterRegistry) {
     switch (dialect) {
       case POSTGRESQL:
-        return new PostgresSpannerSqlExprVisitor();
+        return new PostgresSpannerSqlExprVisitor(parameterRegistry);
       case GOOGLE_STANDARD_SQL:
-        return new GoogleSqlSpannerSqlExprVisitor();
+        return new GoogleSqlSpannerSqlExprVisitor(parameterRegistry);
     }
     throw new IllegalArgumentException("Unsupported dialect: " + dialect);
   }
@@ -51,12 +55,14 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
 
   @Override
   public RenderResult visit(ColumnExpr expr) {
-    return new RenderResult(
-        // TODO: Can table alias be optional?
-        infoSchema.quoteIdentifier(expr.getTableAlias())
-            + "."
-            + infoSchema.quoteIdentifier(expr.getColumnName()),
-        Collections.emptyMap());
+    String tableAlias = expr.getTableAlias();
+    String sql =
+        (tableAlias == null || tableAlias.isEmpty())
+            ? infoSchema.quoteIdentifier(expr.getColumnName())
+            : infoSchema.quoteIdentifier(tableAlias)
+                + "."
+                + infoSchema.quoteIdentifier(expr.getColumnName());
+    return new RenderResult(sql, Collections.emptyMap());
   }
 
   @Override
@@ -76,7 +82,7 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
     RenderResult right = expr.getRight().accept(this);
 
     return new RenderResult(
-        "("
+        "(("
             + left.getSql()
             + " IS NULL AND "
             + right.getSql()
@@ -84,7 +90,7 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
             + left.getSql()
             + " = "
             + right.getSql()
-            + ")",
+            + "))",
         merge(left.getBindings(), right.getBindings()));
   }
 
@@ -174,8 +180,10 @@ public abstract class SqlExprVisitor implements SpannerExprVisitor<RenderResult>
 
   @Override
   public RenderResult visit(InExpr expr) {
-
     RenderResult left = expr.getLeft().accept(this);
+    if (expr.getValues().isEmpty()) {
+      return new RenderResult("FALSE", left.getBindings());
+    }
 
     StringBuilder sql = new StringBuilder();
     sql.append(left.getSql());

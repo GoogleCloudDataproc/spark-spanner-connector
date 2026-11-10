@@ -352,4 +352,23 @@ public abstract class FunctionsAndExpressionsIntegrationTestBase
     assertThat(r1.get(2)).isEqualTo(true); // ends_With
     assertThat(r1.get(3)).isEqualTo(true); // starts_With
   }
+
+  @Test
+  public void testStringFilterInjectionAndLikeWildcardEscaping() {
+    Dataset<Row> df = readFromTable("Shakespeare");
+    assertThat(df.filter(df.col("word").equalTo("\\' OR TRUE --")).count()).isEqualTo(0);
+    assertThat(df.filter(df.col("word").equalTo("' OR '1'='1")).count()).isEqualTo(0);
+
+    assertThat(df.filter(df.col("word").startsWith("augur")).count()).isGreaterThan(0);
+    assertThat(df.filter(df.col("word").startsWith("augur%")).count()).isEqualTo(0);
+    assertThat(df.filter(df.col("word").startsWith("augur_")).count()).isEqualTo(0);
+
+    assertThat(df.filter(df.col("word").endsWith("ugurs")).count()).isGreaterThan(0);
+    assertThat(df.filter(df.col("word").endsWith("%ugurs")).count()).isEqualTo(0);
+    assertThat(df.filter(df.col("word").endsWith("_ugurs")).count()).isEqualTo(0);
+
+    assertThat(df.filter(df.col("word").contains("ugur")).count()).isGreaterThan(0);
+    assertThat(df.filter(df.col("word").contains("u%r")).count()).isEqualTo(0);
+    assertThat(df.filter(df.col("word").contains("u_u")).count()).isEqualTo(0);
+  }
 }

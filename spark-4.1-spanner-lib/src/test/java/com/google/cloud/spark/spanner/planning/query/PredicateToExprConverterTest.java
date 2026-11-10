@@ -16,19 +16,40 @@ package com.google.cloud.spark.spanner.planning.query;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.Statement;
+import com.google.cloud.spark.spanner.binding.SpannerTypeBinder;
 import com.google.cloud.spark.spanner.planning.expression.*;
+import com.google.cloud.spark.spanner.rendering.RenderResult;
+import com.google.cloud.spark.spanner.rendering.SqlExprVisitor;
+import com.google.cloud.spark.spanner.scan.InterleaveTableMetadata;
+import com.google.cloud.spark.spanner.scan.SpannerTable;
+import com.google.cloud.spark.spanner.scan.Spark41SpannerScanBuilder;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.spark.sql.connector.expressions.Expression;
 import org.apache.spark.sql.connector.expressions.Expressions;
+import org.apache.spark.sql.connector.expressions.FieldReference;
+import org.apache.spark.sql.connector.expressions.GeneralScalarExpression;
 import org.apache.spark.sql.connector.expressions.Literal;
+import org.apache.spark.sql.connector.expressions.LiteralValue;
 import org.apache.spark.sql.connector.expressions.NamedReference;
 import org.apache.spark.sql.connector.expressions.filter.Predicate;
+import org.apache.spark.sql.connector.join.JoinType;
+import org.apache.spark.sql.connector.read.SupportsPushDownJoin.ColumnWithAlias;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.junit.Test;
 
 public class PredicateToExprConverterTest {
@@ -228,5 +249,275 @@ public class PredicateToExprConverterTest {
     assertEquals(UUID1, stringLiteral.getValue());
     assertEquals(DataTypes.StringType, stringLiteral.getSparkType());
     assertEquals("STRING", stringLiteral.getSpannerType());
+  }
+
+  @Test
+  public void stringPatternPredicatesAreRejectedOnUuidColumn() {
+    for (String op : new String[] {"STARTS_WITH", "ENDS_WITH", "CONTAINS"}) {
+      Predicate uuidPattern =
+          new Predicate(op, new Expression[] {uuidColumn(), stringLiteral("550e")});
+      assertThrows(
+          UnsupportedOperationException.class,
+          () -> PredicateToExprConverter.translatePredicate(uuidPattern, resolutionMap()));
+
+      Predicate stringPattern =
+          new Predicate(op, new Expression[] {stringColumn(), stringLiteral("550e")});
+      assertThat(PredicateToExprConverter.translatePredicate(stringPattern, resolutionMap()))
+          .isNotNull();
+    }
+  }
+
+  @Test
+  public void pushDownJoinReturnsFalseOnInvalidUuidLiteralOrPatternPredicate() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.StringType, false, Metadata.empty())
+            });
+    Map<String, String> spannerTypes = Map.of("id", "UUID");
+    CaseInsensitiveStringMap props =
+        new CaseInsensitiveStringMap(Map.of("enablePredicateSql", "true"));
+
+    SpannerTable parentTable = mock(SpannerTable.class);
+    InterleaveTableMetadata parentMeta = mock(InterleaveTableMetadata.class);
+    when(parentMeta.getTableName()).thenReturn("Parent");
+    when(parentMeta.getParentTable()).thenReturn(null);
+    when(parentTable.name()).thenReturn("Parent");
+    when(parentTable.schema()).thenReturn(schema);
+    when(parentTable.properties()).thenReturn(props);
+    when(parentTable.getSpannerTypes()).thenReturn(spannerTypes);
+    when(parentTable.getInterleavedTableMetadata()).thenReturn(parentMeta);
+
+    SpannerTable childTable = mock(SpannerTable.class);
+    InterleaveTableMetadata childMeta = mock(InterleaveTableMetadata.class);
+    when(childMeta.getTableName()).thenReturn("Child");
+    when(childMeta.getParentTable()).thenReturn("Parent");
+    when(childTable.name()).thenReturn("Child");
+    when(childTable.schema()).thenReturn(schema);
+    when(childTable.properties()).thenReturn(props);
+    when(childTable.getSpannerTypes()).thenReturn(spannerTypes);
+    when(childTable.getInterleavedTableMetadata()).thenReturn(childMeta);
+
+    Spark41SpannerScanBuilder leftBuilder = new Spark41SpannerScanBuilder(parentTable);
+    Spark41SpannerScanBuilder rightBuilder = new Spark41SpannerScanBuilder(childTable);
+
+    ColumnWithAlias[] leftCols = new ColumnWithAlias[] {new ColumnWithAlias("id", "p_id")};
+    ColumnWithAlias[] rightCols = new ColumnWithAlias[] {new ColumnWithAlias("id", "c_id")};
+
+    Predicate invalidUuidPred =
+        and(
+            equal(Expressions.column("p_id"), Expressions.column("c_id")),
+            equal(Expressions.column("p_id"), stringLiteral("not-a-uuid")));
+    assertFalse(
+        leftBuilder.pushDownJoin(
+            rightBuilder, JoinType.INNER_JOIN, leftCols, rightCols, invalidUuidPred));
+
+    Predicate uppercaseUuidPred =
+        and(
+            equal(Expressions.column("p_id"), Expressions.column("c_id")),
+            equal(Expressions.column("p_id"), stringLiteral(UUID1.toUpperCase())));
+    assertFalse(
+        leftBuilder.pushDownJoin(
+            rightBuilder, JoinType.INNER_JOIN, leftCols, rightCols, uppercaseUuidPred));
+  }
+
+  @Test
+  public void timestampEpochMicrosLiteralTranslatesAndBindsInJoinPredicate() {
+    Map<String, ColumnResolution> resMap =
+        Map.of(
+            "ts_col",
+            new ColumnResolution(
+                "ts_col", "ts_col", "Orders", DataTypes.TimestampType, "TIMESTAMP", false));
+
+    long epochMicros = 1767225600123456L;
+    Literal<Long> v2TimestampLiteral = LiteralValue.apply(epochMicros, DataTypes.TimestampType);
+    Predicate pred =
+        new Predicate(">", new Expression[] {Expressions.column("ts_col"), v2TimestampLiteral});
+
+    BoolExpr expr = PredicateToExprConverter.translatePredicate(pred, resMap);
+    RenderResult rendered = expr.accept(SqlExprVisitor.create(Dialect.GOOGLE_STANDARD_SQL));
+    Statement.Builder builder = Statement.newBuilder("SELECT 1 WHERE " + rendered.getSql());
+    for (Map.Entry<String, LiteralExpr> entry : rendered.getBindings().entrySet()) {
+      SpannerTypeBinder.bind(
+          builder, entry.getKey(), entry.getValue(), Dialect.GOOGLE_STANDARD_SQL);
+    }
+    Statement stmt = builder.build();
+    assertThat(stmt.getParameters().get("p1").getTimestamp().toSqlTimestamp().toInstant())
+        .isEqualTo(Instant.ofEpochSecond(1767225600L, 123_456_000L));
+  }
+
+  @Test
+  public void pushDownJoinRejectsGoogleSqlDecimalOverflowButAllowsPostgres() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, Metadata.empty()),
+              new StructField("amount", DataTypes.createDecimalType(38, 12), true, Metadata.empty())
+            });
+    Map<String, String> spannerTypes = Map.of("id", "INT64", "amount", "NUMERIC");
+    CaseInsensitiveStringMap props =
+        new CaseInsensitiveStringMap(Map.of("enablePredicateSql", "true"));
+
+    for (boolean isPostgres : new boolean[] {false, true}) {
+      SpannerTable parentTable = mock(SpannerTable.class);
+      InterleaveTableMetadata parentMeta = mock(InterleaveTableMetadata.class);
+      when(parentMeta.getTableName()).thenReturn("Parent");
+      when(parentMeta.getParentTable()).thenReturn(null);
+      when(parentTable.name()).thenReturn("Parent");
+      when(parentTable.schema()).thenReturn(schema);
+      when(parentTable.properties()).thenReturn(props);
+      when(parentTable.getSpannerTypes()).thenReturn(spannerTypes);
+      when(parentTable.getInterleavedTableMetadata()).thenReturn(parentMeta);
+      when(parentTable.isPostgreSql()).thenReturn(isPostgres);
+
+      SpannerTable childTable = mock(SpannerTable.class);
+      InterleaveTableMetadata childMeta = mock(InterleaveTableMetadata.class);
+      when(childMeta.getTableName()).thenReturn("Child");
+      when(childMeta.getParentTable()).thenReturn("Parent");
+      when(childTable.name()).thenReturn("Child");
+      when(childTable.schema()).thenReturn(schema);
+      when(childTable.properties()).thenReturn(props);
+      when(childTable.getSpannerTypes()).thenReturn(spannerTypes);
+      when(childTable.getInterleavedTableMetadata()).thenReturn(childMeta);
+      when(childTable.isPostgreSql()).thenReturn(isPostgres);
+
+      Spark41SpannerScanBuilder leftBuilder = new Spark41SpannerScanBuilder(parentTable);
+      Spark41SpannerScanBuilder rightBuilder = new Spark41SpannerScanBuilder(childTable);
+
+      ColumnWithAlias[] leftCols =
+          new ColumnWithAlias[] {
+            new ColumnWithAlias("id", "p_id"), new ColumnWithAlias("amount", "p_amount")
+          };
+      ColumnWithAlias[] rightCols = new ColumnWithAlias[] {new ColumnWithAlias("id", "c_id")};
+
+      Literal<BigDecimal> highScaleLiteral =
+          LiteralValue.apply(new BigDecimal("0.0000000001"), DataTypes.createDecimalType(38, 12));
+      Predicate directOverflowPred =
+          and(
+              equal(Expressions.column("p_id"), Expressions.column("c_id")),
+              new Predicate(
+                  ">", new Expression[] {Expressions.column("p_amount"), highScaleLiteral}));
+
+      assertEquals(
+          isPostgres,
+          leftBuilder.pushDownJoin(
+              rightBuilder, JoinType.INNER_JOIN, leftCols, rightCols, directOverflowPred));
+
+      // Also test arithmetic literal without direct column pairing (translateLiteral path)
+      Expression addExpr =
+          new GeneralScalarExpression(
+              "+", new Expression[] {Expressions.column("p_amount"), highScaleLiteral});
+      Literal<BigDecimal> oneLiteral =
+          LiteralValue.apply(BigDecimal.ONE, DataTypes.createDecimalType(38, 9));
+      Predicate arithmeticOverflowPred =
+          and(
+              equal(Expressions.column("p_id"), Expressions.column("c_id")),
+              new Predicate(">", new Expression[] {addExpr, oneLiteral}));
+
+      Spark41SpannerScanBuilder leftArith = new Spark41SpannerScanBuilder(parentTable);
+      Spark41SpannerScanBuilder rightArith = new Spark41SpannerScanBuilder(childTable);
+      assertEquals(
+          isPostgres,
+          leftArith.pushDownJoin(
+              rightArith, JoinType.INNER_JOIN, leftCols, rightCols, arithmeticOverflowPred));
+    }
+  }
+
+  @Test
+  public void nestedFieldReferencesUntypedNullsMissingColumnsAndJsonColumnsFailCleanly() {
+    StructType structType =
+        new StructType(
+            new StructField[] {
+              new StructField("region", DataTypes.StringType, true, Metadata.empty())
+            });
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, Metadata.empty()),
+              new StructField("profile", structType, true, Metadata.empty()),
+              new StructField("payload", DataTypes.StringType, true, Metadata.empty())
+            });
+    Map<String, String> spannerTypes =
+        Map.of("id", "INT64", "profile", "STRUCT<region STRING>", "payload", "JSON");
+    CaseInsensitiveStringMap props =
+        new CaseInsensitiveStringMap(Map.of("enablePredicateSql", "true"));
+
+    SpannerTable parentTable = mock(SpannerTable.class);
+    InterleaveTableMetadata parentMeta = mock(InterleaveTableMetadata.class);
+    when(parentMeta.getTableName()).thenReturn("Parent");
+    when(parentMeta.getParentTable()).thenReturn(null);
+    when(parentTable.name()).thenReturn("Parent");
+    when(parentTable.schema()).thenReturn(schema);
+    when(parentTable.properties()).thenReturn(props);
+    when(parentTable.getSpannerTypes()).thenReturn(spannerTypes);
+    when(parentTable.getInterleavedTableMetadata()).thenReturn(parentMeta);
+
+    SpannerTable childTable = mock(SpannerTable.class);
+    InterleaveTableMetadata childMeta = mock(InterleaveTableMetadata.class);
+    when(childMeta.getTableName()).thenReturn("Child");
+    when(childMeta.getParentTable()).thenReturn("Parent");
+    when(childTable.name()).thenReturn("Child");
+    when(childTable.schema()).thenReturn(schema);
+    when(childTable.properties()).thenReturn(props);
+    when(childTable.getSpannerTypes()).thenReturn(spannerTypes);
+    when(childTable.getInterleavedTableMetadata()).thenReturn(childMeta);
+
+    ColumnWithAlias[] leftCols =
+        new ColumnWithAlias[] {
+          new ColumnWithAlias("id", "p_id"),
+          new ColumnWithAlias("profile", "profile"),
+          new ColumnWithAlias("payload", "payload")
+        };
+    ColumnWithAlias[] rightCols = new ColumnWithAlias[] {new ColumnWithAlias("id", "c_id")};
+
+    Predicate baseJoin = equal(Expressions.column("p_id"), Expressions.column("c_id"));
+
+    // 1. Multi-part nested struct reference (both left and right positions)
+    NamedReference nestedRef = FieldReference.apply("profile.region");
+    assertEquals(2, nestedRef.fieldNames().length);
+    for (Predicate nestedPred :
+        new Predicate[] {
+          and(baseJoin, equal(nestedRef, stringLiteral("US"))),
+          and(baseJoin, equal(stringLiteral("US"), nestedRef))
+        }) {
+      Spark41SpannerScanBuilder lb = new Spark41SpannerScanBuilder(parentTable);
+      Spark41SpannerScanBuilder rb = new Spark41SpannerScanBuilder(childTable);
+      assertFalse(lb.pushDownJoin(rb, JoinType.INNER_JOIN, leftCols, rightCols, nestedPred));
+    }
+
+    // 2. Missing column resolution (must return false, not throw NullPointerException)
+    Predicate missingColPred =
+        and(baseJoin, equal(Expressions.column("nonexistent_col"), Expressions.column("c_id")));
+    assertFalse(
+        new Spark41SpannerScanBuilder(parentTable)
+            .pushDownJoin(
+                new Spark41SpannerScanBuilder(childTable),
+                JoinType.INNER_JOIN,
+                leftCols,
+                rightCols,
+                missingColPred));
+
+    // 3. JSON column in join predicate
+    Predicate jsonPred = and(baseJoin, equal(Expressions.column("payload"), stringLiteral("{}")));
+    assertFalse(
+        new Spark41SpannerScanBuilder(parentTable)
+            .pushDownJoin(
+                new Spark41SpannerScanBuilder(childTable),
+                JoinType.INNER_JOIN,
+                leftCols,
+                rightCols,
+                jsonPred));
+
+    // 4. Untyped NULL literal without column context
+    Literal<Object> untypedNull = LiteralValue.apply(null, DataTypes.NullType);
+    Predicate untypedNullPred = and(baseJoin, equal(untypedNull, untypedNull));
+    assertFalse(
+        new Spark41SpannerScanBuilder(parentTable)
+            .pushDownJoin(
+                new Spark41SpannerScanBuilder(childTable),
+                JoinType.INNER_JOIN,
+                leftCols,
+                rightCols,
+                untypedNullPred));
   }
 }

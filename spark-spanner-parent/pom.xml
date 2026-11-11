@@ -59,6 +59,10 @@
         <grpc.version>1.85.1</grpc.version>
         <guava.version>33.7.2-jre</guava.version>
         <jackson.version>2.22.3</jackson.version>
+        <!-- Netty version of the Spark runtime that the connector compiles and tests against,
+             applied through the netty-bom import below. Spark provides Netty at runtime, so the
+             shaded jars don't bundle it: their only Netty is the copy inside grpc-netty-shaded.
+             The Spark 4.0 and 4.1 modules override this property to match their Spark version. -->
         <netty.version>4.1.92.Final</netty.version>
         <opentelemetry.version>1.67.0</opentelemetry.version>
         <paranamer.version>2.8</paranamer.version>

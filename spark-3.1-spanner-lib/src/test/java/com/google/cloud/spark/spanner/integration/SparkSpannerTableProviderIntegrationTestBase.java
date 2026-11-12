@@ -98,4 +98,22 @@ public abstract class SparkSpannerTableProviderIntegrationTestBase<
     // enablePartialRowUpdates test.
     assertEquals(partialSchema, table.schema());
   }
+
+  @Test
+  public void getTableForWrite_withDeleteMutationType_returnsTableWithDataFrameSchema() {
+    T provider = getInstance();
+    Map<String, String> props = connectionProperties();
+    props.put("table", TestData.WRITE_TABLE_NAME);
+    props.put("mutationType", "delete");
+    // enablePartialRowUpdates is intentionally not set.
+
+    StructType pkOnlySchema = new StructType().add("long_col", DataTypes.LongType, false);
+
+    Table table = provider.getTable(pkOnlySchema, null, props);
+
+    assertEquals(
+        "With mutationType=delete, the table schema should match the PK-only DataFrame schema.",
+        pkOnlySchema,
+        table.schema());
+  }
 }

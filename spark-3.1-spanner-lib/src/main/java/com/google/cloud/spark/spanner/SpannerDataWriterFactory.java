@@ -15,6 +15,9 @@
 package com.google.cloud.spark.spanner;
 
 import com.google.cloud.spanner.SessionPoolOptions;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,12 +34,22 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
   private final Map<String, String> properties;
   private final StructType schema;
   private final Map<String, String> spannerTypes;
+  private final List<String> primaryKeys;
 
   public SpannerDataWriterFactory(
       CaseInsensitiveStringMap properties, StructType schema, Map<String, String> spannerTypes) {
+    this(properties, schema, spannerTypes, Collections.emptyList());
+  }
+
+  public SpannerDataWriterFactory(
+      CaseInsensitiveStringMap properties,
+      StructType schema,
+      Map<String, String> spannerTypes,
+      List<String> primaryKeys) {
     this.properties = properties.asCaseSensitiveMap();
     this.schema = schema;
     this.spannerTypes = spannerTypes;
+    this.primaryKeys = primaryKeys != null ? new ArrayList<>(primaryKeys) : new ArrayList<String>();
   }
 
   @Override
@@ -51,6 +64,14 @@ public class SpannerDataWriterFactory implements DataWriterFactory {
     ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     return new SpannerDataWriter(
-        partitionId, taskId, properties, schema, spannerTypes, batchClient, executor, scheduler);
+        partitionId,
+        taskId,
+        properties,
+        schema,
+        spannerTypes,
+        primaryKeys,
+        batchClient,
+        executor,
+        scheduler);
   }
 }

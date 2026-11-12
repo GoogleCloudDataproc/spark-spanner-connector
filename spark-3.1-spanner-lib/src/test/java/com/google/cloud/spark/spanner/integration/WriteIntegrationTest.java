@@ -1015,4 +1015,186 @@ public abstract class WriteIntegrationTest extends SparkSpannerIntegrationTestBa
     final List<BigDecimal> actualList = row.getList(index);
     return actualList.toArray(new BigDecimal[0]);
   }
+
+  @Test
+  public void testDeleteSinglePrimaryKeyPkOnlyDataFrame() {
+    setupInitialData(SCHEMA, new long[] {401L, 402L});
+
+    // Delete 401 and non-existent 999401 using a PK-only DataFrame without enablePartialRowUpdates.
+    StructType pkOnlySchema =
+        new StructType(
+            new StructField[] {DataTypes.createStructField("long_col", DataTypes.LongType, false)});
+    List<Row> deleteRows = Arrays.asList(RowFactory.create(401L), RowFactory.create(999401L));
+    Dataset<Row> deleteDf = spark.createDataFrame(deleteRows, pkOnlySchema);
+
+    Map<String, String> deleteProps = connectionProperties(usePostgresSql);
+    deleteProps.put("table", TestData.WRITE_TABLE_NAME);
+    deleteProps.put("mutationType", "delete");
+
+    deleteDf.write().format("cloud-spanner").options(deleteProps).mode(SaveMode.Append).save();
+
+    Dataset<Row> remainingDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(getBaseProps())
+            .load()
+            .filter("long_col IN (401, 402)");
+    assertEquals(1, remainingDf.count());
+    assertEquals(402L, remainingDf.first().getLong(0));
+  }
+
+  @Test
+  public void testDeleteCompositePrimaryKeyReorderedAndIdempotentBatchWrite() {
+    // Table column order is (payload, pk_part2, pk_part1, extra_col),
+    // while Spanner PRIMARY KEY order is (pk_part1, pk_part2).
+    StructType tableSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("payload", DataTypes.StringType, true),
+              DataTypes.createStructField("pk_part2", DataTypes.LongType, false),
+              DataTypes.createStructField("pk_part1", DataTypes.StringType, false),
+              DataTypes.createStructField("extra_col", DataTypes.LongType, true)
+            });
+
+    List<Row> initialRows =
+        Arrays.asList(
+            RowFactory.create("edge-a", 10L, "u1", 1L),
+            RowFactory.create("edge-b", 20L, "u1", 2L),
+            RowFactory.create("edge-c", 10L, "u2", 3L),
+            RowFactory.create("edge-d", 20L, "u2", 4L));
+
+    Map<String, String> writeProps = connectionProperties(usePostgresSql);
+    writeProps.put("table", "write_composite_pk_table");
+    spark
+        .createDataFrame(initialRows, tableSchema)
+        .write()
+        .format("cloud-spanner")
+        .options(writeProps)
+        .mode(SaveMode.Append)
+        .save();
+
+    // 1. Delete ("u1", 20) and non-existent ("u9", 99) using reversed PK-only DataFrame
+    //    (pk_part2, pk_part1) with assumeIdempotentRows=true (BatchWrite).
+    StructType reversedPkSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("pk_part2", DataTypes.LongType, false),
+              DataTypes.createStructField("pk_part1", DataTypes.StringType, false)
+            });
+    Dataset<Row> batchDeleteDf =
+        spark.createDataFrame(
+            Arrays.asList(RowFactory.create(20L, "u1"), RowFactory.create(99L, "u9")),
+            reversedPkSchema);
+
+    Map<String, String> batchDeleteProps = connectionProperties(usePostgresSql);
+    batchDeleteProps.put("table", "write_composite_pk_table");
+    batchDeleteProps.put("mutationType", "delete");
+    batchDeleteProps.put("assumeIdempotentRows", "true");
+
+    batchDeleteDf
+        .write()
+        .format("cloud-spanner")
+        .options(batchDeleteProps)
+        .mode(SaveMode.Append)
+        .save();
+
+    // 2. Delete ("u2", 10) using case-insensitive column names plus an extra non-PK column.
+    StructType mixedCaseWithExtraSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("payload", DataTypes.StringType, true),
+              DataTypes.createStructField("PK_PART2", DataTypes.LongType, false),
+              DataTypes.createStructField("Pk_Part1", DataTypes.StringType, false)
+            });
+    Dataset<Row> txnDeleteDf =
+        spark.createDataFrame(
+            Collections.singletonList(RowFactory.create("unused", 10L, "u2")),
+            mixedCaseWithExtraSchema);
+
+    Map<String, String> txnDeleteProps = connectionProperties(usePostgresSql);
+    txnDeleteProps.put("table", "write_composite_pk_table");
+    txnDeleteProps.put("mutationType", "delete");
+
+    txnDeleteDf
+        .write()
+        .format("cloud-spanner")
+        .options(txnDeleteProps)
+        .mode(SaveMode.Append)
+        .save();
+
+    // Verify only ("u1", 10) and ("u2", 20) remain.
+    Dataset<Row> remainingDf =
+        spark
+            .read()
+            .format("cloud-spanner")
+            .options(writeProps)
+            .load()
+            .filter("pk_part1 IN ('u1', 'u2')");
+    List<String> remainingKeys =
+        remainingDf.collectAsList().stream()
+            .map(
+                r ->
+                    r.<String>getAs("pk_part1")
+                        + ":"
+                        + r.<Long>getAs("pk_part2")
+                        + ":"
+                        + r.<String>getAs("payload"))
+            .sorted()
+            .collect(java.util.stream.Collectors.toList());
+    assertThat(remainingKeys).containsExactly("u1:10:edge-a", "u2:20:edge-d").inOrder();
+  }
+
+  @Test
+  public void testDeleteUuidPrimaryKey() {
+    String keepUuid = UUID.randomUUID().toString();
+    String deleteUuid = UUID.randomUUID().toString();
+
+    StructType fullSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("id", DataTypes.StringType, false),
+              DataTypes.createStructField("label", DataTypes.StringType, true)
+            });
+    Map<String, String> props = connectionProperties(usePostgresSql);
+    props.put("table", "write_uuid_pk_table");
+
+    spark
+        .createDataFrame(
+            Arrays.asList(
+                RowFactory.create(keepUuid, "keep"), RowFactory.create(deleteUuid, "remove")),
+            fullSchema)
+        .write()
+        .format("cloud-spanner")
+        .options(props)
+        .mode(SaveMode.Append)
+        .save();
+
+    StructType pkSchema =
+        new StructType(
+            new StructField[] {DataTypes.createStructField("id", DataTypes.StringType, false)});
+    Map<String, String> deleteProps = connectionProperties(usePostgresSql);
+    deleteProps.put("table", "write_uuid_pk_table");
+    deleteProps.put("mutationType", "delete");
+    deleteProps.put("assumeIdempotentRows", "true");
+
+    spark
+        .createDataFrame(Collections.singletonList(RowFactory.create(deleteUuid)), pkSchema)
+        .write()
+        .format("cloud-spanner")
+        .options(deleteProps)
+        .mode(SaveMode.Append)
+        .save();
+
+    List<Row> rows =
+        spark.read().format("cloud-spanner").options(props).load().collectAsList().stream()
+            .filter(
+                r -> {
+                  String id = r.getString(0);
+                  return id.equalsIgnoreCase(keepUuid) || id.equalsIgnoreCase(deleteUuid);
+                })
+            .collect(java.util.stream.Collectors.toList());
+    assertEquals(1, rows.size());
+    assertEquals(keepUuid.toLowerCase(), rows.get(0).getString(0).toLowerCase());
+  }
 }

@@ -22,7 +22,9 @@ import com.google.rpc.Code;
 import com.google.spanner.v1.BatchWriteResponse;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -30,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.write.DataWriter;
 import org.apache.spark.sql.connector.write.WriterCommitMessage;
@@ -68,6 +71,9 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
   private final int maxPendingTransactions;
 
   private final Mutation.Op mutationType;
+  private final List<String> primaryKeys;
+  private final int[] pkIndices;
+  private final String[] pkSpannerTypes;
 
   // Buffers
   private final List<Mutation> mutationBuffer = new ArrayList<>();
@@ -87,6 +93,28 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
       Map<String, String> properties,
       StructType schema,
       Map<String, String> spannerTypes,
+      BatchClientWithCloser batchClient,
+      ExecutorService executor,
+      ScheduledExecutorService scheduler) {
+    this(
+        partitionId,
+        taskId,
+        properties,
+        schema,
+        spannerTypes,
+        Collections.emptyList(),
+        batchClient,
+        executor,
+        scheduler);
+  }
+
+  public SpannerDataWriter(
+      int partitionId,
+      long taskId,
+      Map<String, String> properties,
+      StructType schema,
+      Map<String, String> spannerTypes,
+      List<String> primaryKeys,
       BatchClientWithCloser batchClient,
       ExecutorService executor,
       ScheduledExecutorService scheduler) {
@@ -119,16 +147,31 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     this.mutationType =
         parseMutationType(caseInsensitiveStringMap.getOrDefault("mutationType", null));
 
+    List<String> resolvedPrimaryKeys =
+        (primaryKeys != null && !primaryKeys.isEmpty())
+            ? new ArrayList<>(primaryKeys)
+            : SpannerWriterUtils.extractPrimaryKeysFromSchema(schema);
+    this.primaryKeys = Collections.unmodifiableList(resolvedPrimaryKeys);
+    if (this.mutationType == Mutation.Op.DELETE) {
+      this.pkIndices =
+          SpannerWriterUtils.resolvePrimaryKeyIndices(schema, this.primaryKeys, this.tableName);
+      this.pkSpannerTypes =
+          SpannerWriterUtils.resolvePrimaryKeySpannerTypes(schema, spannerTypes, this.pkIndices);
+    } else {
+      this.pkIndices = new int[0];
+      this.pkSpannerTypes = new String[0];
+    }
+
     this.batchClient = batchClient;
     this.executor = executor;
     this.scheduler = scheduler;
   }
 
-  private Mutation.Op parseMutationType(String mutationTypeProperty) {
+  public static Mutation.Op parseMutationType(@Nullable String mutationTypeProperty) {
     if (mutationTypeProperty == null) {
       return Mutation.Op.INSERT_OR_UPDATE;
     }
-    switch (mutationTypeProperty.toLowerCase(java.util.Locale.ROOT)) {
+    switch (mutationTypeProperty.toLowerCase(Locale.ROOT)) {
       case "insert":
         return Mutation.Op.INSERT;
       case "update":
@@ -137,23 +180,32 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
         return Mutation.Op.REPLACE;
       case "insert_or_update":
         return Mutation.Op.INSERT_OR_UPDATE;
+      case "delete":
+        return Mutation.Op.DELETE;
       default:
         throw new IllegalArgumentException(
             "Invalid value for mutationType: "
                 + mutationTypeProperty
-                + ". Supported values are: insert, update, replace, insert_or_update.");
+                + ". Supported values are: insert, update, replace, insert_or_update, delete.");
     }
   }
 
   @Override
   public void write(InternalRow record) throws IOException {
-    // 1. Convert to Spanner Mutation
-    Mutation mutation =
-        SpannerWriterUtils.internalRowToMutation(
-            tableName, record, schema, spannerTypes, mutationType);
-
-    // 2. Estimate Size (Crucial for preventing OOM)
-    long mutationSize = estimateMutationSize(record, schema);
+    // 1. Convert to Spanner Mutation and estimate size (crucial for preventing OOM)
+    Mutation mutation;
+    long mutationSize;
+    if (mutationType == Mutation.Op.DELETE) {
+      mutation =
+          SpannerWriterUtils.internalRowToDeleteMutation(
+              tableName, record, schema, pkIndices, pkSpannerTypes);
+      mutationSize = estimateDeleteMutationSize(record, schema, pkIndices);
+    } else {
+      mutation =
+          SpannerWriterUtils.internalRowToMutation(
+              tableName, record, schema, spannerTypes, mutationType);
+      mutationSize = estimateMutationSize(record, schema);
+    }
 
     // 3. Check if buffer is full (Count OR Bytes)
     if (!mutationBuffer.isEmpty()
@@ -401,6 +453,18 @@ public class SpannerDataWriter implements DataWriter<InternalRow> {
     for (int i = 0; i < row.numFields(); i++) {
       if (row.isNullAt(i)) continue;
       size += estimateValueSize(row.get(i, fields[i].dataType()), fields[i].dataType());
+    }
+    return size;
+  }
+
+  private long estimateDeleteMutationSize(InternalRow row, StructType schema, int[] pkIndices) {
+    long size = 0;
+    StructField[] fields = schema.fields();
+
+    for (int fieldIndex : pkIndices) {
+      if (row.isNullAt(fieldIndex)) continue;
+      DataType dataType = fields[fieldIndex].dataType();
+      size += estimateValueSize(row.get(fieldIndex, dataType), dataType);
     }
     return size;
   }

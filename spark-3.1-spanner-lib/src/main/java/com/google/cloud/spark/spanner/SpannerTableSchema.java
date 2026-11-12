@@ -18,14 +18,16 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spark.spanner.scan.SpannerTable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
@@ -52,6 +54,9 @@ public class SpannerTableSchema {
   // Note: this must be serializable so it can be passed to the executor nodes.
   public final Map<String, String> spannerTypes;
 
+  // Ordered primary key column names (by ORDINAL_POSITION).
+  public final List<String> primaryKeys;
+
   static Statement buildSchemaQuery(String tableName, boolean isPostgreSql) {
     if (isPostgreSql) {
       return Statement.newBuilder(POSTGRESQL_SCHEMA).bind("p1").to(tableName).build();
@@ -63,8 +68,11 @@ public class SpannerTableSchema {
   public SpannerTableSchema(Connection conn, String tableName, boolean isPostgreSql) {
     this.name = tableName;
     this.columns = new HashMap<>();
-    // 1. Get the primary keys for the table.
-    Set<String> primaryKeys = getPrimaryKeys(conn, tableName, isPostgreSql);
+    // 1. Get the primary keys for the table in ORDINAL_POSITION order.
+    List<String> orderedPrimaryKeys = getPrimaryKeys(conn, tableName, isPostgreSql);
+    this.primaryKeys = Collections.unmodifiableList(orderedPrimaryKeys);
+    Set<String> primaryKeySet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    primaryKeySet.addAll(orderedPrimaryKeys);
 
     // 2. Get the schema of the table.
     Statement stmt = buildSchemaQuery(tableName, isPostgreSql);
@@ -79,7 +87,7 @@ public class SpannerTableSchema {
       while (rs.next()) {
         Struct row = rs.getCurrentRowAsStruct();
         String columnName = row.getString(0);
-        boolean isPrimaryKey = primaryKeys.contains(columnName);
+        boolean isPrimaryKey = primaryKeySet.contains(columnName);
         StructField structField =
             getSparkStructField(
                 columnName, row.getString(2), row.getBoolean(1), isPostgreSql, isPrimaryKey);
@@ -99,25 +107,37 @@ public class SpannerTableSchema {
           "SELECT kcu.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc "
               + "JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu "
               + "ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_NAME = kcu.TABLE_NAME "
+              + "AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA "
               + "WHERE tc.TABLE_NAME = $1 AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY' AND tc.TABLE_SCHEMA = 'public' "
               + "ORDER BY kcu.ORDINAL_POSITION";
-      return Statement.newBuilder(sql).bind("p1").to(tableName.toLowerCase(Locale.ROOT)).build();
+      return Statement.newBuilder(sql).bind("p1").to(tableName).build();
     }
     String sql =
         "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.INDEX_COLUMNS "
-            + "WHERE INDEX_NAME = 'PRIMARY_KEY' AND UPPER(TABLE_NAME) = UPPER(@tableName)";
+            + "WHERE INDEX_NAME = 'PRIMARY_KEY' AND UPPER(TABLE_NAME) = UPPER(@tableName) "
+            + "ORDER BY ORDINAL_POSITION";
     return Statement.newBuilder(sql).bind("tableName").to(tableName).build();
   }
 
-  private Set<String> getPrimaryKeys(Connection conn, String tableName, boolean isPostgreSql) {
-    Statement stmt = buildPrimaryKeyQuery(tableName, isPostgreSql);
-    Set<String> primaryKeys = new HashSet<>();
-    try (final ResultSet rs = conn.executeQuery(stmt)) {
-      while (rs.next()) {
-        primaryKeys.add(rs.getString(0));
+  private List<String> getPrimaryKeys(Connection conn, String tableName, boolean isPostgreSql) {
+    List<String> keys = executePrimaryKeyQuery(conn, buildPrimaryKeyQuery(tableName, isPostgreSql));
+    if (isPostgreSql && keys.isEmpty()) {
+      String lowerTableName = tableName.toLowerCase(Locale.ROOT);
+      if (!tableName.equals(lowerTableName)) {
+        keys = executePrimaryKeyQuery(conn, buildPrimaryKeyQuery(lowerTableName, true));
       }
     }
-    return primaryKeys;
+    return keys;
+  }
+
+  private List<String> executePrimaryKeyQuery(Connection conn, Statement stmt) {
+    List<String> keys = new ArrayList<>();
+    try (final ResultSet rs = conn.executeQuery(stmt)) {
+      while (rs.next()) {
+        keys.add(rs.getString(0));
+      }
+    }
+    return keys;
   }
 
   public static StructField getSparkStructField(
@@ -155,6 +175,10 @@ public class SpannerTableSchema {
 
   public Map<String, String> getSpannerTypes() {
     return Collections.unmodifiableMap(spannerTypes);
+  }
+
+  public List<String> getPrimaryKeys() {
+    return primaryKeys;
   }
 
   public static boolean isJson(String spannerStrType) {

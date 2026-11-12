@@ -183,4 +183,27 @@ public class SchemaValidationIntegrationTestBase extends SparkSpannerIntegration
         Exception.class,
         () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
   }
+
+  @Test
+  public void testDeleteMissingCompositePrimaryKeyFails() {
+    // write_composite_pk_table has PRIMARY KEY (pk_part1, pk_part2); omit pk_part2.
+    StructType incompletePkSchema =
+        new StructType(
+            new StructField[] {
+              DataTypes.createStructField("pk_part1", DataTypes.StringType, false)
+            });
+    List<Row> rows = Collections.singletonList(RowFactory.create("edge-1"));
+    Dataset<Row> df = spark.createDataFrame(rows, incompletePkSchema);
+
+    Map<String, String> props = connectionProperties(usePostgreSql);
+    props.put("table", "write_composite_pk_table");
+    props.put("mutationType", "delete");
+
+    Exception e =
+        assertThrows(
+            Exception.class,
+            () -> df.write().format("cloud-spanner").options(props).mode(SaveMode.Append).save());
+    String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+    assertThat(message).contains("pk_part2");
+  }
 }

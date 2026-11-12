@@ -26,18 +26,23 @@ import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.MutationGroup;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.testing.TestingExecutors;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
 import com.google.spanner.v1.BatchWriteResponse;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -483,6 +488,97 @@ public abstract class SpannerDataWriterTestBase {
     // Simulate what happens when CaseInsensitiveStringMap lowercases keys:
     // the key becomes "mutationtype" instead of "mutationType".
     testMutationTypeIsHonored("mutationtype");
+  }
+
+  @Test
+  public void testDeleteMutationTransactionalWritePreservesKeyOrder() throws IOException {
+    properties.put("mutationType", "delete");
+    // Primary key ordinal order is (string_col, long_col), opposite of DataFrame schema order.
+    List<String> primaryKeys = Arrays.asList("string_col", "long_col");
+    try (SpannerDataWriter writer =
+        new SpannerDataWriter(
+            0,
+            0,
+            properties,
+            schema,
+            spannerTypes,
+            primaryKeys,
+            batchClientWithCloser,
+            executor,
+            scheduledExecutor)) {
+      when(mockDatabaseClient.write(any())).thenReturn(null);
+      writer.write(CreateInternalRow(7L));
+      writer.commit();
+    }
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Mutation>> captor = ArgumentCaptor.forClass(List.class);
+    verify(mockDatabaseClient).write(captor.capture());
+    Mutation mutation = Iterables.getOnlyElement(captor.getValue());
+    assertThat(mutation.getOperation()).isEqualTo(Mutation.Op.DELETE);
+    assertThat(mutation.getTable()).isEqualTo("testTable");
+    assertThat(Iterables.getOnlyElement(mutation.getKeySet().getKeys()))
+        .isEqualTo(Key.of("row7", 7L));
+  }
+
+  @Test
+  public void testDeleteMutationIdempotentBatchWrite() throws IOException {
+    properties.put("mutationType", "DELETE");
+    properties.put("assumeIdempotentRows", "true");
+    List<String> primaryKeys = Collections.singletonList("long_col");
+    try (SpannerDataWriter writer =
+        new SpannerDataWriter(
+            0,
+            0,
+            properties,
+            schema,
+            spannerTypes,
+            primaryKeys,
+            batchClientWithCloser,
+            executor,
+            scheduledExecutor)) {
+      when(mockDatabaseClient.batchWriteAtLeastOnce(any())).thenAnswer(i -> mockSuccessStream());
+      writer.write(CreateInternalRow(9L));
+      writer.commit();
+    }
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Iterable<MutationGroup>> captor = ArgumentCaptor.forClass(Iterable.class);
+    verify(mockDatabaseClient, times(1)).batchWriteAtLeastOnce(captor.capture());
+    MutationGroup group = Iterables.getOnlyElement(captor.getValue());
+    Mutation mutation = Iterables.getOnlyElement(group.getMutations());
+    assertThat(mutation.getOperation()).isEqualTo(Mutation.Op.DELETE);
+    assertThat(Iterables.getOnlyElement(mutation.getKeySet().getKeys())).isEqualTo(Key.of(9L));
+  }
+
+  @Test
+  public void testInvalidMutationTypeThrowsException() {
+    properties.put("mutationType", "invalid_op");
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> createWriter(properties));
+    assertThat(e.getMessage()).contains("delete");
+  }
+
+  @Test
+  public void testDeleteMutationMissingPrimaryKeyThrowsException() {
+    properties.put("mutationType", "delete");
+    List<String> primaryKeys = Arrays.asList("long_col", "missing_pk");
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () ->
+                new SpannerDataWriter(
+                    0,
+                    0,
+                    properties,
+                    schema,
+                    spannerTypes,
+                    primaryKeys,
+                    batchClientWithCloser,
+                    executor,
+                    scheduledExecutor));
+    assertThat(e.getErrorCode()).isEqualTo(SpannerErrorCode.SCHEMA_VALIDATION_ERROR);
+    assertThat(e.getMessage()).contains("missing_pk");
   }
 
   protected InternalRow CreateInternalRow(long i) {

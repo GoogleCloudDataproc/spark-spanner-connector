@@ -16,17 +16,21 @@ package com.google.cloud.spark.spanner;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.ArrayType;
@@ -223,6 +227,14 @@ public class SpannerWriterUtils {
       StructType schema,
       Map<String, String> spannerTypes,
       Mutation.Op mode) {
+    if (mode == Mutation.Op.DELETE) {
+      List<String> extractedKeys = extractPrimaryKeysFromSchema(schema);
+      if (extractedKeys.isEmpty()) {
+        throw new UnsupportedOperationException(
+            "Unsupported Spanner write mode: DELETE without primary key metadata");
+      }
+      return internalRowToDeleteMutation(tableName, record, schema, spannerTypes, extractedKeys);
+    }
 
     Mutation.WriteBuilder builder = createBuilder(tableName, mode);
 
@@ -230,13 +242,211 @@ public class SpannerWriterUtils {
       StructField field = schema.fields()[i];
       DataType fieldType = field.dataType();
       String fieldName = field.name();
-      String spannerType = spannerTypes.get(fieldName);
+      String spannerType = lookupSpannerType(spannerTypes, fieldName);
 
       Value spannerValue = convertField(record, i, fieldType, spannerType);
       builder.set(fieldName).to(spannerValue);
     }
 
     return builder.build();
+  }
+
+  public static Mutation internalRowToMutation(
+      String tableName,
+      InternalRow record,
+      StructType schema,
+      Map<String, String> spannerTypes,
+      Mutation.Op mode,
+      List<String> primaryKeys) {
+    if (mode == Mutation.Op.DELETE) {
+      return internalRowToDeleteMutation(tableName, record, schema, spannerTypes, primaryKeys);
+    }
+    return internalRowToMutation(tableName, record, schema, spannerTypes, mode);
+  }
+
+  public static Mutation internalRowToDeleteMutation(
+      String tableName,
+      InternalRow record,
+      StructType schema,
+      Map<String, String> spannerTypes,
+      List<String> primaryKeys) {
+    Key key = internalRowToKey(record, schema, spannerTypes, primaryKeys);
+    return Mutation.delete(tableName, key);
+  }
+
+  static Mutation internalRowToDeleteMutation(
+      String tableName,
+      InternalRow record,
+      StructType schema,
+      int[] pkIndices,
+      String[] pkSpannerTypes) {
+    Key key = internalRowToKey(record, schema, pkIndices, pkSpannerTypes);
+    return Mutation.delete(tableName, key);
+  }
+
+  public static Key internalRowToKey(
+      InternalRow record,
+      StructType schema,
+      Map<String, String> spannerTypes,
+      List<String> primaryKeys) {
+    int[] pkIndices = resolvePrimaryKeyIndices(schema, primaryKeys, null);
+    String[] pkSpannerTypes = resolvePrimaryKeySpannerTypes(schema, spannerTypes, pkIndices);
+    return internalRowToKey(record, schema, pkIndices, pkSpannerTypes);
+  }
+
+  static Key internalRowToKey(
+      InternalRow record, StructType schema, int[] pkIndices, String[] pkSpannerTypes) {
+    Key.Builder keyBuilder = Key.newBuilder();
+    StructField[] fields = schema.fields();
+    for (int i = 0; i < pkIndices.length; i++) {
+      int fieldIndex = pkIndices[i];
+      StructField field = fields[fieldIndex];
+      appendKeyPart(keyBuilder, record, fieldIndex, field.dataType(), pkSpannerTypes[i]);
+    }
+    return keyBuilder.build();
+  }
+
+  static List<String> extractPrimaryKeysFromSchema(StructType schema) {
+    if (schema == null) {
+      return Collections.emptyList();
+    }
+    List<String> keys = new ArrayList<>();
+    for (StructField field : schema.fields()) {
+      if (field.metadata() != null
+          && field.metadata().contains(SpannerUtils.PRIMARY_KEY_TAG)
+          && field.metadata().getBoolean(SpannerUtils.PRIMARY_KEY_TAG)) {
+        keys.add(field.name());
+      }
+    }
+    return keys;
+  }
+
+  static int[] resolvePrimaryKeyIndices(
+      StructType schema, List<String> primaryKeys, @Nullable String tableName) {
+    String targetDesc = (tableName != null) ? " for Spanner table '" + tableName + "'" : "";
+    if (primaryKeys == null || primaryKeys.isEmpty()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+          "No primary key columns specified for DELETE" + targetDesc + ".");
+    }
+
+    Map<String, Integer> fieldIndexByName = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+    StructField[] fields = schema.fields();
+    for (int i = 0; i < fields.length; i++) {
+      Integer existing = fieldIndexByName.put(fields[i].name(), i);
+      if (existing != null) {
+        for (String pk : primaryKeys) {
+          if (pk.equalsIgnoreCase(fields[i].name())) {
+            throw new SpannerConnectorException(
+                SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+                "Duplicate primary key column '"
+                    + fields[i].name()
+                    + "' in DataFrame"
+                    + targetDesc
+                    + ".");
+          }
+        }
+      }
+    }
+
+    int[] indices = new int[primaryKeys.size()];
+    List<String> missingKeys = new ArrayList<>();
+    for (int i = 0; i < primaryKeys.size(); i++) {
+      String pk = primaryKeys.get(i);
+      Integer idx = fieldIndexByName.get(pk);
+      if (idx == null) {
+        missingKeys.add(pk);
+      } else {
+        indices[i] = idx;
+      }
+    }
+
+    if (!missingKeys.isEmpty()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+          "Missing primary key column(s) "
+              + missingKeys
+              + " in DataFrame for DELETE"
+              + targetDesc
+              + ". Required primary key columns: "
+              + primaryKeys
+              + ".");
+    }
+    return indices;
+  }
+
+  static String[] resolvePrimaryKeySpannerTypes(
+      StructType schema, Map<String, String> spannerTypes, int[] pkIndices) {
+    String[] resolved = new String[pkIndices.length];
+    StructField[] fields = schema.fields();
+    for (int i = 0; i < pkIndices.length; i++) {
+      resolved[i] = lookupSpannerType(spannerTypes, fields[pkIndices[i]].name());
+    }
+    return resolved;
+  }
+
+  @Nullable
+  private static String lookupSpannerType(
+      @Nullable Map<String, String> spannerTypes, String fieldName) {
+    if (spannerTypes == null) {
+      return null;
+    }
+    String direct = spannerTypes.get(fieldName);
+    if (direct != null) {
+      return direct;
+    }
+    for (Map.Entry<String, String> entry : spannerTypes.entrySet()) {
+      if (entry.getKey().equalsIgnoreCase(fieldName)) {
+        return entry.getValue();
+      }
+    }
+    return null;
+  }
+
+  private static void appendKeyPart(
+      Key.Builder keyBuilder,
+      InternalRow row,
+      int index,
+      DataType type,
+      @Nullable String spannerType) {
+    Value val = convertField(row, index, type, spannerType);
+    if (val.isNull()) {
+      keyBuilder.appendObject(null);
+      return;
+    }
+    switch (val.getType().getCode()) {
+      case BOOL:
+        keyBuilder.append(val.getBool());
+        break;
+      case INT64:
+        keyBuilder.append(val.getInt64());
+        break;
+      case FLOAT64:
+        keyBuilder.append(val.getFloat64());
+        break;
+      case NUMERIC:
+      case PG_NUMERIC:
+        keyBuilder.append(val.getNumeric());
+        break;
+      case STRING:
+        keyBuilder.append(val.getString());
+        break;
+      case BYTES:
+        keyBuilder.append(val.getBytes());
+        break;
+      case TIMESTAMP:
+        keyBuilder.append(val.getTimestamp());
+        break;
+      case DATE:
+        keyBuilder.append(val.getDate());
+        break;
+      case UUID:
+        keyBuilder.append(val.getUuid());
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported Spanner primary key type: " + val.getType());
+    }
   }
 
   // Helper method to resolve the strategy

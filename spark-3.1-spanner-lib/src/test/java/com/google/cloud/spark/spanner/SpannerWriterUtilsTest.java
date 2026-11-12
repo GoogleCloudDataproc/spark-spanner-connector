@@ -20,13 +20,17 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
+import com.google.common.collect.Iterables;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -531,6 +535,120 @@ public class SpannerWriterUtilsTest {
       Assert.assertThrows(
           IllegalArgumentException.class,
           () -> SpannerWriterUtils.internalRowToMutation(TABLE_NAME, row, schema, spannerTypes));
+    }
+  }
+
+  public static class DeleteTests {
+
+    @Test
+    public void testCompositeKeyReorderedCaseInsensitiveAndIgnoresExtraColumns() {
+      // Spanner PK order is (src_id, dst_id), while DataFrame schema has (payload, DST_ID, src_id).
+      StructType schema =
+          new StructType()
+              .add("payload", DataTypes.StringType)
+              .add("DST_ID", DataTypes.LongType)
+              .add("src_id", DataTypes.StringType);
+
+      InternalRow row = mock(InternalRow.class);
+      when(row.isNullAt(0)).thenReturn(false);
+      when(row.getString(0)).thenReturn("ignored-payload");
+      when(row.isNullAt(1)).thenReturn(false);
+      when(row.getLong(1)).thenReturn(42L);
+      when(row.isNullAt(2)).thenReturn(false);
+      when(row.getUTF8String(2))
+          .thenReturn(UTF8String.fromString("4d2e278e-58ed-40cc-96ec-329c5b8eea6b"));
+
+      Map<String, String> spannerTypes = new HashMap<>();
+      spannerTypes.put("SRC_ID", "UUID");
+      spannerTypes.put("dst_id", "INT64");
+      spannerTypes.put("payload", "STRING(MAX)");
+
+      List<String> primaryKeys = Arrays.asList("src_id", "dst_id");
+
+      Mutation mutation =
+          SpannerWriterUtils.internalRowToMutation(
+              TABLE_NAME, row, schema, spannerTypes, Mutation.Op.DELETE, primaryKeys);
+
+      Assert.assertEquals(Mutation.Op.DELETE, mutation.getOperation());
+      Assert.assertEquals(TABLE_NAME, mutation.getTable());
+      Key actualKey = Iterables.getOnlyElement(mutation.getKeySet().getKeys());
+      Key expectedKey = Key.of(UUID.fromString("4d2e278e-58ed-40cc-96ec-329c5b8eea6b"), 42L);
+      Assert.assertEquals(expectedKey, actualKey);
+    }
+
+    @Test
+    public void testAllScalarKeyTypesAndNullableKeyPart() {
+      byte[] rawBytes = new byte[] {1, 2, 3};
+      StructType schema =
+          new StructType()
+              .add("k_bool", DataTypes.BooleanType)
+              .add("k_double", DataTypes.DoubleType)
+              .add("k_bytes", DataTypes.BinaryType)
+              .add("k_ts", DataTypes.TimestampType)
+              .add("k_date", DataTypes.DateType)
+              .add("k_num", new DecimalType(38, 9))
+              .add("k_null", DataTypes.StringType);
+
+      InternalRow row = mock(InternalRow.class);
+      for (int i = 0; i < 6; i++) {
+        when(row.isNullAt(i)).thenReturn(false);
+      }
+      when(row.isNullAt(6)).thenReturn(true);
+      when(row.getBoolean(0)).thenReturn(true);
+      when(row.getDouble(1)).thenReturn(2.5);
+      when(row.getBinary(2)).thenReturn(rawBytes);
+      when(row.getLong(3)).thenReturn(1704067200000000L);
+      when(row.getInt(4)).thenReturn(19723);
+      when(row.getDecimal(5, 38, 9)).thenReturn(decimal);
+
+      Map<String, String> spannerTypes = new HashMap<>();
+      List<String> primaryKeys =
+          Arrays.asList("k_bool", "k_double", "k_bytes", "k_ts", "k_date", "k_num", "k_null");
+
+      Key actualKey = SpannerWriterUtils.internalRowToKey(row, schema, spannerTypes, primaryKeys);
+      Key expectedKey =
+          Key.newBuilder()
+              .append(true)
+              .append(2.5)
+              .append(ByteArray.copyFrom(rawBytes))
+              .append(Timestamp.ofTimeMicroseconds(1704067200000000L))
+              .append(Date.fromYearMonthDay(2024, 1, 1))
+              .append(jbd)
+              .appendObject(null)
+              .build();
+      Assert.assertEquals(expectedKey, actualKey);
+    }
+
+    @Test
+    public void testDeleteWithoutPrimaryKeysThrows() {
+      StructType schema = new StructType().add("id", DataTypes.LongType);
+      InternalRow row = mock(InternalRow.class);
+      Assert.assertThrows(
+          UnsupportedOperationException.class,
+          () ->
+              SpannerWriterUtils.internalRowToMutation(
+                  TABLE_NAME, row, schema, Collections.emptyMap(), Mutation.Op.DELETE));
+    }
+
+    @Test
+    public void testDeleteUnsupportedArrayPrimaryKeyThrows() {
+      StructType schema =
+          new StructType().add("arr_pk", DataTypes.createArrayType(DataTypes.LongType));
+      InternalRow row = mock(InternalRow.class);
+      ArrayData arrayData = mock(ArrayData.class);
+      when(row.isNullAt(0)).thenReturn(false);
+      when(row.getArray(0)).thenReturn(arrayData);
+      when(arrayData.numElements()).thenReturn(0);
+
+      Assert.assertThrows(
+          UnsupportedOperationException.class,
+          () ->
+              SpannerWriterUtils.internalRowToDeleteMutation(
+                  TABLE_NAME,
+                  row,
+                  schema,
+                  Collections.singletonMap("arr_pk", "ARRAY<INT64>"),
+                  Collections.singletonList("arr_pk")));
     }
   }
 }

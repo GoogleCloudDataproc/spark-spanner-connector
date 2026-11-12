@@ -2,6 +2,9 @@
 
 ## Next
 
+*   Add row-level delete support (`mutationType = "delete"`) with primary-key-only
+    DataFrame validation, ordered composite primary key discovery, and idempotent
+    `BatchWrite` compatibility.
 *   Upgrade gRPC to 1.85.1 (bundles Netty 4.2.17), Guava to 33.7.2-jre and
     OpenTelemetry to 1.67.0 to fix known vulnerabilities.
 *   Relocate the bundled OpenTelemetry (`io.opentelemetry`) and CEL (`dev.cel`)

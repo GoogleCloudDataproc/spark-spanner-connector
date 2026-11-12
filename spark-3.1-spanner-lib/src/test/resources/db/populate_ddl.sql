@@ -223,3 +223,15 @@ CREATE TABLE UUID_CHILD (
                             CHILD_NAME STRING(MAX)
 ) PRIMARY KEY (PARENT_ID, CHILD_ID),
   INTERLEAVE IN PARENT UUID_PARENT ON DELETE CASCADE;
+
+CREATE TABLE write_composite_pk_table (
+  payload STRING(MAX),
+  pk_part2 INT64 NOT NULL,
+  pk_part1 STRING(64) NOT NULL,
+  extra_col INT64
+) PRIMARY KEY (pk_part1, pk_part2);
+
+CREATE TABLE write_uuid_pk_table (
+  id UUID NOT NULL,
+  label STRING(64)
+) PRIMARY KEY (id);

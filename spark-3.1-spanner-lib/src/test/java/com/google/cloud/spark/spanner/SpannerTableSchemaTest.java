@@ -18,8 +18,16 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Value;
+import com.google.cloud.spanner.connection.Connection;
+import java.util.Arrays;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.junit.Test;
@@ -68,6 +76,7 @@ public class SpannerTableSchemaTest {
     String query = stmt.getSql();
     assertThat(query).contains("INDEX_NAME = 'PRIMARY_KEY'");
     assertThat(query).contains("UPPER(TABLE_NAME) = UPPER(@tableName)");
+    assertThat(query).contains("ORDER BY ORDINAL_POSITION");
   }
 
   @Test
@@ -76,6 +85,90 @@ public class SpannerTableSchemaTest {
     String query = stmt.getSql();
     assertThat(query).contains("CONSTRAINT_TYPE = 'PRIMARY KEY'");
     assertThat(query).contains("TABLE_NAME = $1");
+    assertThat(query).contains("ORDER BY kcu.ORDINAL_POSITION");
+    assertEquals(Value.string("MyTable"), stmt.getParameters().get("p1"));
+  }
+
+  @Test
+  public void testSpannerTableSchema_preservesCompositePrimaryKeyOrdinalOrder() {
+    Connection mockConn = mock(Connection.class);
+    ResultSet mockPkRs = mock(ResultSet.class);
+    ResultSet mockColRs = mock(ResultSet.class);
+
+    // Primary key ordinal order is (pk_part1, pk_part2), which differs from table column order.
+    when(mockPkRs.next()).thenReturn(true, true, false);
+    when(mockPkRs.getString(0)).thenReturn("pk_part1", "pk_part2");
+
+    Struct colPayload =
+        Struct.newBuilder()
+            .set("COLUMN_NAME")
+            .to("payload")
+            .set("ISNULLABLE")
+            .to(true)
+            .set("SPANNER_TYPE")
+            .to("STRING(MAX)")
+            .build();
+    Struct colPkPart2 =
+        Struct.newBuilder()
+            .set("COLUMN_NAME")
+            .to("pk_part2")
+            .set("ISNULLABLE")
+            .to(false)
+            .set("SPANNER_TYPE")
+            .to("INT64")
+            .build();
+    Struct colPkPart1 =
+        Struct.newBuilder()
+            .set("COLUMN_NAME")
+            .to("pk_part1")
+            .set("ISNULLABLE")
+            .to(false)
+            .set("SPANNER_TYPE")
+            .to("STRING(64)")
+            .build();
+
+    when(mockColRs.next()).thenReturn(true, true, true, false);
+    when(mockColRs.getCurrentRowAsStruct()).thenReturn(colPayload, colPkPart2, colPkPart1);
+
+    when(mockConn.executeQuery(any(Statement.class))).thenReturn(mockPkRs, mockColRs);
+
+    SpannerTableSchema tableSchema = new SpannerTableSchema(mockConn, "CompositeEdges", false);
+
+    assertEquals(Arrays.asList("pk_part1", "pk_part2"), tableSchema.getPrimaryKeys());
+    assertFalse(
+        tableSchema
+            .getStructFieldForColumn("payload")
+            .metadata()
+            .contains(SpannerUtils.PRIMARY_KEY_TAG));
+    assertTrue(
+        tableSchema
+            .getStructFieldForColumn("pk_part1")
+            .metadata()
+            .getBoolean(SpannerUtils.PRIMARY_KEY_TAG));
+    assertTrue(
+        tableSchema
+            .getStructFieldForColumn("pk_part2")
+            .metadata()
+            .getBoolean(SpannerUtils.PRIMARY_KEY_TAG));
+  }
+
+  @Test
+  public void testSpannerTableSchema_postgreSqlFallsBackToLowercaseTableName() {
+    Connection mockConn = mock(Connection.class);
+    ResultSet mockEmptyPkRs = mock(ResultSet.class);
+    ResultSet mockLowerPkRs = mock(ResultSet.class);
+    ResultSet mockColRs = mock(ResultSet.class);
+
+    when(mockEmptyPkRs.next()).thenReturn(false);
+    when(mockLowerPkRs.next()).thenReturn(true, false);
+    when(mockLowerPkRs.getString(0)).thenReturn("id");
+    when(mockColRs.next()).thenReturn(false);
+
+    when(mockConn.executeQuery(any(Statement.class)))
+        .thenReturn(mockEmptyPkRs, mockLowerPkRs, mockColRs);
+
+    SpannerTableSchema tableSchema = new SpannerTableSchema(mockConn, "MyTable", true);
+    assertEquals(Arrays.asList("id"), tableSchema.getPrimaryKeys());
   }
 
   @Test

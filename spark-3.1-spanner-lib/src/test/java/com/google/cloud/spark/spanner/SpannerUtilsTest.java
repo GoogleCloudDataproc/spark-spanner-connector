@@ -21,6 +21,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -353,5 +355,66 @@ public class SpannerUtilsTest {
     StructType actualSchema = pruneSchema(originalSchema, requiredColumns);
 
     assertArrayEquals(expectedSchema.fields(), actualSchema.fields());
+  }
+
+  @Test
+  public void testValidatePrimaryKeysPresentSuccessCaseInsensitiveAndOutOfOrder() {
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("DST_ID", DataTypes.LongType, false, null),
+              new StructField("Src_Id", DataTypes.StringType, false, null)
+            });
+    List<String> primaryKeys = Arrays.asList("src_id", "dst_id");
+
+    SpannerUtils.validatePrimaryKeysPresent(dfSchema, primaryKeys, TABLE_NAME);
+  }
+
+  @Test
+  public void testValidatePrimaryKeysPresentMissingColumnThrows() {
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {new StructField("src_id", DataTypes.StringType, false, null)});
+    List<String> primaryKeys = Arrays.asList("src_id", "dst_id");
+
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validatePrimaryKeysPresent(dfSchema, primaryKeys, TABLE_NAME));
+    assertEquals(SpannerErrorCode.SCHEMA_VALIDATION_ERROR, e.getErrorCode());
+    assertTrue(e.getMessage().contains("Missing primary key column(s) [dst_id]"));
+  }
+
+  @Test
+  public void testValidatePrimaryKeysPresentDuplicateKeyColumnThrows() {
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("src_id", DataTypes.StringType, false, null),
+              new StructField("SRC_ID", DataTypes.StringType, false, null),
+              new StructField("dst_id", DataTypes.LongType, false, null)
+            });
+    List<String> primaryKeys = Arrays.asList("src_id", "dst_id");
+
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () -> SpannerUtils.validatePrimaryKeysPresent(dfSchema, primaryKeys, TABLE_NAME));
+    assertEquals(SpannerErrorCode.SCHEMA_VALIDATION_ERROR, e.getErrorCode());
+    assertTrue(e.getMessage().contains("Duplicate primary key column"));
+  }
+
+  @Test
+  public void testValidatePrimaryKeysPresentEmptyPrimaryKeysThrows() {
+    StructType dfSchema = createSpannerSchema();
+
+    SpannerConnectorException e =
+        assertThrows(
+            SpannerConnectorException.class,
+            () ->
+                SpannerUtils.validatePrimaryKeysPresent(
+                    dfSchema, Collections.emptyList(), TABLE_NAME));
+    assertEquals(SpannerErrorCode.SCHEMA_VALIDATION_ERROR, e.getErrorCode());
+    assertTrue(e.getMessage().contains("No primary key columns found"));
   }
 }

@@ -49,6 +49,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -677,6 +679,50 @@ public class SpannerUtils {
       throw new SpannerConnectorException(
           SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
           "Partial row updates require enablePartialRowUpdates=true.");
+    }
+  }
+
+  public static void validatePrimaryKeysPresent(
+      StructType dfSchema, List<String> primaryKeys, String tableName) {
+    if (primaryKeys == null || primaryKeys.isEmpty()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+          "No primary key columns found for Spanner table '" + tableName + "'.");
+    }
+
+    Set<String> pkLookup = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    pkLookup.addAll(primaryKeys);
+
+    Set<String> dfColumns = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    for (StructField field : dfSchema.fields()) {
+      if (!dfColumns.add(field.name()) && pkLookup.contains(field.name())) {
+        throw new SpannerConnectorException(
+            SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+            "Duplicate primary key column '"
+                + field.name()
+                + "' in DataFrame for Spanner table '"
+                + tableName
+                + "'.");
+      }
+    }
+
+    List<String> missingKeys = new ArrayList<>();
+    for (String pk : primaryKeys) {
+      if (!dfColumns.contains(pk)) {
+        missingKeys.add(pk);
+      }
+    }
+
+    if (!missingKeys.isEmpty()) {
+      throw new SpannerConnectorException(
+          SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
+          "Missing primary key column(s) "
+              + missingKeys
+              + " in DataFrame for DELETE on Spanner table '"
+              + tableName
+              + "'. Required primary key columns: "
+              + primaryKeys
+              + ".");
     }
   }
 }

@@ -134,3 +134,16 @@ CREATE TABLE schema_test_table (
   name VARCHAR,
   value DOUBLE PRECISION
 );
+
+CREATE TABLE write_composite_pk_table (
+  payload TEXT,
+  pk_part2 BIGINT NOT NULL,
+  pk_part1 VARCHAR(64) NOT NULL,
+  extra_col BIGINT,
+  PRIMARY KEY (pk_part1, pk_part2)
+);
+
+CREATE TABLE write_uuid_pk_table (
+  id UUID PRIMARY KEY,
+  label VARCHAR(64)
+);

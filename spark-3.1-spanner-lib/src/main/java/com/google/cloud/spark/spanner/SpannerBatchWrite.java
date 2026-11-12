@@ -14,6 +14,8 @@
 
 package com.google.cloud.spark.spanner;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.spark.sql.connector.write.BatchWrite;
 import org.apache.spark.sql.connector.write.DataWriterFactory;
@@ -30,20 +32,31 @@ public class SpannerBatchWrite implements BatchWrite {
   private final LogicalWriteInfo info;
   private final CaseInsensitiveStringMap properties;
   private final Map<String, String> spannerTypes;
+  private final List<String> primaryKeys;
 
   public SpannerBatchWrite(
       LogicalWriteInfo info,
       CaseInsensitiveStringMap properties,
       Map<String, String> spannerTypes) {
+    this(info, properties, spannerTypes, Collections.emptyList());
+  }
+
+  public SpannerBatchWrite(
+      LogicalWriteInfo info,
+      CaseInsensitiveStringMap properties,
+      Map<String, String> spannerTypes,
+      List<String> primaryKeys) {
     this.info = info;
     this.properties = properties;
     this.spannerTypes = spannerTypes;
+    this.primaryKeys = primaryKeys != null ? primaryKeys : Collections.emptyList();
     log.info("Creating SpannerBatchWrite for queryId {}", info.queryId());
   }
 
   @Override
   public DataWriterFactory createBatchWriterFactory(PhysicalWriteInfo info) {
-    return new SpannerDataWriterFactory(this.properties, this.info.schema(), this.spannerTypes);
+    return new SpannerDataWriterFactory(
+        this.properties, this.info.schema(), this.spannerTypes, this.primaryKeys);
   }
 
   @Override

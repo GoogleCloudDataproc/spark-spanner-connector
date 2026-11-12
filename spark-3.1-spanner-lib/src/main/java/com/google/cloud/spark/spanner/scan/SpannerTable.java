@@ -15,6 +15,7 @@
 package com.google.cloud.spark.spanner.scan;
 
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.connection.Connection;
@@ -289,8 +290,11 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public StructType schema() {
-    if (this.properties.getOrDefault("enablePartialRowUpdates", "false").equalsIgnoreCase("true")
-        && dfSchema != null) {
+    boolean enablePartialRowUpdates =
+        this.properties.getOrDefault("enablePartialRowUpdates", "false").equalsIgnoreCase("true");
+    boolean isDeleteMutation =
+        "delete".equalsIgnoreCase(this.properties.getOrDefault("mutationType", ""));
+    if ((enablePartialRowUpdates || isDeleteMutation) && dfSchema != null) {
       return this.dfSchema;
     }
     return this.dbSchema.schema;
@@ -322,15 +326,31 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
   @Override
   public WriteBuilder newWriteBuilder(LogicalWriteInfo info) {
+    Map<String, String> mergedProps = new HashMap<>(this.properties.asCaseSensitiveMap());
+    if (info.options() != null) {
+      mergedProps.putAll(info.options().asCaseSensitiveMap());
+    }
+    mergedProps.put("table", this.tableName);
+    CaseInsensitiveStringMap effectiveProps = new CaseInsensitiveStringMap(mergedProps);
+
+    Mutation.Op mutationType =
+        SpannerDataWriter.parseMutationType(effectiveProps.get("mutationType"));
+
     SpannerUtils.validateSchema(info.schema(), this.dbSchema.schema, this.tableName);
 
-    final boolean enablePartialRowUpdates =
-        this.properties.getOrDefault("enablePartialRowUpdates", "false").equalsIgnoreCase("true");
+    if (mutationType == Mutation.Op.DELETE) {
+      SpannerUtils.validatePrimaryKeysPresent(
+          info.schema(), this.dbSchema.getPrimaryKeys(), this.tableName);
+    } else {
+      final boolean enablePartialRowUpdates =
+          effectiveProps.getOrDefault("enablePartialRowUpdates", "false").equalsIgnoreCase("true");
 
-    SpannerUtils.validatePartialRowUpdates(
-        this.dfSchema, this.dbSchema.schema, enablePartialRowUpdates);
+      SpannerUtils.validatePartialRowUpdates(
+          this.dfSchema, this.dbSchema.schema, enablePartialRowUpdates);
+    }
 
-    return new SpannerWriteBuilder(info, this.properties, this.dbSchema.getSpannerTypes());
+    return new SpannerWriteBuilder(
+        info, effectiveProps, this.dbSchema.getSpannerTypes(), this.dbSchema.getPrimaryKeys());
   }
 
   @Override

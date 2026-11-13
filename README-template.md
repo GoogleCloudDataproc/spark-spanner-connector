@@ -647,6 +647,7 @@ Filters containing array column will not be pushed down.
 
 #### Join Pushdown
 
+Join pushdown is supported in `spark-4.1-spanner` and `spark-4.2-spanner` (Spark 4.1+).
 Spanner requires that pushdown joins are on interleaved tables. Attempts to pushdown joins on other tables will result in Spark executing the join.
 Spark currently supports pushdown joins in the Managed Service for Apache Spark Dataproc image 3.0-debian13 or later. Debian12 does not support this.
 Spark requires that the Spark session is configured with `spark.sql.optimizer.datasourceV2JoinPushdown` set to `true` to enable the pushdown join feature.

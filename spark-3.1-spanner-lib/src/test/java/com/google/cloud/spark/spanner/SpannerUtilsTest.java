@@ -119,6 +119,26 @@ public class SpannerUtilsTest {
   }
 
   @Test
+  public void testValidateSchemaIgnoresArrayElementNullability() {
+    StructType spannerSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField(
+                  "long_array", DataTypes.createArrayType(DataTypes.LongType, true), true, null)
+            });
+    StructType dfSchema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, null),
+              new StructField(
+                  "long_array", DataTypes.createArrayType(DataTypes.LongType, false), false, null)
+            });
+
+    SpannerUtils.validateSchema(dfSchema, spannerSchema, TABLE_NAME);
+  }
+
+  @Test
   public void testValidateSchemaNumericScaleMismatch() {
     // Spanner GoogleSQL NUMERIC maps to DecimalType(38, 9)
     StructType spannerSchema =

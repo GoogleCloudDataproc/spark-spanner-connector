@@ -14,9 +14,14 @@
 
 package com.google.cloud.spark.spanner.acceptance;
 
+import static com.google.common.truth.Truth.assertThat;
+
+import com.google.api.gax.longrunning.OperationSnapshot;
+import java.util.Arrays;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -39,5 +44,22 @@ public final class Spark42DataprocServerlessAcceptanceTest
 
   public Spark42DataprocServerlessAcceptanceTest() {
     super("3.0");
+  }
+
+  @Test
+  public void testJoin() throws Exception {
+    context = generateContext("join");
+    OperationSnapshot operationSnapshot =
+        createAndRunPythonBatch(
+            context,
+            testName,
+            "read_test_join_pushdown.py",
+            null,
+            Arrays.asList(
+                context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID));
+    assertThat(operationSnapshot.isDone()).isTrue();
+    assertThat(operationSnapshot.getErrorMessage()).isEmpty();
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).startsWith("PASS");
   }
 }

@@ -649,8 +649,9 @@ public class SpannerUtils {
                 + "'.");
       }
 
-      // 2. Check for data type compatibility.
-      if (!dfField.dataType().equals(spannerField.dataType())) {
+      // 2. Check for data type compatibility (ignoring nested/array element nullability,
+      // as Spark 4.x preserves containsNull=false on non-null array literals).
+      if (!dfField.dataType().sameType(spannerField.dataType())) {
         throw new SpannerConnectorException(
             SpannerErrorCode.SCHEMA_VALIDATION_ERROR,
             "Data type mismatch for column '"

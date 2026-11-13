@@ -27,13 +27,13 @@ case $STEP in
     $MVN_NT toolchains:generate-jdk-toolchains-xml -Dtoolchain.file=toolchains.xml
     cat toolchains.xml
 
-    $MVN install -DskipTests -P3.1,3.2,3.3,3.5,4.0,4.1
+    $MVN install -DskipTests -P3.1,3.2,3.3,3.5,4.0,4.1,4.2
     exit
     ;;
 
   # Run unit tests
   unittest)
-    $MVN test -T 1C -P3.1,3.2,3.3,3.5,4.0,4.1
+    $MVN test -T 1C -P3.1,3.2,3.3,3.5,4.0,4.1,4.2
     ;;
 
 
@@ -50,11 +50,11 @@ case $STEP in
     # Wait for the emulator to start up and listen on port 9010
     timeout 15 bash -c 'until echo > /dev/tcp/localhost/9010; do sleep 0.5; done' 2>/dev/null || sleep 5
 
-    $MVN -P3.1,3.2,3.3,3.5,4.0,4.1,integration clean verify -Dsurefire.skip=true -Dintegration.forkCount=1
+    $MVN -P3.1,3.2,3.3,3.5,4.0,4.1,4.2,integration clean verify -Dsurefire.skip=true -Dintegration.forkCount=1
     ;;
 
   acceptance-test)
-    $MVN -P3.1,3.2,3.3,3.5,4.0,4.1,acceptance failsafe:integration-test failsafe:verify
+    $MVN -P3.1,3.2,3.3,3.5,4.0,4.1,4.2,acceptance failsafe:integration-test failsafe:verify
     ;;
 
   *)

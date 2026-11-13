@@ -2,6 +2,8 @@
 
 ## Next
 
+*   Add Spark 4.2 support.
+
 ## 1.5.1 - 2026-11-12
 
 *   Upgrade gRPC to 1.85.1 (bundles Netty 4.2.17), Guava to 33.7.2-jre and

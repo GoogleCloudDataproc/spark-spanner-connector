@@ -94,6 +94,59 @@ public class PredicateToExprConverterTest {
   }
 
   @Test
+  public void pushDownJoinSupportsAllowedJoinTypesWithDsV2Apis() {
+    StructType schema =
+        new StructType(
+            new StructField[] {
+              new StructField("id", DataTypes.LongType, false, Metadata.empty()),
+              new StructField("name", DataTypes.StringType, true, Metadata.empty())
+            });
+    Map<String, String> spannerTypes = Map.of("id", "INT64", "name", "STRING");
+    CaseInsensitiveStringMap props =
+        new CaseInsensitiveStringMap(Map.of("enablePredicateSql", "true"));
+
+    for (JoinType joinType :
+        new JoinType[] {JoinType.INNER_JOIN, JoinType.LEFT_OUTER_JOIN, JoinType.RIGHT_OUTER_JOIN}) {
+      SpannerTable parentTable = mock(SpannerTable.class);
+      InterleaveTableMetadata parentMeta = mock(InterleaveTableMetadata.class);
+      when(parentMeta.getTableName()).thenReturn("Parent");
+      when(parentMeta.getParentTable()).thenReturn(null);
+      when(parentTable.name()).thenReturn("Parent");
+      when(parentTable.getProjectId()).thenReturn("proj");
+      when(parentTable.getInstanceId()).thenReturn("inst");
+      when(parentTable.getDatabaseId()).thenReturn("db");
+      when(parentTable.schema()).thenReturn(schema);
+      when(parentTable.properties()).thenReturn(props);
+      when(parentTable.getSpannerTypes()).thenReturn(spannerTypes);
+      when(parentTable.getInterleavedTableMetadata()).thenReturn(parentMeta);
+
+      SpannerTable childTable = mock(SpannerTable.class);
+      InterleaveTableMetadata childMeta = mock(InterleaveTableMetadata.class);
+      when(childMeta.getTableName()).thenReturn("Child");
+      when(childMeta.getParentTable()).thenReturn("Parent");
+      when(childTable.name()).thenReturn("Child");
+      when(childTable.getProjectId()).thenReturn("proj");
+      when(childTable.getInstanceId()).thenReturn("inst");
+      when(childTable.getDatabaseId()).thenReturn("db");
+      when(childTable.schema()).thenReturn(schema);
+      when(childTable.properties()).thenReturn(props);
+      when(childTable.getSpannerTypes()).thenReturn(spannerTypes);
+      when(childTable.getInterleavedTableMetadata()).thenReturn(childMeta);
+
+      Spark41SpannerScanBuilder left = new Spark41SpannerScanBuilder(parentTable);
+      Spark41SpannerScanBuilder right = new Spark41SpannerScanBuilder(childTable);
+
+      assertTrue(left.isOtherSideCompatibleForJoin(right));
+
+      ColumnWithAlias[] leftCols = new ColumnWithAlias[] {new ColumnWithAlias("id", "p_id")};
+      ColumnWithAlias[] rightCols = new ColumnWithAlias[] {new ColumnWithAlias("id", "c_id")};
+      Predicate predicate = equal(FieldReference.column("p_id"), FieldReference.column("c_id"));
+
+      assertTrue(left.pushDownJoin(right, joinType, leftCols, rightCols, predicate));
+    }
+  }
+
+  @Test
   public void equalProducesEqExpr() {
 
     Map<String, ColumnResolution> resolutionMap = new HashMap<>();
@@ -102,6 +155,7 @@ public class PredicateToExprConverterTest {
     NamedReference ref = mock(NamedReference.class);
     when(ref.fieldNames()).thenReturn(new String[] {"A"});
 
+    @SuppressWarnings("unchecked")
     Literal<Integer> lit = mock(Literal.class);
     when(lit.value()).thenReturn(1);
 

@@ -16,50 +16,54 @@ package com.google.cloud.spark.spanner.acceptance;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.dataproc.v1.Job;
-import com.google.cloud.dataproc.v1.JobStatus;
-import com.google.common.collect.ImmutableList;
+import com.google.api.gax.longrunning.OperationSnapshot;
 import java.util.Arrays;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/**
+ * The acceptance test on Dataproc Serverless image 4.0 (Spark 4.2). The test has to run on a
+ * project with requireOsLogin disabled, otherwise an org policy violation error will be thrown.
+ */
+// TODO: Enable once Dataproc Serverless image 4.0 is usable in CI.
+@Ignore("Waiting for Dataproc Serverless image 4.0 support in CI")
 @RunWith(JUnit4.class)
-public final class Spark42DataprocImage30AcceptanceTest extends DataprocAcceptanceTestBase {
+public final class Spark42DataprocServerlessImage40AcceptanceTest
+    extends DataprocServerlessAcceptanceTestBase {
 
-  private static AcceptanceTestContext context;
   public static final String CONNECTOR_JAR_DIRECTORY = "../spark-4.2-spanner/target";
 
-  public Spark42DataprocImage30AcceptanceTest() {
-    super(context);
+  public Spark42DataprocServerlessImage40AcceptanceTest() {
+    super("4.0");
   }
 
   @BeforeClass
-  public static void setup() throws Exception {
-    // TODO: Update to the Dataproc image version supporting Spark 4.2 once publicly available.
-    context =
-        DataprocAcceptanceTestBase.setup(
-            "3.0-debian13", CONNECTOR_JAR_DIRECTORY, "spark-4.2-spanner", ImmutableList.of());
+  public static void setUp() throws Exception {
+    setup(CONNECTOR_JAR_DIRECTORY, "spark-4.2-spanner");
   }
 
   @AfterClass
-  public static void tearDown() throws Exception {
-    DataprocAcceptanceTestBase.tearDown(context);
+  public static void cleanUp() throws Exception {
+    teardown();
   }
 
   @Test
   public void testJoin() throws Exception {
-    String testName = "test-join";
-    Job result =
-        createAndRunPythonJob(
+    context = generateContext("join");
+    OperationSnapshot operationSnapshot =
+        createAndRunPythonBatch(
+            context,
             testName,
             "read_test_join_pushdown.py",
             null,
-            Arrays.asList(context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID),
-            300);
-    assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
+            Arrays.asList(
+                context.getResultsDirUri(testName), PROJECT_ID, INSTANCE_ID, DATABASE_ID));
+    assertThat(operationSnapshot.isDone()).isTrue();
+    assertThat(operationSnapshot.getErrorMessage()).isEmpty();
     String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
     assertThat(output.trim()).startsWith("PASS");
   }

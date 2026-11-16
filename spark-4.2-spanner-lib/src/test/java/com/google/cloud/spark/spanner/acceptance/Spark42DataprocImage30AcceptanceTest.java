@@ -22,19 +22,17 @@ import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-@Ignore("Waiting for the Dataproc Spark 4.2 runtime")
 @RunWith(JUnit4.class)
-public final class Spark42DataprocAcceptanceTest extends DataprocAcceptanceTestBase {
+public final class Spark42DataprocImage30AcceptanceTest extends DataprocAcceptanceTestBase {
 
   private static AcceptanceTestContext context;
   public static final String CONNECTOR_JAR_DIRECTORY = "../spark-4.2-spanner/target";
 
-  public Spark42DataprocAcceptanceTest() {
+  public Spark42DataprocImage30AcceptanceTest() {
     super(context);
   }
 

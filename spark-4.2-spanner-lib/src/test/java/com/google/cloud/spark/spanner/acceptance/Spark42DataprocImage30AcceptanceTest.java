@@ -38,6 +38,7 @@ public final class Spark42DataprocImage30AcceptanceTest extends DataprocAcceptan
 
   @BeforeClass
   public static void setup() throws Exception {
+    // TODO: Update to the Dataproc image version supporting Spark 4.2 once publicly available.
     context =
         DataprocAcceptanceTestBase.setup(
             "3.0-debian13", CONNECTOR_JAR_DIRECTORY, "spark-4.2-spanner", ImmutableList.of());

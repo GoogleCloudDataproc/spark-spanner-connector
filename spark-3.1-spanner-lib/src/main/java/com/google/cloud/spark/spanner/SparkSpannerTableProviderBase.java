@@ -87,11 +87,13 @@ public abstract class SparkSpannerTableProviderBase implements DataSourceRegiste
 
   /*
    * Implements DataSourceRegister.shortName(). This method allows Spark to match
-   * the DataSource when spark.read(...).format("spanner") is invoked.
+   * the DataSource when spark.read(...).format("cloud-spanner") is invoked. See
+   * SpannerShortName for how this avoids conflicts when several connector jars are on the
+   * classpath.
    */
   @Override
   public String shortName() {
-    return "cloud-spanner";
+    return SpannerShortName.forProvider(getClass());
   }
 
   private Table getTable(Map<String, String> properties) {

@@ -1,0 +1,27 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.google.cloud.spark.spanner;
+
+/**
+ * Spanner DataSource V2 {@code TableProvider} for Spark 4.2.
+ *
+ * <p>Intentionally reuses {@link Spark41SpannerTableProvider} (along with {@code
+ * Spark41SpannerTable} and {@code Spark41SpannerScanBuilder}) because the Spark 4.2 DataSource V2
+ * API additions over Spark 4.1—such as {@code Table} extending {@code Relation}, {@code
+ * SupportsPushDownV2Filters.supportsIterativePushdown()}, and new default methods on {@code
+ * TableCatalog}—are source- and binary-compatible defaults. Note that runtime logs on Spark 4.2
+ * will consequently still report {@code Creating Spark41SpannerTable}.
+ */
+public class Spark42SpannerTableProvider extends Spark41SpannerTableProvider {}

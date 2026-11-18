@@ -149,6 +149,9 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
       case "DATE":
         return DataTypes.DateType;
 
+      case "FLOAT32":
+        return DataTypes.FloatType;
+
       case "FLOAT64":
         return DataTypes.DoubleType;
 
@@ -211,6 +214,12 @@ public class SpannerTable implements Table, SupportsRead, SupportsWrite {
 
       case "date":
         return DataTypes.DateType;
+
+      case "float4":
+        return DataTypes.FloatType;
+
+      case "real":
+        return DataTypes.FloatType;
 
       case "float8":
         return DataTypes.DoubleType;

@@ -69,6 +69,11 @@ public class SpannerWriterUtils {
         DataTypes.DoubleType,
         (row, i, type) -> row.isNullAt(i) ? Value.float64(null) : Value.float64(row.getDouble(i)));
 
+    // Float
+    TYPE_CONVERTERS.put(
+        DataTypes.FloatType,
+        (row, i, type) -> row.isNullAt(i) ? Value.float32(null) : Value.float32(row.getFloat(i)));
+
     // Binary
     TYPE_CONVERTERS.put(
         DataTypes.BinaryType,
@@ -125,6 +130,11 @@ public class SpannerWriterUtils {
         (row, i, type) -> {
           return arrayConverter(row, i, ArrayData::getDouble, Value::float64Array);
         });
+
+    // Float
+    ARRAY_TYPE_CONVERTERS.put(
+        DataTypes.FloatType,
+        (row, i, type) -> arrayConverter(row, i, ArrayData::getFloat, Value::float32Array));
 
     // Binary
     ARRAY_TYPE_CONVERTERS.put(

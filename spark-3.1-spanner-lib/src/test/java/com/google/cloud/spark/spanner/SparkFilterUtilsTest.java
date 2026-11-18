@@ -491,6 +491,80 @@ public class SparkFilterUtilsTest {
   }
 
   @Test
+  public void testFloatFilters() {
+    RenderResult equalTo =
+        SparkFilterUtils.compileFilter(EqualTo.apply("f", 0.1f), isPostgreSql, EMPTY_FIELDS, null);
+    RenderResult equalNullSafe =
+        SparkFilterUtils.compileFilter(
+            EqualNullSafe.apply("f", 0.1f), isPostgreSql, EMPTY_FIELDS, null);
+    RenderResult greaterThan =
+        SparkFilterUtils.compileFilter(
+            GreaterThan.apply("f", -1.5f), isPostgreSql, EMPTY_FIELDS, null);
+    RenderResult in =
+        SparkFilterUtils.compileFilter(
+            In.apply(
+                "f",
+                new Object[] {
+                  Float.NaN,
+                  Float.POSITIVE_INFINITY,
+                  Float.NEGATIVE_INFINITY,
+                  Float.MAX_VALUE,
+                  Float.MIN_VALUE
+                }),
+            isPostgreSql,
+            EMPTY_FIELDS,
+            null);
+
+    assertThat(equalTo.getSql()).isEqualTo(parseQuotedSplitter("{0}f{0} = " + param(1)));
+    assertThat(toStatement(equalTo).getParameters().get("p1")).isEqualTo(Value.float32(0.1f));
+
+    assertThat(equalNullSafe.getSql())
+        .isEqualTo(
+            parseQuotedSplitter(
+                "(({0}f{0} IS NULL AND "
+                    + param(1)
+                    + " IS NULL) OR ({0}f{0} IS NOT NULL AND "
+                    + param(1)
+                    + " IS NOT NULL AND {0}f{0} = "
+                    + param(1)
+                    + "))"));
+    assertThat(toStatement(equalNullSafe).getParameters().get("p1")).isEqualTo(Value.float32(0.1f));
+
+    assertThat(greaterThan.getSql()).isEqualTo(parseQuotedSplitter("{0}f{0} > " + param(1)));
+    assertThat(toStatement(greaterThan).getParameters().get("p1")).isEqualTo(Value.float32(-1.5f));
+
+    assertThat(in.getSql())
+        .isEqualTo(
+            parseQuotedSplitter(
+                "{0}f{0} IN ("
+                    + param(1)
+                    + ", "
+                    + param(2)
+                    + ", "
+                    + param(3)
+                    + ", "
+                    + param(4)
+                    + ", "
+                    + param(5)
+                    + ")"));
+    Statement inStmt = toStatement(in);
+    assertThat(inStmt.getParameters().get("p1")).isEqualTo(Value.float32(Float.NaN));
+    assertThat(inStmt.getParameters().get("p2")).isEqualTo(Value.float32(Float.POSITIVE_INFINITY));
+    assertThat(inStmt.getParameters().get("p3")).isEqualTo(Value.float32(Float.NEGATIVE_INFINITY));
+    assertThat(inStmt.getParameters().get("p4")).isEqualTo(Value.float32(Float.MAX_VALUE));
+    assertThat(inStmt.getParameters().get("p5")).isEqualTo(Value.float32(Float.MIN_VALUE));
+  }
+
+  @Test
+  public void testDoubleFilters() {
+    RenderResult equalTo =
+        SparkFilterUtils.compileFilter(EqualTo.apply("d", 0.1d), isPostgreSql, EMPTY_FIELDS, null);
+
+    assertThat(equalTo.getSql()).isEqualTo(parseQuotedSplitter("{0}d{0} = " + param(1)));
+    assertThat(toStatement(equalTo).getParameters().get("p1")).isEqualTo(Value.float64(0.1d));
+  }
+
+  @Test
   public void testDateFilters_java8Time() {
     RenderResult result =
         SparkFilterUtils.compileFilter(

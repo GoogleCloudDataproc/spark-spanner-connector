@@ -51,13 +51,6 @@ public abstract class SpannerTableIntegrationTestBase extends SpannerTestBase {
 
   @Test
   public void queryPgSchemaShouldSucceedInSpannerTable() {
-    if (emulatorHost != null && !emulatorHost.isEmpty()) {
-      // Spanner emulator doesn't support the PostgreSql dialect interface.
-      // If the emulator is set. We return immediately here.
-      logger.info(
-          "queryPgSchemaShouldSuccessInSpannerTable is skipped since pg is not supported in Spanner emulator");
-      return;
-    }
     Map<String, String> props = this.connectionProperties(/* usePostgreSql= */ true);
     SpannerTable spannerTable = new SpannerTable(props);
     StructType actualSchema = spannerTable.schema();
@@ -84,7 +77,8 @@ public abstract class SpannerTableIntegrationTestBase extends SpannerTestBase {
                     new StructField("timewithzonecol", DataTypes.TimestampType, true, null),
                     new StructField("timestampcol", DataTypes.TimestampType, true, null),
                     new StructField("jsoncol", DataTypes.StringType, true, jsonMetaBuilder.build()),
-                    new StructField("uuidcol", DataTypes.StringType, true, null))
+                    new StructField("uuidcol", DataTypes.StringType, true, null),
+                    new StructField("realcol", DataTypes.FloatType, true, null))
                 .toArray(new StructField[0]));
 
     // Object.equals fails for StructType with fields so we'll

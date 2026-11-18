@@ -1,5 +1,7 @@
 # Release Notes
 
+## Next
+
 ## 1.6.0 - 2026-11-18
 
 *   Add Spark 4.2 support (`spark-4.2-spanner`, Scala 2.13, Java 17).
